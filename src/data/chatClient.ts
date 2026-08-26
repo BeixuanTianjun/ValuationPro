@@ -27,6 +27,19 @@ export interface ChatAnswer {
 
 const API = '/api/chat';
 
+/**
+ * Whether the local service answered the last time anything asked.
+ *
+ * On a static deploy there is no service, and every chat question would
+ * otherwise burn a round-trip on a request that is certain to 404 before
+ * falling back. Once a probe has established the service is absent, the
+ * browser engine answers immediately. `fetchServiceStatus` keeps this fresh,
+ * so a service that comes up later is picked up on the next poll.
+ */
+let serviceAvailable: boolean | null = null;
+
+export const isServiceKnownDown = () => serviceAvailable === false;
+
 function answerInBrowser(
   message: string,
   db: MarketDatabase,
@@ -61,6 +74,8 @@ export async function askEmitenChat(
   factors: Map<string, FactorSnapshot> | null,
   fundamentals: FundamentalsDatabase | null
 ): Promise<ChatAnswer> {
+  if (serviceAvailable === false) return answerInBrowser(message, db, factors, fundamentals);
+
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45_000);
@@ -71,7 +86,11 @@ export async function askEmitenChat(
       signal: controller.signal,
     });
     clearTimeout(timer);
-    if (res.ok) return (await res.json()) as ChatAnswer;
+    if (res.ok) {
+      serviceAvailable = true;
+      return (await res.json()) as ChatAnswer;
+    }
+    if (res.status === 404) serviceAvailable = false;
   } catch {
     /* service not running — fall through */
   }
@@ -105,9 +124,14 @@ export async function fetchServiceStatus(): Promise<ServiceStatus | null> {
       credentials: 'include',
     });
     clearTimeout(timer);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      serviceAvailable = false;
+      return null;
+    }
+    serviceAvailable = true;
     return (await res.json()) as ServiceStatus;
   } catch {
+    serviceAvailable = false;
     return null;
   }
 }
