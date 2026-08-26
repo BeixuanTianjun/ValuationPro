@@ -1,49 +1,46 @@
-# ValuationPro: LBO & DCF Institutional Financial Modeling Platform
+# ValuationPro
 
-Platform pemodelan finansial komprehensif untuk analisis **Discounted Cash Flow (DCF)** dan **Leveraged Buyout (LBO)**, dilengkapi dengan visualisasi interaktif, 2D Sensitivity Matrix heatmaps, studi kasus preset (Tech SaaS, Manufacturing, Healthcare), dan **Export ke Microsoft Excel (.xlsx)** berstandar Wall Street / Private Equity dengan formula aktif dan cell color-coding.
+Terminal pasar modal Indonesia — basis data seluruh emiten IDX, penyaring alpha
+harian, alat analitik ala Bloomberg, dan model DCF/LBO institusional.
 
----
+**Live:** https://valuation-pro-lake.vercel.app
 
-## Fitur Utama
+## Isi
 
-### 1. DCF Valuation Module
-- **WACC Engine**: Perhitungan Cost of Equity (CAPM), After-Tax Cost of Debt, Capital Structure Weighting, serta opsi manual override.
-- **Unlevered Free Cash Flow (UFCF) Schedule**: Proyeksi Revenue $\to$ EBITDA $\to$ EBIT $\to$ NOPAT $\to$ +D&A $\to$ -CapEx $\to$ -ΔNWC $\to$ UFCF dengan diskonto Mid-Year convention.
-- **Dual Terminal Value Method**:
-  - **Gordon Growth Model** ($TV = \frac{UFCF_{n+1}}{WACC - g}$)
-  - **Exit Multiple Method** ($TV = EBITDA_n \times \text{Multiple}$)
-- **Valuation Bridge**: Implied Enterprise Value $\to$ Net Debt Adjustments $\to$ Implied Equity Value $\to$ Target Share Price vs Current Market Price (Upside/Downside %).
-- **2D Sensitivity Matrix & Visual Charts**: Heatmap WACC vs Terminal Growth ($g$) dan WACC vs Exit Multiple.
+- **962 emiten tercatat** dengan sektor IDX-IC, sub-industri, likuiditas, dan
+  arus dana asing — ditarik langsung dari API IDX, bukan agregator.
+- **Stock pick harian** dengan enam profil strategi, lengkap dengan rencana
+  perdagangan berbasis ATR yang dibulatkan ke fraksi harga IDX.
+- **Leaders & Laggards** — kontribusi poin indeks per emiten, dihitung dari
+  bobot free-float resmi IDX. Rekonsiliasi dengan IHSG sampai 0,001 poin.
+- **Rotasi konglomerasi** yang mengukur apakah anggota satu grup memang bergerak
+  bersama sebelum menyebut sesuatu sebagai rotasi.
+- **Valuasi otomatis** — DCF dijalankan atas seluruh emiten berlaporan keuangan,
+  bank dan asuransi dikecualikan karena UFCF tidak menggambarkan mereka.
+- **Broker flow** — struktur ritel versus institusi dari ukuran tiket rata-rata.
+- **Chatbot pencari emiten** berbahasa Indonesia; berfungsi penuh tanpa API key.
+- **Model DCF & LBO** dengan pemeriksaan asumsi yang ditampilkan terbuka.
 
-### 2. LBO Transaction & Returns Module
-- **Sources & Uses of Funds**: Senior Secured Debt (Tranche A), Subordinated/Mezzanine Debt (Tranche B), Advisory Fees, Financing Fees, Sponsor Equity (Plug) dengan verifikasi otomatis Balance.
-- **Debt Paydown Schedule (Waterfall)**: Proyeksi operasional, beban bunga berjenjang per tranche, amortisasi wajib, excess cash sweep untuk pelunasan hutang senior lebih cepat, serta pelacakan rasio Leverage (Net Debt / EBITDA) & Coverage (EBITDA / Interest).
-- **Sponsor Returns Engine**:
-  - **Sponsor IRR (% per annum)** via Newton-Raphson numerical solver
-  - **Multiple on Invested Capital (MoIC / Cash-on-Cash)**
-  - **Returns Attribution**: Dekomposisi kontribusi nilai dari EBITDA Growth, Multiple Expansion, dan Debt Paydown.
-- **Returns Sensitivity Matrix**: Entry Multiple vs Exit Multiple (IRR & MoIC), serta Leverage vs Exit Multiple.
+## Mulai
 
-### 3. Wall Street-Standard Excel Export (.xlsx)
-- Export multi-sheet workbook (`DCF Model`, `LBO Model`) dengan format profesional Investment Banking:
-  - Header Biru Navy (`#1B365D`) dengan teks tebal putih
-  - Font Biru (`#002060`) untuk input & asumsi
-  - Font Hitam (`#000000`) untuk formula kalkulasi
-  - Format angka standar: Currency `$#,##0.0`, Persentase `0.0%`, Multiples `0.0x`
-  - Seluruh formula spreadsheet aktif dan dapat diedit langsung di Microsoft Excel.
+```bash
+npm install
+npm run data:all     # bangun database IDX, sekali saja
+npm run auto         # layanan + aplikasi di http://localhost:8787
+```
 
----
+## Dokumentasi
 
-## Cara Menjalankan Aplikasi
+| Berkas | Isi |
+|---|---|
+| [SETUP.md](SETUP.md) | Menjalankan, jadwal otomatis, alert email, akun |
+| [DEPLOY.md](DEPLOY.md) | Deploy Vercel + GitHub Actions, dan batasannya |
+| [DATA_PIPELINE.md](DATA_PIPELINE.md) | Sumber data dan catatan teknis penting |
+| [HANDOVER.md](HANDOVER.md) | Konteks lengkap untuk melanjutkan di sesi baru |
 
-1. Buka terminal di folder project:
-   ```bash
-   cd "C:\Users\MIchael ROG\.gemini\antigravity\scratch\financial-modeling-lbo-dcf"
-   ```
+## Prinsip
 
-2. Jalankan development server:
-   ```bash
-   npm run dev
-   ```
+Setiap angka bisa ditelusuri ke endpoint sumbernya. Ketika data tidak memadai,
+aplikasi mengatakannya di layar alih-alih menutupinya.
 
-3. Buka browser di URL yang muncul di terminal (biasanya `http://localhost:5173`).
+**Ini alat riset, bukan rekomendasi investasi.**
