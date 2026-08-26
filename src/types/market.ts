@@ -144,6 +144,8 @@ export interface IntradayFile {
   source: string;
   /** Reminder that IDX publishes foreign buy/sell only end-of-day. */
   foreignFlowAsOf: string;
+  /** True when quoted on request rather than read from a committed snapshot. */
+  onDemand?: boolean;
   quotes: Record<string, IntradayQuote>;
   /** Only COMPOSITE and LQ45 are quoted live anywhere; sector indices are not. */
   indices?: Record<string, { close: number; prevClose: number | null; changePercent: number | null }>;

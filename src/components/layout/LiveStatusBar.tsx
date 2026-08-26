@@ -104,8 +104,11 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
   };
 
   const live = db?.live;
-  const phase = status?.now.phase || live?.sessionPhase || '';
-  const intradayAge = status?.files['intraday.json']?.ageMinutes ?? -1;
+  const phase = status?.now?.phase || live?.sessionPhase || '';
+  const intradayAge = status?.files?.['intraday.json']?.ageMinutes ?? -1;
+  // A signed-out caller gets only { accountsExist, locked }, so every detail
+  // below has to tolerate its absence.
+  const detail = status && !status.locked ? status : null;
 
   return (
     <div className="bg-slate-900/60 border-b border-slate-800/80 px-6 py-2.5">
@@ -144,25 +147,25 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
           </span>
         )}
 
-        {status && (
+        {detail?.next && (
           <span className="flex items-center gap-1.5 text-slate-500">
             <Clock className="w-3 h-3" aria-hidden="true" />
-            {status.next.label} · {status.next.atWib} WIB
+            {detail.next.label} · {detail.next.atWib} WIB
           </span>
         )}
 
-        {status && !status.locked && (
+        {detail?.alerts && (
           <span className="flex items-center gap-1.5 text-slate-500">
             <Mail className="w-3 h-3" aria-hidden="true" />
-            {status.alerts.configured ? (
+            {detail.alerts.configured ? (
               <span className="text-emerald-400/90">
-                Alert → {status.alerts.to.join(', ')}
-                {status.alerts.recipientSource && (
-                  <span className="text-slate-600"> ({status.alerts.recipientSource})</span>
+                Alert → {detail.alerts.to.join(', ')}
+                {detail.alerts.recipientSource && (
+                  <span className="text-slate-600"> ({detail.alerts.recipientSource})</span>
                 )}
               </span>
             ) : (
-              <span title={status.alerts.note || ''}>Alert email belum diatur</span>
+              <span title={detail.alerts.note || ''}>Alert email belum diatur</span>
             )}
           </span>
         )}
@@ -193,10 +196,9 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
               Layanan otomatis mati
             </span>
           ) : (
-            status &&
-            !status.locked && (
+            detail && (
               <>
-                {status.alerts.configured && (
+                {detail.alerts?.configured && (
                   <button
                     onClick={() => void handleTestAlert()}
                     disabled={testing}
@@ -209,11 +211,11 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
                 )}
                 <button
                   onClick={() => void handleRefresh()}
-                  disabled={refreshing || status.running}
+                  disabled={refreshing || !!detail.running}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-300 font-semibold transition-colors cursor-pointer"
                 >
-                  <RefreshCw className={`w-3 h-3 ${refreshing || status.running ? 'animate-spin' : ''}`} aria-hidden="true" />
-                  {refreshing || status.running ? 'Memperbarui…' : 'Perbarui sekarang'}
+                  <RefreshCw className={`w-3 h-3 ${refreshing || detail.running ? 'animate-spin' : ''}`} aria-hidden="true" />
+                  {refreshing || detail.running ? 'Memperbarui…' : 'Perbarui sekarang'}
                 </button>
               </>
             )

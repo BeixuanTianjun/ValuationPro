@@ -97,15 +97,21 @@ export async function askEmitenChat(
   return answerInBrowser(message, db, factors, fundamentals);
 }
 
+/**
+ * Every detail field is optional because a signed-out caller gets a deliberately
+ * stripped response — `{ accountsExist, locked }` and nothing more. Typing them
+ * as required is what let `status.now.phase` reach a `now` that was not there
+ * and take the whole page down.
+ */
 export interface ServiceStatus {
-  now: { date: string; weekday: string; hour: number; minute: number; phase: string };
-  next: { label: string; atWib: string };
-  strategy: string;
-  running: boolean;
-  files: Record<string, { exists: boolean; ageMinutes: number; modified: string | null }>;
-  alerts: { configured: boolean; to: string[]; recipientSource?: string; note: string | null };
-  chat: { claudeEnabled: boolean };
-  history: { at: string; job: string; reason: string; ok: boolean; detail: string }[];
+  now?: { date: string; weekday: string; hour: number; minute: number; phase: string };
+  next?: { label: string; atWib: string };
+  strategy?: string;
+  running?: boolean;
+  files?: Record<string, { exists: boolean; ageMinutes: number; modified: string | null }>;
+  alerts?: { configured: boolean; to: string[]; recipientSource?: string; note: string | null };
+  chat?: { claudeEnabled: boolean };
+  history?: { at: string; job: string; reason: string; ok: boolean; detail: string }[];
   viewer?: { email: string; name: string; role: string } | null;
   admin?: { email: string; name: string } | null;
   accountsExist?: boolean;

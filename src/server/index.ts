@@ -298,7 +298,16 @@ async function handleStatus(res: ServerResponse, viewer: PublicUser | null) {
  * without one so the UI can tell whether anyone has signed up yet and render
  * the right dialog — it returns a stripped shape to anonymous callers.
  */
-const OPEN_ROUTES = new Set(['/api/auth/signup', '/api/auth/login', '/api/auth/logout', '/api/auth/me']);
+const OPEN_ROUTES = new Set([
+  '/api/auth/signup',
+  '/api/auth/login',
+  '/api/auth/logout',
+  '/api/auth/me',
+  // Prices are the same public market data served statically under /data, so
+  // gating them behind a session would protect nothing and break the terminal
+  // for a signed-out visitor.
+  '/api/live',
+]);
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://localhost:${PORT}`);
@@ -358,6 +367,40 @@ const server = createServer(async (req, res) => {
       url.pathname !== '/api/status'
     ) {
       return json(res, 401, { error: 'Silakan masuk terlebih dahulu.' });
+    }
+
+    // Parity with the Vercel serverless endpoint: the deployed app quotes on
+    // request, so the local one should too rather than always reading the
+    // snapshot the scheduler last wrote. Refreshed at most once a minute so a
+    // page reload does not re-quote 962 emiten every time.
+    if (url.pathname === '/api/live') {
+      const file = join(DATA_DIR, 'intraday.json');
+      let ageMs = Infinity;
+      try {
+        ageMs = Date.now() - (await stat(file)).mtimeMs;
+      } catch {
+        /* not built yet */
+      }
+
+      if (ageMs > 60_000 && !running) {
+        running = true;
+        try {
+          await runScript('ingest-intraday.mjs', ['--quiet']);
+        } catch {
+          /* keep whatever is on disk */
+        } finally {
+          running = false;
+        }
+      }
+
+      try {
+        const payload = JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>;
+        payload.onDemand = true;
+        payload.source = 'Layanan lokal -> Yahoo Finance (live, ~10 menit delay)';
+        return json(res, 200, payload);
+      } catch {
+        return json(res, 503, { error: 'intraday.json belum ada — jalankan npm run data:intraday' });
+      }
     }
 
     if (url.pathname === '/api/status') {

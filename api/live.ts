@@ -205,6 +205,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       covered,
       attempted: codes.length,
       source: 'Vercel serverless -> Yahoo Finance (live, ~10 menit delay)',
+      onDemand: true,
       foreignFlowAsOf: 'IDX end-of-day only — not available intraday',
       elapsedMs: Date.now() - started,
       quotes,

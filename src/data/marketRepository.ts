@@ -239,7 +239,7 @@ export function assembleMarketDatabase(files: RawFiles): MarketDatabase {
       appendedNewSession: appendNew,
       foreignFlowAsOf: meta.latestSession,
       // Quoted on request, versus read from the last committed snapshot.
-      onDemand: (intraday.source || '').includes('serverless'),
+      onDemand: intraday.onDemand === true,
     };
   }
 
