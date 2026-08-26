@@ -1,0 +1,47 @@
+{
+  "name": "financial-modeling-lbo-dcf",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "data:refresh": "node scripts/ingest-idx.mjs --days 430",
+    "data:quotes": "node scripts/ingest-quotes.mjs",
+    "data:fundamentals": "node scripts/ingest-fundamentals.mjs --concurrency 3",
+    "data:all": "npm run data:refresh && npm run data:quotes && npm run data:fundamentals && npm run data:brokers",
+    "data:intraday": "node scripts/ingest-intraday.mjs",
+    "build:server": "esbuild src/server/index.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/server.mjs --log-level=warning",
+    "auto": "npm run build:server && node .cache/server.mjs",
+    "test": "esbuild src/models/__tests__/dcfEngine.test.ts --bundle --platform=node --format=esm --outfile=.cache/dcf.test.mjs --log-level=warning && node .cache/dcf.test.mjs && esbuild src/models/__tests__/indexAttribution.test.ts --bundle --platform=node --format=esm --packages=external --outfile=.cache/attr.test.mjs --log-level=warning && node .cache/attr.test.mjs",
+    "data:brokers": "node scripts/ingest-brokers.mjs --days 180",
+    "alert:send": "esbuild src/server/alertCli.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/alert.mjs --log-level=warning && node .cache/alert.mjs",
+    "alert:preview": "esbuild src/server/alertCli.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/alert.mjs --log-level=warning && node .cache/alert.mjs --dry-run"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "file-saver": "^2.0.5",
+    "lucide-react": "^0.475.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.1",
+    "tailwind-merge": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/file-saver": "^2.0.7",
+    "@types/node": "^26.3.0",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "nodemailer": "^9.0.5",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0"
+  }
+}

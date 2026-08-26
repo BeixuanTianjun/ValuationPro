@@ -1,0 +1,127 @@
+name: Refresh data IDX & kirim alert
+
+# Vercel serves static files and cannot run a scheduler, shell out to curl, or
+# write to disk. This workflow does that work instead: it refreshes the bundled
+# market data, commits it back, and sends the stock-pick digest. Pushing the
+# updated data triggers a Vercel redeploy, so the deployed terminal follows.
+#
+# All cron times are UTC. WIB is UTC+7.
+#   05:05 UTC = 12:05 WIB  Sesi I closes  -> refresh + alert
+#   09:20 UTC = 16:20 WIB  market closes  -> refresh + alert
+#   11:30 UTC = 18:30 WIB  IDX end-of-day -> official OHLC + foreign flow
+#   Sat 01:00 UTC = 08:00 WIB             -> fundamentals, ratios, brokers
+#
+# GitHub's scheduler is best-effort and can run several minutes late under load.
+# For a post-session digest that is fine; do not rely on it for anything that
+# must fire at an exact second.
+
+on:
+  schedule:
+    - cron: '5 5 * * 1-5'
+    - cron: '20 9 * * 1-5'
+    - cron: '30 11 * * 1-5'
+    - cron: '0 1 * * 6'
+  workflow_dispatch:
+    inputs:
+      send_alert:
+        description: 'Kirim email digest setelah refresh'
+        type: boolean
+        default: false
+      full_refresh:
+        description: 'Tarik ulang fundamental, rasio valuasi, dan broker'
+        type: boolean
+        default: false
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tentukan pekerjaan dari jadwal
+        id: plan
+        run: |
+          CRON="${{ github.event.schedule }}"
+          ALERT=false; EOD=false; WEEKLY=false; TRIGGER="Manual"
+          case "$CRON" in
+            "5 5 * * 1-5")   ALERT=true;  TRIGGER="Sesi I selesai" ;;
+            "20 9 * * 1-5")  ALERT=true;  TRIGGER="Pasar tutup" ;;
+            "30 11 * * 1-5") EOD=true ;;
+            "0 1 * * 6")     WEEKLY=true; EOD=true ;;
+          esac
+          if [ "${{ inputs.send_alert }}" = "true" ]; then ALERT=true; fi
+          if [ "${{ inputs.full_refresh }}" = "true" ]; then WEEKLY=true; EOD=true; fi
+          {
+            echo "alert=$ALERT"
+            echo "eod=$EOD"
+            echo "weekly=$WEEKLY"
+            echo "trigger=$TRIGGER"
+          } >> "$GITHUB_OUTPUT"
+
+      # Yahoo quotes every listed emiten plus IHSG and LQ45. This is the tier
+      # that must succeed for the deployed app to look current.
+      - name: Harga live
+        run: npm run data:intraday
+
+      # IDX sits behind Cloudflare and may treat a datacenter IP differently
+      # from a home connection. Failing here must not block the price refresh
+      # that already succeeded, so this step is allowed to fail and is reported.
+      - name: Data resmi IDX (OHLC, indeks, arus asing)
+        if: steps.plan.outputs.eod == 'true'
+        continue-on-error: true
+        run: npm run data:refresh
+
+      - name: Fundamental, rasio valuasi, broker
+        if: steps.plan.outputs.weekly == 'true'
+        continue-on-error: true
+        run: |
+          npm run data:quotes
+          npm run data:fundamentals
+          npm run data:brokers
+
+      - name: Uji ulang mesin valuasi terhadap data baru
+        run: npm test
+
+      - name: Commit data yang berubah
+        run: |
+          git config user.name  "valuationpro-bot"
+          git config user.email "actions@github.com"
+          git add public/data/idx
+          if git diff --staged --quiet; then
+            echo "Tidak ada perubahan data."
+          else
+            git commit -m "data: refresh IDX $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
+
+      - name: Kirim digest stock pick
+        if: steps.plan.outputs.alert == 'true'
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          ALERT_STRATEGY: ${{ vars.ALERT_STRATEGY }}
+        run: |
+          npx esbuild src/server/alertCli.ts \
+            --bundle --platform=node --format=esm --target=node20 \
+            --packages=external --outfile=.cache/alert.mjs --log-level=warning
+          node .cache/alert.mjs --trigger "${{ steps.plan.outputs.trigger }}"
