@@ -11,9 +11,12 @@ name: Refresh data IDX & kirim alert
 #   11:30 UTC = 18:30 WIB  IDX end-of-day -> official OHLC + foreign flow
 #   Sat 01:00 UTC = 08:00 WIB             -> fundamentals, ratios, brokers
 #
+# STEP ORDER IS DELIBERATE. Price data is committed and the alert is sent BEFORE
+# the slow optional work runs. A cancelled job does not run its remaining steps,
+# so putting the fundamentals crawl first would mean a timeout there throws away
+# a perfectly good price refresh — which is exactly what happened on run #1.
+#
 # GitHub's scheduler is best-effort and can run several minutes late under load.
-# For a post-session digest that is fine; do not rely on it for anything that
-# must fire at an exact second.
 
 on:
   schedule:
@@ -28,7 +31,7 @@ on:
         type: boolean
         default: false
       full_refresh:
-        description: 'Tarik ulang fundamental, rasio valuasi, dan broker'
+        description: 'Tarik ulang fundamental, rasio valuasi, dan broker (lambat, ~30 menit)'
         type: boolean
         default: false
 
@@ -42,7 +45,9 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Generous, because the weekly fundamentals crawl makes ~1000 Yahoo requests
+    # and a datacenter IP gets rate limited harder than a home connection does.
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -74,50 +79,50 @@ jobs:
             echo "trigger=$TRIGGER"
           } >> "$GITHUB_OUTPUT"
 
+      # ---------------------------------------------------------------- prices
+
       # Yahoo quotes every listed emiten plus IHSG and LQ45. This is the tier
       # that must succeed for the deployed app to look current.
       - name: Harga live
         run: npm run data:intraday
 
-      # IDX sits behind Cloudflare and may treat a datacenter IP differently
-      # from a home connection. Failing here must not block the price refresh
-      # that already succeeded, so this step is allowed to fail and is reported.
       # A short catch-up MERGES into the committed history; it does not rebuild
-      # it. Rebuilding from a 20-day window would silently shorten the series
+      # it. Rebuilding from a 25-day window would silently shorten the series
       # from a year to a fortnight and break every momentum factor.
-      - name: Data resmi IDX (OHLC, indeks, arus asing)
+      #
+      # Run #1 proved IDX does NOT block GitHub's datacenter IPs — the full
+      # 430-day crawl completed from a runner. `continue-on-error` stays as a
+      # safety net in case that changes.
+      - name: Data resmi IDX (catch-up harian)
         if: steps.plan.outputs.eod == 'true' && steps.plan.outputs.weekly != 'true'
         continue-on-error: true
         run: node scripts/ingest-idx.mjs --days 25
 
-      - name: Crawl penuh mingguan (bangun ulang riwayat)
+      - name: Data resmi IDX (crawl penuh mingguan)
         if: steps.plan.outputs.weekly == 'true'
         continue-on-error: true
         run: npm run data:refresh
 
-      - name: Fundamental, rasio valuasi, broker
-        if: steps.plan.outputs.weekly == 'true'
-        continue-on-error: true
-        run: |
-          npm run data:quotes
-          npm run data:fundamentals
-          npm run data:brokers
-
-      - name: Uji ulang mesin valuasi terhadap data baru
+      - name: Uji mesin valuasi terhadap data harga baru
         run: npm test
 
-      - name: Commit data yang berubah
+      # Committed HERE, before anything slow. Whatever happens later, the price
+      # refresh is already safe and Vercel is already redeploying.
+      - name: Commit data harga
         run: |
           git config user.name  "valuationpro-bot"
           git config user.email "actions@github.com"
           git add public/data/idx
           if git diff --staged --quiet; then
-            echo "Tidak ada perubahan data."
+            echo "Tidak ada perubahan data harga."
           else
-            git commit -m "data: refresh IDX $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git commit -m "data: harga IDX $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git pull --rebase --autostash origin main
             git push
           fi
 
+      # The alert is the point of the whole schedule, so it goes out before the
+      # optional crawls that might time out.
       - name: Kirim digest stock pick
         if: steps.plan.outputs.alert == 'true'
         env:
@@ -133,3 +138,32 @@ jobs:
             --bundle --platform=node --format=esm --target=node20 \
             --packages=external --outfile=.cache/alert.mjs --log-level=warning
           node .cache/alert.mjs --trigger "${{ steps.plan.outputs.trigger }}"
+
+      # ------------------------------------------------------- slow, weekly only
+
+      - name: Rasio valuasi & mata uang pelaporan
+        if: steps.plan.outputs.weekly == 'true'
+        continue-on-error: true
+        run: npm run data:quotes
+
+      - name: Laporan keuangan tahunan
+        if: steps.plan.outputs.weekly == 'true'
+        continue-on-error: true
+        run: node scripts/ingest-fundamentals.mjs --concurrency 2 --gap 200
+
+      - name: Aktivitas anggota bursa
+        if: steps.plan.outputs.weekly == 'true'
+        continue-on-error: true
+        run: npm run data:brokers
+
+      - name: Commit data fundamental
+        if: steps.plan.outputs.weekly == 'true'
+        run: |
+          git add public/data/idx
+          if git diff --staged --quiet; then
+            echo "Tidak ada perubahan fundamental."
+          else
+            git commit -m "data: fundamental & broker $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git pull --rebase --autostash origin main
+            git push
+          fi
