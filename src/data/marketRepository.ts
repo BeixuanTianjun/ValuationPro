@@ -41,6 +41,8 @@ export interface LiveStatus {
   appendedNewSession: boolean;
   /** Last session for which IDX published foreign buy/sell volume. */
   foreignFlowAsOf: string;
+  /** True when prices were quoted on request rather than read from a snapshot. */
+  onDemand?: boolean;
 }
 
 export interface MarketDatabase {
@@ -236,6 +238,8 @@ export function assembleMarketDatabase(files: RawFiles): MarketDatabase {
       generatedAt: intraday.generatedAt,
       appendedNewSession: appendNew,
       foreignFlowAsOf: meta.latestSession,
+      // Quoted on request, versus read from the last committed snapshot.
+      onDemand: (intraday.source || '').includes('serverless'),
     };
   }
 
@@ -319,6 +323,31 @@ export function invalidateMarketDatabase(): void {
   cache = null;
 }
 
+/**
+ * Live prices, preferring a running quote source over the committed snapshot.
+ *
+ * `/api/live` is served by the local service in development and by a Vercel
+ * serverless function in production. Either way it returns the same shape as
+ * intraday.json, so a failure here simply means the committed snapshot is used
+ * — the app never blocks on it, and never shows a blank market because a quote
+ * provider was slow.
+ */
+async function loadIntraday(): Promise<IntradayFile | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    const res = await fetch('/api/live', { signal: controller.signal, cache: 'no-store' });
+    clearTimeout(timer);
+    if (res.ok) {
+      const live = (await res.json()) as IntradayFile;
+      if (live?.quotes && Object.keys(live.quotes).length) return live;
+    }
+  } catch {
+    /* no live endpoint here — fall back to what was committed */
+  }
+  return tryJson<IntradayFile>('intraday.json');
+}
+
 async function buildDatabase(): Promise<MarketDatabase> {
   const [meta, universe, daily, history, indices, intraday] = await Promise.all([
     getJson<MarketMeta>('meta.json'),
@@ -326,7 +355,7 @@ async function buildDatabase(): Promise<MarketDatabase> {
     getJson<DailyFile>('daily.json'),
     getJson<HistoryFile>('history.json'),
     getJson<IndicesFile>('indices.json'),
-    tryJson<IntradayFile>('intraday.json'),
+    loadIntraday(),
   ]);
 
   return assembleMarketDatabase({ meta, universe, daily, history, indices, intraday });

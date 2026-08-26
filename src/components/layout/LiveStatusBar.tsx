@@ -124,7 +124,17 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
         {db && (
           <span className="text-slate-500">
             Harga per <strong className="text-slate-300">{db.meta.latestSession}</strong>
-            {live?.applied && intradayAge >= 0 && <span className="text-slate-600"> · {ageLabel(intradayAge)}</span>}
+            {live?.onDemand ? (
+              <span
+                className="text-emerald-400/90"
+                title="Harga dikutip saat halaman dibuka, bukan dibaca dari snapshot"
+              >
+                {' '}
+                · dikutip langsung
+              </span>
+            ) : (
+              live?.applied && intradayAge >= 0 && <span className="text-slate-600"> · {ageLabel(intradayAge)}</span>
+            )}
           </span>
         )}
 
