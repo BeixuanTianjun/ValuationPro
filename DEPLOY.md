@@ -31,7 +31,7 @@ GitHub Actions (cron)          GitHub repo              Vercel
 ```
 
 GitHub Actions punya yang tidak dimiliki Vercel: `curl`, cron, dan waktu jalan
-berbmenit-menit. Jadi pekerjaan yang tidak bisa dilakukan Vercel dikerjakan di
+bermenit-menit. Jadi pekerjaan yang tidak bisa dilakukan Vercel dikerjakan di
 sana, hasilnya di-commit, dan Vercel otomatis men-deploy ulang.
 
 Jadwalnya ada di `.github/workflows/refresh-data.yml` (waktu UTC, WIB = UTC+7):
@@ -85,6 +85,24 @@ Opsional, sebagai *variable* (bukan secret): `ALERT_STRATEGY`.
 
 Uji tanpa menunggu jadwal lewat tab **Actions → Refresh data IDX → Run workflow**
 dengan `send_alert` dicentang.
+
+## Catatan tentang ukuran repo
+
+`public/data/idx/history.json` berukuran ~6 MB dan ditulis ulang setiap kali
+data resmi IDX ditarik, jadi riwayat git bertambah sekitar 6 MB per hari kerja
+— kira-kira **130 MB per bulan**. Batas wajar GitHub adalah 1 GB per repo
+(keras di 5 GB), jadi ini nyaman untuk beberapa tahun, tetapi bukan selamanya.
+
+Kalau nanti terasa berat, kecilkan riwayatnya:
+
+```bash
+git checkout --orphan bersih && git add -A
+git commit -m "riwayat dipadatkan"
+git branch -D main && git branch -m main && git push -f origin main
+```
+
+Refresh harga intraday hanya menyentuh `intraday.json` (~120 KB), jadi dua
+jadwal alert harian nyaris tidak menambah apa-apa.
 
 ## Risiko yang belum bisa saya pastikan
 

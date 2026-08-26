@@ -43,6 +43,10 @@ const DAYS = Number(argVal('--days', 400));
 const CONCURRENCY = Number(argVal('--concurrency', 2));
 const GAP_MS = Number(argVal('--gap', 350));
 const USE_CACHE = !argv.includes('--no-cache');
+// By default a run MERGES into whatever history already exists, so a short
+// `--days 20` catch-up appends recent sessions instead of throwing away the
+// year that came before it. `--replace` forces a clean rebuild.
+const REPLACE = argv.includes('--replace');
 
 setRequestGap(GAP_MS);
 
@@ -165,6 +169,41 @@ async function fetchDay(date) {
 
 const csv = (arr) => arr.map((x) => (x === null || x === undefined ? '' : x)).join(',');
 
+/** "9800,,9725" -> ['9800', '', '9725'] padded/truncated to `length`. */
+function splitSeries(text, length) {
+  const parts = (text || '').split(',');
+  const out = new Array(length).fill('');
+  for (let i = 0; i < Math.min(parts.length, length); i++) out[i] = parts[i];
+  return out;
+}
+
+async function readExisting(name) {
+  try {
+    return JSON.parse(await readFile(join(OUT_DIR, name), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fold newly crawled sessions into whatever is already stored.
+ *
+ * `byDate` maps an ISO date to an array of per-code string values for one
+ * field. Existing values are kept for dates the crawl did not cover, and a
+ * freshly crawled date always wins over a stored one.
+ */
+function mergeField(dates, existingDates, existingText, freshByDate, code) {
+  const existing = existingText ? splitSeries(existingText, existingDates.length) : null;
+  const existingIndex = new Map(existingDates.map((d, i) => [d, i]));
+  return dates.map((d) => {
+    const fresh = freshByDate.get(d);
+    if (fresh !== undefined) return fresh;
+    if (!existing) return '';
+    const i = existingIndex.get(d);
+    return i === undefined ? '' : existing[i];
+  });
+}
+
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
 
@@ -205,6 +244,15 @@ async function main() {
   // --- per-emiten price/flow series (comma-joined strings; blank = no trade)
   const codes = emiten.map((e) => e.code);
   const codeSet = new Set(codes);
+
+  const priorHistory = REPLACE ? null : await readExisting('history.json');
+  const priorIndices = REPLACE ? null : await readExisting('indices.json');
+  const priorMeta = REPLACE ? null : await readExisting('meta.json');
+  const priorDates = priorHistory?.dates || [];
+  if (priorDates.length) {
+    log(`menggabung dengan ${priorDates.length} sesi yang sudah tersimpan (${priorDates[0]} -> ${priorDates[priorDates.length - 1]})`);
+  }
+
   const series = {};
   for (const c of codes) series[c] = { c: [], h: [], l: [], v: [], t: [], fn: [], adj: [] };
 
@@ -258,19 +306,38 @@ async function main() {
     }
   }
 
+  // The crawl produced values for `dates`; fold them into the stored history so
+  // a short catch-up run never shortens the series.
+  const mergedDates = [...new Set([...priorDates, ...dates])].sort();
+  const FIELDS = ['c', 'h', 'l', 'v', 't', 'fn', 'adj'];
+
   const historySeries = {};
   let withData = 0;
   let corporateActions = 0;
+
   for (const c of codes) {
     const S = series[c];
-    if (!S.c.some((x) => x !== '')) continue; // never traded in window — omit entirely
-    withData++;
-    historySeries[c] = { c: csv(S.c), h: csv(S.h), l: csv(S.l), v: csv(S.v), t: csv(S.t), fn: csv(S.fn) };
-    // Almost always empty, so it costs nothing to carry.
-    if (S.adj.some((x) => x !== '')) {
-      historySeries[c].adj = csv(S.adj);
-      corporateActions += S.adj.filter((x) => x !== '').length;
+    const prior = priorHistory?.series?.[c];
+    if (!prior && !S.c.some((x) => x !== '')) continue; // never seen at all
+
+    const out = {};
+    for (const field of FIELDS) {
+      const freshByDate = new Map();
+      dates.forEach((d, i) => freshByDate.set(d, S[field][i]));
+      const merged = mergeField(mergedDates, priorDates, prior?.[field], freshByDate, c);
+      if (field === 'adj') {
+        if (merged.some((x) => x !== '')) {
+          out.adj = csv(merged);
+          corporateActions += merged.filter((x) => x !== '').length;
+        }
+      } else {
+        out[field] = csv(merged);
+      }
     }
+
+    if (!out.c || !out.c.split(',').some((x) => x !== '')) continue;
+    withData++;
+    historySeries[c] = out;
   }
 
   // --- index history
@@ -300,13 +367,35 @@ async function main() {
       }
     }
   }
+  const priorIndexDates = priorIndices?.dates || [];
+  const mergedIndexDates = [...new Set([...priorIndexDates, ...dates])].sort();
+  const allIndexCodes = new Set([...indexCodes, ...Object.keys(priorIndices?.indices || {})]);
+
   const indexOut = {};
-  for (const [code, I] of Object.entries(indices)) {
-    indexOut[code] = { members: I.n, c: csv(I.c), v: csv(I.v), t: csv(I.t), mc: csv(I.mc) };
+  for (const code of allIndexCodes) {
+    const I = indices[code];
+    const prior = priorIndices?.indices?.[code];
+    const out = { members: I?.n || prior?.members || 0 };
+    for (const field of ['c', 'v', 't', 'mc']) {
+      const freshByDate = new Map();
+      if (I) dates.forEach((d, i) => freshByDate.set(d, I[field][i]));
+      out[field] = csv(mergeField(mergedIndexDates, priorIndexDates, prior?.[field], freshByDate, code));
+    }
+    indexOut[code] = out;
   }
 
   // --- latest session snapshot
+  //
+  // A short catch-up run can end up older than what is already stored (IDX
+  // publishes late). In that case the stored snapshot is newer and is kept,
+  // rather than being overwritten with stale prices.
   const last = sessions[sessions.length - 1];
+  const priorDaily = REPLACE ? null : await readExisting('daily.json');
+  const keepPriorDaily = !!priorDaily?.session && priorDaily.session > last.actual;
+  if (keepPriorDaily) {
+    log(`snapshot tersimpan (${priorDaily.session}) lebih baru dari hasil crawl (${last.actual}) — snapshot lama dipertahankan`);
+  }
+
   const daily = last.stocks
     .filter((r) => codeSet.has(r.c))
     .map((r) => ({
@@ -331,26 +420,36 @@ async function main() {
   // session is a holiday. Weekdays AFTER the latest published session are not
   // holidays — IDX simply has not published them yet, and conflating the two
   // would make the scheduler skip real trading days.
-  const sessionSet = new Set(dates);
-  const holidays = [];
+  const sessionSet = new Set(mergedDates);
+  const holidaySet = new Set(REPLACE ? [] : priorMeta?.holidays || []);
   let pendingSessions = 0;
   for (const d of calendar) {
     const iso = `${ymd(d).slice(0, 4)}-${ymd(d).slice(4, 6)}-${ymd(d).slice(6, 8)}`;
     if (sessionSet.has(iso)) continue;
-    if (iso < dates[0]) continue;
+    if (iso < mergedDates[0]) continue;
     if (iso > last.actual) pendingSessions++;
-    else holidays.push(iso);
+    else holidaySet.add(iso);
   }
+  // A date that turned out to have a session is not a holiday after all.
+  for (const d of sessionSet) holidaySet.delete(d);
+  const holidays = [...holidaySet].sort();
   log(`derived ${holidays.length} hari libur bursa dalam rentang, ${pendingSessions} hari kerja belum diterbitkan IDX`);
   log(`detected ${corporateActions} aksi korporasi (split/reverse split/rights) dari selisih Previous vs close`);
 
+  // Everything downstream keys off the MERGED calendar, not the slice this run
+  // happened to crawl. Writing the crawl-only dates here is exactly what would
+  // truncate a year of history down to a fortnight on a short catch-up run.
+  const latestSession = keepPriorDaily ? priorDaily.session : last.actual;
+
   const meta = {
     generatedAt: new Date().toISOString(),
-    latestSession: last.actual,
+    latestSession,
     holidays,
     pendingSessions,
-    sessions: dates.length,
-    firstSession: dates[0],
+    sessions: mergedDates.length,
+    firstSession: mergedDates[0],
+    sessionsCrawledThisRun: dates.length,
+    merged: !REPLACE && priorDates.length > 0,
     emitenListed: emiten.length,
     emitenWithHistory: withData,
     corporateActions,
@@ -366,9 +465,11 @@ async function main() {
 
   const files = {
     'universe.json': { generatedAt: meta.generatedAt, count: emiten.length, emiten },
-    'indices.json': { generatedAt: meta.generatedAt, dates, indices: indexOut },
-    'history.json': { generatedAt: meta.generatedAt, dates, series: historySeries },
-    'daily.json': { generatedAt: meta.generatedAt, session: last.actual, count: daily.length, stocks: daily },
+    'indices.json': { generatedAt: meta.generatedAt, dates: mergedIndexDates, indices: indexOut },
+    'history.json': { generatedAt: meta.generatedAt, dates: mergedDates, series: historySeries },
+    'daily.json': keepPriorDaily
+      ? priorDaily
+      : { generatedAt: meta.generatedAt, session: last.actual, count: daily.length, stocks: daily },
     'meta.json': meta,
   };
 

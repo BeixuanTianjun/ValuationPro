@@ -82,8 +82,16 @@ jobs:
       # IDX sits behind Cloudflare and may treat a datacenter IP differently
       # from a home connection. Failing here must not block the price refresh
       # that already succeeded, so this step is allowed to fail and is reported.
+      # A short catch-up MERGES into the committed history; it does not rebuild
+      # it. Rebuilding from a 20-day window would silently shorten the series
+      # from a year to a fortnight and break every momentum factor.
       - name: Data resmi IDX (OHLC, indeks, arus asing)
-        if: steps.plan.outputs.eod == 'true'
+        if: steps.plan.outputs.eod == 'true' && steps.plan.outputs.weekly != 'true'
+        continue-on-error: true
+        run: node scripts/ingest-idx.mjs --days 25
+
+      - name: Crawl penuh mingguan (bangun ulang riwayat)
+        if: steps.plan.outputs.weekly == 'true'
         continue-on-error: true
         run: npm run data:refresh
 
