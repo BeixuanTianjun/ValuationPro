@@ -20,7 +20,7 @@ export const CashFlowTable: React.FC<CashFlowTableProps> = ({
         <span className="text-xs text-slate-400 font-mono">Currency: {currency} (Millions)</span>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto scrollbar-thin">
         <table className="w-full text-xs text-left border-collapse">
           <thead>
             <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 font-semibold">

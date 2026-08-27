@@ -188,7 +188,7 @@ export const EmitenDetail: React.FC<Props> = ({ code, db, fundamentals, factors,
               </button>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-thin">
               <table className="w-full text-[11px]">
                 <thead className="text-slate-500">
                   <tr>

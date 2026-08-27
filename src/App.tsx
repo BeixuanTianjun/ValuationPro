@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Header } from './components/layout/Header';
+import { Header, MobileTabBar } from './components/layout/Header';
 import { ActiveModelTab } from './types/common';
 import { DEAL_PRESETS } from './presets/deals';
 import { DcfAssumptions } from './types/dcf';
@@ -34,6 +34,7 @@ import { LandingPage } from './components/landing/LandingPage';
 import { LiveStatusBar } from './components/layout/LiveStatusBar';
 import { DcfDiagnostics } from './components/dcf/DcfDiagnostics';
 import { useMarketData } from './hooks/useMarketData';
+import { Segmented } from './components/common/ui';
 
 import { TrendingUp, Layers, DollarSign, Award, BarChart3, Sliders, Table, Sparkles, Check } from 'lucide-react';
 
@@ -54,6 +55,10 @@ export default function App() {
   const [marketSubTab, setMarketSubTab] = useState<MarketSubTab>('overview');
   const [analyticsSubTab, setAnalyticsSubTab] = useState<AnalyticsSubTab>('leaders');
   const [pendingEmiten, setPendingEmiten] = useState<string | null>(null);
+  // The last emiten the user actually opened. The ownership tracker starts on
+  // it, so switching tabs continues the same investigation instead of resetting
+  // to a default ticker.
+  const [lastEmiten, setLastEmiten] = useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<string>(DEAL_PRESETS[0].id);
 
   const [dcfAssumptions, setDcfAssumptions] = useState<DcfAssumptions>(DEAL_PRESETS[0].dcf);
@@ -176,6 +181,7 @@ export default function App() {
   /** Jump from any analytics table straight to that emiten's detail panel. */
   const openEmitenDetail = (code: string) => {
     setPendingEmiten(code);
+    setLastEmiten(code);
     setActiveTab('market');
     setMarketSubTab('emiten');
   };
@@ -261,7 +267,7 @@ export default function App() {
       <LiveStatusBar db={market.db} onDataRefreshed={market.reload} />
 
       {activeTab !== 'market' && activeTab !== 'analytics' && (
-        <div className="bg-slate-900/40 border-b border-slate-800/80 px-6 py-2.5">
+        <div className="bg-slate-900/40 border-b border-slate-800/80 px-4 sm:px-6 py-2.5">
           <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
             <span className="font-semibold text-slate-500 uppercase tracking-wide">Emiten aktif</span>
             <span className="text-blue-400 font-bold">
@@ -277,7 +283,7 @@ export default function App() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-6 py-6 flex-1 w-full space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-24 lg:pb-8 flex-1 w-full space-y-5 sm:space-y-6">
         
         {/* 0. IDX MARKET WORKSPACE */}
         {activeTab === 'market' && (
@@ -299,13 +305,14 @@ export default function App() {
             onSubTabChange={setAnalyticsSubTab}
             onSelectEmiten={openEmitenDetail}
             onModelEmiten={modelEmitenByCode}
+            focusEmiten={lastEmiten}
           />
         )}
 
         {/* 2. DCF MODEL WORKSPACE */}
         {activeTab === 'dcf' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <MetricCard
                 title="Target Price (Gordon Growth)"
                 value={formatCurrency(dcfSummary.impliedSharePriceGordon, dcfAssumptions.currency, 2)}
@@ -353,55 +360,18 @@ export default function App() {
               />
             </div>
 
-            <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 gap-2 w-fit overflow-x-auto">
-              <button
-                onClick={() => setDcfSubTab('assumptions')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  dcfSubTab === 'assumptions'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>1. Valuation Assumptions & WACC</span>
-              </button>
-
-              <button
-                onClick={() => setDcfSubTab('cashflows')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  dcfSubTab === 'cashflows'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Table className="w-3.5 h-3.5" />
-                <span>2. UFCF Projections Schedule</span>
-              </button>
-
-              <button
-                onClick={() => setDcfSubTab('valuation')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  dcfSubTab === 'valuation'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <DollarSign className="w-3.5 h-3.5" />
-                <span>3. EV to Equity Value Bridge</span>
-              </button>
-
-              <button
-                onClick={() => setDcfSubTab('sensitivity')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  dcfSubTab === 'sensitivity'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                <span>4. Sensitivity Heatmap & Charts</span>
-              </button>
-            </div>
+            <Segmented
+              options={[
+                { id: 'assumptions', label: '1. Valuation Assumptions & WACC', shortLabel: '1. Asumsi', icon: Sliders },
+                { id: 'cashflows', label: '2. UFCF Projections Schedule', shortLabel: '2. UFCF', icon: Table },
+                { id: 'valuation', label: '3. EV to Equity Value Bridge', shortLabel: '3. Bridge', icon: DollarSign },
+                { id: 'sensitivity', label: '4. Sensitivity Heatmap & Charts', shortLabel: '4. Sensitivitas', icon: BarChart3 },
+              ]}
+              value={dcfSubTab}
+              onChange={setDcfSubTab}
+              ariaLabel="Bagian model DCF"
+              activeClass="bg-blue-600 text-white shadow-md shadow-blue-900/40"
+            />
 
             <DcfDiagnostics summary={dcfSummary} />
 
@@ -430,7 +400,7 @@ export default function App() {
         {/* 3. LBO MODEL WORKSPACE */}
         {activeTab === 'lbo' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <MetricCard
                 title="Sponsor IRR"
                 value={formatPercent(lboSummary.sponsorIRR, 1)}
@@ -478,55 +448,18 @@ export default function App() {
               />
             </div>
 
-            <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 gap-2 w-fit overflow-x-auto">
-              <button
-                onClick={() => setLboSubTab('structure')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  lboSubTab === 'structure'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>1. Transaction Structure & Sources/Uses</span>
-              </button>
-
-              <button
-                onClick={() => setLboSubTab('waterfall')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  lboSubTab === 'waterfall'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Table className="w-3.5 h-3.5" />
-                <span>2. Debt Schedule Waterfall</span>
-              </button>
-
-              <button
-                onClick={() => setLboSubTab('returns')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  lboSubTab === 'returns'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Award className="w-3.5 h-3.5" />
-                <span>3. Exit Returns & Value Creation</span>
-              </button>
-
-              <button
-                onClick={() => setLboSubTab('sensitivity')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  lboSubTab === 'sensitivity'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                <span>4. Returns Sensitivity Matrix</span>
-              </button>
-            </div>
+            <Segmented
+              options={[
+                { id: 'structure', label: '1. Transaction Structure & Sources/Uses', shortLabel: '1. Struktur', icon: Sliders },
+                { id: 'waterfall', label: '2. Debt Schedule Waterfall', shortLabel: '2. Utang', icon: Table },
+                { id: 'returns', label: '3. Exit Returns & Value Creation', shortLabel: '3. Return', icon: Award },
+                { id: 'sensitivity', label: '4. Returns Sensitivity Matrix', shortLabel: '4. Sensitivitas', icon: BarChart3 },
+              ]}
+              value={lboSubTab}
+              onChange={setLboSubTab}
+              ariaLabel="Bagian model LBO"
+              activeClass="bg-indigo-600 text-white shadow-md shadow-indigo-900/40"
+            />
 
             {lboSubTab === 'structure' && (
               <div className="space-y-6">
@@ -568,7 +501,9 @@ export default function App() {
 
       </main>
 
-      <footer className="bg-slate-900 border-t border-slate-800 px-6 py-4 mt-auto">
+      <MobileTabBar activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      <footer className="bg-slate-900 border-t border-slate-800 px-4 sm:px-6 py-4 mt-auto pb-20 lg:pb-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-slate-400">ValuationPro Financial Suite</span>

@@ -193,7 +193,7 @@ export const EmitenBrowser: React.FC<Props> = ({ db, factors, fundamentals, sele
         </div>
       </div>
 
-      <div className="overflow-x-auto max-h-[640px] overflow-y-auto">
+      <div className="overflow-x-auto scrollbar-thin max-h-[640px] overflow-y-auto">
         <table className="w-full text-xs">
           <thead className="bg-slate-950/90 text-slate-400 sticky top-0 z-10">
             <tr>

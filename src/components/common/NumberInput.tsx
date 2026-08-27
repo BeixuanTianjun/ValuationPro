@@ -63,7 +63,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
           max={max !== undefined && type === 'percent' ? max * 100 : max}
           value={displayValue}
           onChange={handleChange}
-          className={`w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs font-mono font-medium text-blue-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
+          className={`w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-mono font-medium text-blue-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all touch-target ${
             getPrefix() ? 'pl-7' : ''
           } ${getSuffix() ? 'pr-7' : ''}`}
         />

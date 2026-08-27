@@ -46,7 +46,7 @@ export const DcfAssumptionsComponent: React.FC<DcfAssumptionsProps> = ({
               type="text"
               value={assumptions.companyName}
               onChange={(e) => updateField('companyName', e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-slate-100 focus:outline-none focus:border-blue-500 touch-target"
             />
           </div>
 
@@ -124,7 +124,7 @@ export const DcfAssumptionsComponent: React.FC<DcfAssumptionsProps> = ({
         <div className="space-y-4">
           <div>
             <span className="text-xs font-bold text-slate-300 block mb-2">Revenue Growth Rate (%)</span>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
               {assumptions.revenueGrowthRates.map((g, i) => (
                 <NumberInput
                   key={i}
@@ -141,7 +141,7 @@ export const DcfAssumptionsComponent: React.FC<DcfAssumptionsProps> = ({
 
           <div>
             <span className="text-xs font-bold text-slate-300 block mb-2">EBITDA Margin (%)</span>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
               {assumptions.ebitdaMargins.map((m, i) => (
                 <NumberInput
                   key={i}
@@ -197,7 +197,7 @@ export const DcfAssumptionsComponent: React.FC<DcfAssumptionsProps> = ({
               type="checkbox"
               checked={assumptions.useManualWacc}
               onChange={(e) => updateField('useManualWacc', e.target.checked)}
-              className="rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-0"
+              className="h-4 w-4 shrink-0 rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-0"
             />
             <span>Manual WACC Override</span>
           </label>

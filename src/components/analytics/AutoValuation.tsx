@@ -38,7 +38,7 @@ export const AutoValuation: React.FC<Props> = ({ db, fundamentals, factors, onSe
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/40 p-5">
+      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/40 p-4 sm:p-5">
         <div className="flex items-center gap-2">
           <Calculator className="w-4 h-4 text-cyan-400" aria-hidden="true" />
           <h3 className="text-sm font-bold text-white">Pemodelan Keuangan Otomatis</h3>
@@ -122,7 +122,7 @@ export const AutoValuation: React.FC<Props> = ({ db, fundamentals, factors, onSe
           </button>
         </div>
 
-        <div className="overflow-x-auto max-h-[620px] overflow-y-auto">
+        <div className="overflow-x-auto scrollbar-thin max-h-[620px] overflow-y-auto">
           <table className="w-full text-xs">
             <thead className="bg-slate-950/90 text-slate-400 sticky top-0 z-10">
               <tr>

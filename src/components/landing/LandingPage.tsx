@@ -213,7 +213,7 @@ export const LandingPage: React.FC<Props> = ({
           )}
         </svg>
 
-        <header className="relative z-10 max-w-7xl mx-auto w-full px-6 py-6 flex items-center justify-between">
+        <header className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
           <div className="flex items-center gap-3 animate-rise">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-blue-900/40">
               <LineChart className="w-5 h-5 text-white" aria-hidden="true" />
@@ -258,7 +258,7 @@ export const LandingPage: React.FC<Props> = ({
         </header>
 
         <div className="relative z-10 flex-1 flex items-center">
-          <div className="max-w-7xl mx-auto w-full px-6 py-10">
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-10">
             <div className="max-w-3xl">
               <div
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-semibold animate-rise"
@@ -294,7 +294,7 @@ export const LandingPage: React.FC<Props> = ({
               <div className="mt-9 flex flex-wrap gap-3 animate-rise" style={{ animationDelay: '360ms' }}>
                 <button
                   onClick={() => onEnter('screener')}
-                  className="group flex items-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-900/40 transition-all duration-200 cursor-pointer"
+                  className="group flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-900/40 transition-all duration-200 cursor-pointer"
                 >
                   <Target className="w-4 h-4" aria-hidden="true" />
                   Lihat Stock Pick Hari Ini
@@ -305,14 +305,14 @@ export const LandingPage: React.FC<Props> = ({
                 </button>
                 <button
                   onClick={() => onEnter('analytics')}
-                  className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 font-bold transition-all duration-200 cursor-pointer"
+                  className="flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 font-bold transition-all duration-200 cursor-pointer"
                 >
                   <Scale className="w-4 h-4 text-cyan-400" aria-hidden="true" />
                   Penggerak IHSG
                 </button>
                 <button
                   onClick={() => onEnter('chat')}
-                  className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 font-bold transition-all duration-200 cursor-pointer"
+                  className="flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 font-bold transition-all duration-200 cursor-pointer"
                 >
                   <MessageSquare className="w-4 h-4 text-indigo-400" aria-hidden="true" />
                   Tanya Emiten
@@ -385,12 +385,12 @@ export const LandingPage: React.FC<Props> = ({
       </section>
 
       {/* ------------------------------------------------------------- stats */}
-      <section className="max-w-7xl mx-auto px-6 py-14">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger">
           {stats.map((s, i) => (
             <div
               key={s.label}
-              className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 animate-rise"
+              className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 sm:p-6 animate-rise"
               style={{ ['--i' as string]: i }}
             >
               <div className="text-3xl font-extrabold tabular-nums bg-gradient-to-br from-white to-slate-400 bg-clip-text text-transparent">
@@ -403,7 +403,7 @@ export const LandingPage: React.FC<Props> = ({
       </section>
 
       {/* ---------------------------------------------------------- features */}
-      <section className="max-w-7xl mx-auto px-6 pb-16">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-12 sm:pb-16">
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-balance">
           Dibangun untuk keputusan, bukan untuk pajangan
         </h2>
@@ -417,7 +417,7 @@ export const LandingPage: React.FC<Props> = ({
           {FEATURES.map((f, i) => (
             <div
               key={f.title}
-              className={`group rounded-2xl border border-slate-800 bg-slate-900/40 p-6 transition-all duration-300 hover:bg-slate-900/80 ${f.ring} animate-rise`}
+              className={`group rounded-2xl border border-slate-800 bg-slate-900/40 p-5 sm:p-6 transition-all duration-300 hover:bg-slate-900/80 ${f.ring} animate-rise`}
               style={{ ['--i' as string]: i }}
             >
               <div className="w-11 h-11 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
@@ -431,7 +431,7 @@ export const LandingPage: React.FC<Props> = ({
       </section>
 
       {/* -------------------------------------------------------- provenance */}
-      <section className="max-w-7xl mx-auto px-6 pb-20">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-14 sm:pb-20">
         <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-950 p-8 sm:p-10">
           <div className="flex items-start gap-4">
             <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
@@ -471,11 +471,11 @@ export const LandingPage: React.FC<Props> = ({
       </section>
 
       <footer className="border-t border-slate-800 py-8">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
           <span>ValuationPro · Terminal Pasar Modal Indonesia</span>
           <button
             onClick={() => onEnter('market')}
-            className="text-slate-400 hover:text-blue-400 font-semibold transition-colors cursor-pointer"
+            className="flex items-center text-slate-400 hover:text-blue-400 font-semibold transition-colors cursor-pointer touch-target"
           >
             Buka terminal →
           </button>

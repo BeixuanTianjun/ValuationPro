@@ -48,7 +48,7 @@ export const LeadersLaggards: React.FC<Props> = ({ db, onSelectEmiten }) => {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/40 p-5">
+      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/40 p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export const LeadersLaggards: React.FC<Props> = ({ db, onSelectEmiten }) => {
             </p>
           </div>
 
-          <div className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800" role="group" aria-label="Periode">
+          <div className="flex max-w-full gap-1 overflow-x-auto scrollbar-thin bg-slate-950 p-1 rounded-lg border border-slate-800" role="group" aria-label="Periode">
             {PERIODS.map((p) => (
               <button
                 key={p}
@@ -129,7 +129,7 @@ export const LeadersLaggards: React.FC<Props> = ({ db, onSelectEmiten }) => {
         />
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 sm:p-5">
         <h4 className="text-xs font-bold text-white mb-4">Kontribusi per Sektor IDX-IC</h4>
         <div className="space-y-2">
           {result.sectors.map((s) => (

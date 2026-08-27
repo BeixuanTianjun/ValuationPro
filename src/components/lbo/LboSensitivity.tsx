@@ -68,7 +68,7 @@ export const LboSensitivity: React.FC<LboSensitivityProps> = ({
 
       {/* 2D Sensitivity Tables */}
       <div className="space-y-4">
-        <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 w-fit">
+        <div className="flex max-w-full overflow-x-auto scrollbar-thin bg-slate-950 p-1 rounded-lg border border-slate-800 w-full sm:w-fit">
           <button
             onClick={() => setActiveTab('irr')}
             className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${

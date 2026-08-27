@@ -64,7 +64,7 @@ export const BrokerFlow: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/40 p-5">
+      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/40 p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -75,13 +75,13 @@ export const BrokerFlow: React.FC = () => {
               Sesi {result.session} · jendela {result.windowSessions} sesi · {result.brokers.length} anggota bursa
             </p>
           </div>
-          <div className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800" role="group" aria-label="Jendela">
+          <div className="flex max-w-full gap-1 overflow-x-auto scrollbar-thin bg-slate-950 p-1 rounded-lg border border-slate-800" role="group" aria-label="Jendela">
             {WINDOWS.map((w) => (
               <button
                 key={w.sessions}
                 onClick={() => setWindowSessions(w.sessions)}
                 aria-pressed={windowSessions === w.sessions}
-                className={`px-3 py-1.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded text-[11px] font-bold transition-all cursor-pointer touch-target ${
                   windowSessions === w.sessions ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-100'
                 }`}
               >
@@ -109,7 +109,7 @@ export const BrokerFlow: React.FC = () => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 sm:p-5">
         <h4 className="text-xs font-bold text-white">Ritel vs Institusi — dibaca dari ukuran tiket rata-rata</h4>
         <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed max-w-3xl">
           Nilai dibagi jumlah transaksi memberi ukuran tiket rata-rata tiap broker. Platform ritel mencetak ratusan

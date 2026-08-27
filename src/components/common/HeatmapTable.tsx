@@ -30,7 +30,7 @@ export const HeatmapTable: React.FC<HeatmapTableProps> = ({
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/80 p-4 shadow-xl">
+    <div className="overflow-x-auto scrollbar-thin rounded-xl border border-slate-800 bg-slate-900/80 p-4 shadow-xl">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
           Sensitivity Analysis: {data.metricName}

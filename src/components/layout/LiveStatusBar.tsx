@@ -111,8 +111,8 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
   const detail = status && !status.locked ? status : null;
 
   return (
-    <div className="bg-slate-900/60 border-b border-slate-800/80 px-6 py-2.5">
-      <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+    <div className="bg-slate-900/60 border-b border-slate-800/80 px-4 sm:px-6 py-2.5">
+      <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] sm:gap-x-5">
         <div className="flex items-center gap-2">
           {phase === 'sesi-1' || phase === 'sesi-2' ? (
             <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse-dot" aria-hidden="true" />
@@ -177,10 +177,10 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
           </span>
         )}
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:gap-3">
           {message && (
             <span
-              className={`max-w-lg ${messageTone === 'ok' ? 'text-emerald-400' : 'text-rose-400'}`}
+              className={`min-w-0 max-w-full sm:max-w-lg ${messageTone === 'ok' ? 'text-emerald-400' : 'text-rose-400'}`}
               role={messageTone === 'error' ? 'alert' : undefined}
             >
               {message}
@@ -202,7 +202,7 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
                   <button
                     onClick={() => void handleTestAlert()}
                     disabled={testing}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-300 font-semibold transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-300 font-semibold transition-colors cursor-pointer touch-target"
                     title="Kirim satu email digest sekarang untuk menguji SMTP"
                   >
                     <Send className={`w-3 h-3 ${testing ? 'animate-pulse' : ''}`} aria-hidden="true" />
@@ -212,7 +212,7 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
                 <button
                   onClick={() => void handleRefresh()}
                   disabled={refreshing || !!detail.running}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-300 font-semibold transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-300 font-semibold transition-colors cursor-pointer touch-target"
                 >
                   <RefreshCw className={`w-3 h-3 ${refreshing || detail.running ? 'animate-spin' : ''}`} aria-hidden="true" />
                   {refreshing || detail.running ? 'Memperbarui…' : 'Perbarui sekarang'}

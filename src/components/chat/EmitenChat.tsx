@@ -200,7 +200,7 @@ export const EmitenChat: React.FC<Props> = ({ db, factors, fundamentals, onSelec
 
 const ResultTable: React.FC<{ rows: EmitenRow[]; onSelect: (code: string) => void }> = ({ rows, onSelect }) => (
   <div className="rounded-xl border border-slate-800 overflow-hidden bg-slate-950/50">
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto scrollbar-thin">
       <table className="w-full text-xs">
         <thead className="bg-slate-900/70 text-slate-500">
           <tr>

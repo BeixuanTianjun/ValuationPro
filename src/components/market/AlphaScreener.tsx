@@ -100,7 +100,7 @@ export const AlphaScreener: React.FC<Props> = ({ db, factors, breadth, onSelectE
       </div>
 
       {/* --- briefing */}
-      <div className="bg-gradient-to-r from-blue-950/50 to-slate-900 border border-blue-800/40 rounded-2xl p-5">
+      <div className="bg-gradient-to-r from-blue-950/50 to-slate-900 border border-blue-800/40 rounded-2xl p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <TrendingUp className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
           <div className="flex-1">
@@ -433,7 +433,7 @@ const PickCard: React.FC<{
       </div>
 
       {expanded && (
-        <div className="border-t border-slate-800 bg-slate-950/50 p-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="border-t border-slate-800 bg-slate-950/50 p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <div>
             <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wide mb-3">Kontribusi Faktor</div>
             <div className="space-y-2">

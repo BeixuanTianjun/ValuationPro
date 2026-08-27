@@ -62,7 +62,7 @@ export const MarketOverview: React.FC<Props> = ({ db, indices, breadth, onReload
   return (
     <div className="space-y-6">
       {/* --- headline strip */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-900/40 border border-slate-800 rounded-2xl p-5">
+      <div className="bg-gradient-to-r from-slate-900 to-slate-900/40 border border-slate-800 rounded-2xl p-4 sm:p-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="flex items-center gap-5">
             <div>
@@ -158,7 +158,7 @@ export const MarketOverview: React.FC<Props> = ({ db, indices, breadth, onReload
       </div>
 
       {/* --- sector performance */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-4">
           <Layers3 className="w-4 h-4 text-blue-400" />
           <h3 className="text-sm font-bold text-white">Kinerja 11 Sektor IDX-IC — Return 3 Bulan</h3>
@@ -202,7 +202,7 @@ export const MarketOverview: React.FC<Props> = ({ db, indices, breadth, onReload
               <button
                 key={g}
                 onClick={() => setGroup(g)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer touch-target ${
                   group === g ? 'bg-indigo-600 text-white' : 'bg-slate-950 text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -212,7 +212,7 @@ export const MarketOverview: React.FC<Props> = ({ db, indices, breadth, onReload
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scrollbar-thin">
           <table className="w-full text-xs">
             <thead className="bg-slate-950/60 text-slate-400">
               <tr>
@@ -290,7 +290,7 @@ export const MarketOverview: React.FC<Props> = ({ db, indices, breadth, onReload
           render={(q) => ({ primary: `Rp ${(q.foreignNet / 1e9).toFixed(1)} M`, cls: 'text-rose-400' })}
           onSelect={onSelectEmiten}
         />
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-[11px] text-slate-400 space-y-2">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 text-[11px] text-slate-400 space-y-2">
           <div className="text-sm font-bold text-white mb-2">Sumber Data</div>
           {db.meta.sources.map((s) => (
             <div key={s} className="font-mono text-[10px] text-slate-500">

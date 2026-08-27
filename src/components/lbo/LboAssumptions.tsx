@@ -45,7 +45,7 @@ export const LboAssumptionsComponent: React.FC<LboAssumptionsProps> = ({
               type="text"
               value={assumptions.dealName}
               onChange={(e) => updateField('dealName', e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-100 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-slate-100 focus:outline-none focus:border-indigo-500 touch-target"
             />
           </div>
 
@@ -229,7 +229,7 @@ export const LboAssumptionsComponent: React.FC<LboAssumptionsProps> = ({
         <div className="space-y-4">
           <div>
             <span className="text-xs font-bold text-slate-300 block mb-2">Revenue Growth Rate (%)</span>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
               {assumptions.revenueGrowthRates.slice(0, 5).map((g, i) => (
                 <NumberInput
                   key={i}
@@ -246,7 +246,7 @@ export const LboAssumptionsComponent: React.FC<LboAssumptionsProps> = ({
 
           <div>
             <span className="text-xs font-bold text-slate-300 block mb-2">EBITDA Margin (%)</span>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
               {assumptions.ebitdaMargins.slice(0, 5).map((m, i) => (
                 <NumberInput
                   key={i}
