@@ -20,6 +20,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { UA, mapPool } from './idx-lib.mjs';
+import { fetchGoogleQuotes } from './gfinance-lib.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = join(ROOT, 'public', 'data', 'idx');
@@ -123,7 +124,14 @@ export async function buildIntradaySnapshot() {
   const universe = JSON.parse(await readFile(join(OUT_DIR, 'universe.json'), 'utf8'));
   const codes = universe.emiten.map((e) => e.code);
 
-  const crumb = await getCrumb();
+  let crumb = '';
+  try {
+    crumb = await getCrumb();
+  } catch (err) {
+    // A missing crumb is no longer fatal: the Google fallback below can still
+    // produce a usable snapshot for the names that matter.
+    log(`Gagal mendapat crumb Yahoo (${err.message}) — mengandalkan fallback.`);
+  }
   const batches = [];
   for (let i = 0; i < codes.length; i += BATCH) batches.push(codes.slice(i, i + BATCH));
 
@@ -157,6 +165,51 @@ export async function buildIntradaySnapshot() {
       };
     }
   });
+
+  // ---- fallback -----------------------------------------------------------
+  //
+  // Yahoo's quote API sits behind a cookie+crumb pair that intermittently
+  // answers "Unauthorized" — observed live on 2026-08-27. When that happens the
+  // batch loop above returns nothing and the terminal would show a blank
+  // market. Google Finance carries the same prices (verified: BBCA closed 6400
+  // on both) but has no batch endpoint, so it is one HTML page per ticker.
+  //
+  // The fallback is therefore BOUNDED to the most liquid names, ranked by the
+  // last committed session's turnover. Quoting all 962 from Google would take
+  // longer than the session it is trying to report; quoting the 120 that carry
+  // most of the day's value keeps the screen honest and finishes in a minute.
+  const missing = codes.filter((c) => !quotes[c]);
+  let googleUsed = 0;
+  if (missing.length > codes.length * 0.5) {
+    log(`Yahoo hanya mengembalikan ${codes.length - missing.length}/${codes.length} — fallback ke Google Finance.`);
+    let ranked = missing;
+    try {
+      const daily = JSON.parse(await readFile(join(OUT_DIR, 'daily.json'), 'utf8'));
+      const turnover = new Map(daily.stocks.map((q) => [q.code, q.value || 0]));
+      ranked = [...missing].sort((a, b) => (turnover.get(b) || 0) - (turnover.get(a) || 0));
+    } catch {
+      /* no committed session yet — take them in listing order */
+    }
+
+    const g = await fetchGoogleQuotes(ranked, { concurrency: 3, limit: 120 });
+    for (const [code, q] of g) {
+      // Google's blob carries no previous close, so it comes from the last
+      // committed session. Without it a change percent would be invented.
+      quotes[code] = {
+        price: q.price,
+        prevClose: null,
+        open: q.open,
+        high: q.high,
+        low: q.low,
+        volume: q.volume,
+        changePercent: null,
+        time: Math.floor(Date.parse(q.lastBarAt) / 1000),
+        source: 'google',
+      };
+      googleUsed++;
+    }
+    log(`Google Finance mengisi ${googleUsed} emiten.`);
+  }
 
   const indices = {};
   try {

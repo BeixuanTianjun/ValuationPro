@@ -180,7 +180,17 @@ mengirim.
 
 **Chatbot memakai Claude Sonnet 5** lewat SDK resmi Anthropic, dengan dua tool:
 `screen_emiten` untuk pertanyaan lintas emiten dan `kupas_emiten` untuk membedah
-satu kode. Tanpa `ANTHROPIC_API_KEY` chatbot tetap jalan memakai parser lokal.
+satu kode. Lapisan Claude butuh `ANTHROPIC_API_KEY` **di dua tempat**, dan tanpa
+keduanya chatbot diam-diam turun ke parser lokal:
+
+1. `.env` di komputer Anda — untuk `npm run auto`. Baris kuncinya saat ini masih
+   dikomentari dan isinya cuma placeholder `sk-ant-…` sepanjang 10 karakter.
+2. Environment variable di proyek Vercel — untuk `/api/chat` di situs live.
+   Tanpa ini situs yang di-deploy selamanya memakai parser lokal, berapa kali pun
+   modelnya diganti di kode.
+
+Baris kecil di bawah tiap jawaban sekarang menyebut mesin mana yang menjawab,
+supaya keadaan ini tidak lagi tak terlihat.
 
 **Tema kebijakan dikurasi, bukan ditarik dari feed.** Keterbukaan informasi IDX
 memberi tahu apa yang dilakukan emiten, bukan apa yang diumumkan pemerintah.

@@ -6,10 +6,20 @@ name: Refresh data IDX & kirim alert
 # updated data triggers a Vercel redeploy, so the deployed terminal follows.
 #
 # All cron times are UTC. WIB is UTC+7.
-#   05:05 UTC = 12:05 WIB  Sesi I closes  -> refresh + alert
-#   09:20 UTC = 16:20 WIB  market closes  -> refresh + alert
-#   11:30 UTC = 18:30 WIB  IDX end-of-day -> official OHLC + foreign flow
-#   Sat 01:00 UTC = 08:00 WIB             -> fundamentals, ratios, brokers
+#   05:07 UTC = 12:07 WIB  Sesi I closes   -> refresh + alert
+#   09:17 UTC = 16:17 WIB  CLOSING CAPTURE -> refresh + alert
+#   09:47 UTC = 16:47 WIB  CLOSING RETRY   -> refresh only, belt and braces
+#   11:32 UTC = 18:32 WIB  IDX end-of-day  -> official OHLC + foreign flow
+#   Sat 01:00 UTC = 08:00 WIB              -> fundamentals, ratios, brokers
+#
+# THE CLOSING CAPTURE IS THE ONE THAT MATTERS and it is scheduled twice on
+# purpose. IDX's regular session 2 ends 15:49:59 WIB, pre-closing runs to 16:00
+# and the closing price is fixed by ~16:04. A run at 16:17 is safely after that.
+# GitHub's scheduler drops runs outright under load — the repository's own
+# history shows the 05:05 and 09:20 slots producing no commits for days while
+# 11:30 committed reliably — so a second attempt 30 minutes later is what makes
+# "the close is always committed" actually true rather than merely intended.
+# Round minutes (:00, :05, :20, :30) are the most contended; odd ones are not.
 #
 # STEP ORDER IS DELIBERATE. Price data is committed and the alert is sent BEFORE
 # the slow optional work runs. A cancelled job does not run its remaining steps,
@@ -20,9 +30,10 @@ name: Refresh data IDX & kirim alert
 
 on:
   schedule:
-    - cron: '5 5 * * 1-5'
-    - cron: '20 9 * * 1-5'
-    - cron: '30 11 * * 1-5'
+    - cron: '7 5 * * 1-5'
+    - cron: '17 9 * * 1-5'
+    - cron: '47 9 * * 1-5'
+    - cron: '32 11 * * 1-5'
     - cron: '0 1 * * 6'
   workflow_dispatch:
     inputs:
@@ -63,11 +74,12 @@ jobs:
         id: plan
         run: |
           CRON="${{ github.event.schedule }}"
-          ALERT=false; EOD=false; WEEKLY=false; TRIGGER="Manual"
+          ALERT=false; EOD=false; WEEKLY=false; CLOSE=false; TRIGGER="Manual"
           case "$CRON" in
-            "5 5 * * 1-5")   ALERT=true;  TRIGGER="Sesi I selesai" ;;
-            "20 9 * * 1-5")  ALERT=true;  TRIGGER="Pasar tutup" ;;
-            "30 11 * * 1-5") EOD=true ;;
+            "7 5 * * 1-5")   ALERT=true;  TRIGGER="Sesi I selesai" ;;
+            "17 9 * * 1-5")  ALERT=true;  CLOSE=true; TRIGGER="Pasar tutup" ;;
+            "47 9 * * 1-5")  CLOSE=true;  TRIGGER="Penutupan (percobaan kedua)" ;;
+            "32 11 * * 1-5") EOD=true ;;
             "0 1 * * 6")     WEEKLY=true; EOD=true ;;
           esac
           if [ "${{ inputs.send_alert }}" = "true" ]; then ALERT=true; fi
@@ -76,6 +88,7 @@ jobs:
             echo "alert=$ALERT"
             echo "eod=$EOD"
             echo "weekly=$WEEKLY"
+            echo "close=$CLOSE"
             echo "trigger=$TRIGGER"
           } >> "$GITHUB_OUTPUT"
 
@@ -85,6 +98,24 @@ jobs:
       # that must succeed for the deployed app to look current.
       - name: Harga live
         run: npm run data:intraday
+
+      # On a closing run, say out loud in the log which session phase the quotes
+      # were taken in. A capture that ran while the market was still open is a
+      # silent failure otherwise — the file looks fine, it is simply not the
+      # close, and nobody finds out until the chart disagrees with the broker.
+      - name: Pastikan kuotasi benar-benar penutupan
+        if: steps.plan.outputs.close == 'true'
+        run: |
+          node -e "
+            const j = require('./public/data/idx/intraday.json');
+            const closed = j.sessionPhase === 'closed' || j.marketState === 'POSTPOST' || j.marketState === 'CLOSED';
+            console.log('tradingDate', j.tradingDate, '| marketState', j.marketState, '| phase', j.sessionPhase);
+            if (!closed) {
+              console.log('::warning::Kuotasi diambil sebelum pasar benar-benar tutup (' + j.sessionPhase + '). Cron kedua pukul 16:47 WIB akan mencoba lagi.');
+            } else {
+              console.log('Penutupan sesi 2 tertangkap.');
+            }
+          "
 
       # A short catch-up MERGES into the committed history; it does not rebuild
       # it. Rebuilding from a 25-day window would silently shorten the series
@@ -112,11 +143,14 @@ jobs:
         continue-on-error: true
         run: npm run data:announcements
 
-      - name: Uji mesin valuasi terhadap data harga baru
-        run: npm test
-
-      # Committed HERE, before anything slow. Whatever happens later, the price
-      # refresh is already safe and Vercel is already redeploying.
+      # Committed BEFORE the test suite, not after.
+      #
+      # `npm test` reconciles index attribution against whatever prices just
+      # landed. It is a guard on the MODELS, not on the data pull — but a step
+      # that exits non-zero stops the job, and with the commit behind it a single
+      # failing reconciliation threw away a perfectly good closing price and left
+      # the deployed terminal showing the morning's numbers until the next cron.
+      # Prices commit first; the test still runs, and still turns the run red.
       - name: Commit data harga
         run: |
           git config user.name  "valuationpro-bot"
@@ -125,10 +159,15 @@ jobs:
           if git diff --staged --quiet; then
             echo "Tidak ada perubahan data harga."
           else
-            git commit -m "data: harga IDX $(date -u +'%Y-%m-%d %H:%M UTC')"
+            LABEL="harga IDX"
+            if [ "${{ steps.plan.outputs.close }}" = "true" ]; then LABEL="penutupan IDX"; fi
+            git commit -m "data: $LABEL $(date -u +'%Y-%m-%d %H:%M UTC')"
             git pull --rebase --autostash origin main
             git push
           fi
+
+      - name: Uji mesin valuasi terhadap data harga baru
+        run: npm test
 
       # The alert is the point of the whole schedule, so it goes out before the
       # optional crawls that might time out.

@@ -33,6 +33,9 @@ import { AccountUser, fetchAuthState, logOut } from './data/authClient';
 import { LandingPage } from './components/landing/LandingPage';
 import { LiveStatusBar } from './components/layout/LiveStatusBar';
 import { CurtainTransition } from './components/layout/CurtainTransition';
+import { MenuPanel } from './components/layout/MenuPanel';
+import { FunctionBar } from './components/layout/FunctionBar';
+import { TERMINAL_FUNCTIONS, TerminalFunction } from './data/functions';
 import { DcfDiagnostics } from './components/dcf/DcfDiagnostics';
 import { useMarketData } from './hooks/useMarketData';
 import { Segmented } from './components/common/ui';
@@ -46,6 +49,7 @@ export default function App() {
   // Set while the curtain is sweeping. Holds the destination so the route swap
   // can happen at the exact frame the screen is fully covered.
   const [curtainTo, setCurtainTo] = useState<null | (() => void)>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Account state. `serviceUp` false means the local service is not running, in
   // which case the app stays usable read-only from the bundled data and no
@@ -142,6 +146,19 @@ export default function App() {
     };
   }, []);
 
+  // Ctrl+K / Cmd+K opens the function menu from anywhere. Bound at the window
+  // so it works while focus is inside a table, a chart or a form field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setMenuOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const handleSignOut = async () => {
     await logOut().catch(() => undefined);
     setAccount(null);
@@ -203,6 +220,29 @@ export default function App() {
     setActiveTab('market');
     setMarketSubTab('emiten');
   };
+
+  /**
+   * Jump to a function by its mnemonic.
+   *
+   * One path for the menu panel, the command line and the mobile tab bar, so a
+   * screen cannot be reachable one way and not another.
+   */
+  const runFunction = (fn: TerminalFunction) => {
+    setMenuOpen(false);
+    setShowLanding(false);
+    setActiveTab(fn.area);
+    if (fn.area === 'market' && fn.sub) setMarketSubTab(fn.sub as MarketSubTab);
+    if (fn.area === 'analytics' && fn.sub) setAnalyticsSubTab(fn.sub as AnalyticsSubTab);
+  };
+
+  /** The function currently on screen, for the command bar's left-hand label. */
+  const activeFunction: TerminalFunction | null =
+    TERMINAL_FUNCTIONS.find((f) => {
+      if (f.area !== activeTab) return false;
+      if (f.area === 'market') return f.sub === marketSubTab;
+      if (f.area === 'analytics') return f.sub === analyticsSubTab;
+      return true;
+    }) ?? null;
 
   /** Calibrate an emiten into the DCF/LBO engines from anywhere in the app. */
   const modelEmitenByCode = (code: string) => {
@@ -289,6 +329,19 @@ export default function App() {
         dcfTargetPrice={dcfSummary.impliedSharePriceGordon}
         lboIrr={lboSummary.sponsorIRR}
         currency={dcfAssumptions.currency}
+      />
+
+      <MenuPanel
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onPick={runFunction}
+        activeCode={activeFunction?.code ?? null}
+      />
+
+      <FunctionBar
+        active={activeFunction}
+        onOpenMenu={() => setMenuOpen(true)}
+        onRun={runFunction}
       />
 
       <LiveStatusBar

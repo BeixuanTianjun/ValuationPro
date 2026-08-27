@@ -139,7 +139,9 @@ export const EmitenChat: React.FC<Props> = ({ db, factors, fundamentals, onSelec
 
                 {m.answer && (
                   <div className="text-[10px] text-slate-600">
-                    Dijawab oleh mesin {m.answer.engine}
+                    {m.answer.engine === 'claude'
+                      ? 'Dijawab Claude Sonnet 5 · bisa membedah satu emiten'
+                      : 'Dijawab mesin lokal — ANTHROPIC_API_KEY belum diatur, jadi lapisan Claude mati'}
                     {m.answer.totalMatched > m.answer.rows.length &&
                       ` · ${m.answer.totalMatched - m.answer.rows.length} emiten lain juga cocok`}
                   </div>

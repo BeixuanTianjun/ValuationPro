@@ -109,6 +109,25 @@ berbeda, dan keduanya perlu ada. `daily.volume` dalam LEMBAR, sedangkan
 `PriceSeries.value` dalam JUTA rupiah. Membandingkan hitungan lot terhadap
 1.000.000 diam-diam menyaring 100 juta lembar dan mengembalikan hampir kosong.
 
+**Chatbot butuh ANTHROPIC_API_KEY di DUA tempat.** `.env` lokal untuk
+`npm run auto`, dan environment variable proyek Vercel untuk `api/chat.ts`.
+Sebelum `api/chat.ts` ada, situs live sama sekali tidak punya endpoint chat —
+`chatClient` memanggil `/api/chat`, Vercel menjawab 404, dan UI diam-diam
+memakai parser lokal. Mengganti model di `src/server/chatApi.ts` tidak akan
+pernah terlihat di situs live sampai kedua hal itu benar.
+
+**GitHub Actions MENJATUHKAN slot cron yang ramai.** Riwayat repo ini
+menunjukkan slot `5 5` dan `20 9` tidak menghasilkan commit berhari-hari
+sementara `30 11` jalan terus. Karena itu penutupan sekarang dijadwalkan pada
+menit ganjil (`17 9`) DAN diulang (`47 9`). Commit harga juga dipindah ke SEBELUM
+`npm test` — satu tes yang gagal dulu membuang harga penutupan yang sudah
+berhasil ditarik.
+
+**Google Finance bukan sumber yang lebih cepat.** Sudah diukur: penutupan BBCA
+6400 sama persis dengan Yahoo, tidak ada endpoint batch (404), dan satu ticker
+berarti satu halaman HTML 182 KB. Dipakai hanya sebagai fallback berbatas 120
+emiten paling likuid ketika crumb Yahoo gagal — yang benar-benar terjadi.
+
 **Kepemilikan per saham ADA publiknya — di KSEI, bukan di IDX.** Berkas bulanan
 `https://www.ksei.co.id/storage/Download/BalanceposEfek<YYYYMMDD>.zip` memuat
 saldo kustodian tiap efek dipecah ke sembilan jenis investor × lokal/asing. Ini
