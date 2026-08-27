@@ -27,7 +27,7 @@ interface Props {
   serviceUp: boolean;
   authChecked: boolean;
   onOpenAuth: () => void;
-  onEnter: (destination: 'market' | 'screener' | 'emiten' | 'chat' | 'dcf' | 'analytics') => void;
+  onEnter: (destination: 'market' | 'screener' | 'watchlist' | 'emiten' | 'chat' | 'dcf' | 'analytics') => void;
 }
 
 const pct = (v: number, d = 2) => (Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%` : '–');
@@ -297,7 +297,7 @@ export const LandingPage: React.FC<Props> = ({
                   className="group flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-900/40 transition-all duration-200 cursor-pointer"
                 >
                   <Target className="w-4 h-4" aria-hidden="true" />
-                  Lihat Stock Pick Hari Ini
+                  Jalankan Screener Hari Ini
                   <ArrowRight
                     className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1"
                     aria-hidden="true"

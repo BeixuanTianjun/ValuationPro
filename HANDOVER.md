@@ -96,6 +96,19 @@ halaman. Semua field detail bertipe opsional; biarkan begitu.
 **IDX TIDAK memblokir runner GitHub Actions.** Sudah terbukti — crawl penuh 430
 hari berhasil dari IP datacenter Azure.
 
+**`indexFrom` pada GetAnnouncement adalah nomor HALAMAN, bukan offset baris.**
+Mengirim offset baris (1001, 2001, …) menjawab `ResultCount: 0` dan `Replies: []`
+tanpa error apa pun — jadi paginasi yang salah tidak gagal, ia diam-diam hanya
+mengambil halaman pertama. `indexFrom=2` dengan `pageSize=1000` adalah baris
+1001-2000.
+
+**Aturan volume dan aturan nilai di screener bukan aturan yang sama dua kali.**
+Volume > 1 juta lembar dan nilai > Rp 1 miliar mengikat di ujung harga yang
+berbeda, dan keduanya perlu ada. `daily.volume` dalam LEMBAR, sedangkan
+`PriceSeries.volume` dalam LOT (repository membaginya 100 saat masuk) dan
+`PriceSeries.value` dalam JUTA rupiah. Membandingkan hitungan lot terhadap
+1.000.000 diam-diam menyaring 100 juta lembar dan mengembalikan hampir kosong.
+
 **Kepemilikan per saham ADA publiknya — di KSEI, bukan di IDX.** Berkas bulanan
 `https://www.ksei.co.id/storage/Download/BalanceposEfek<YYYYMMDD>.zip` memuat
 saldo kustodian tiap efek dipecah ke sembilan jenis investor × lokal/asing. Ini
@@ -127,13 +140,15 @@ letak 768px rusak sementara 375px justru bersih.
 
 ```
 scripts/          ingest via curl: idx, intraday, quotes, fundamentals,
-                  brokers, ownership (KSEI)
+                  brokers, ownership (KSEI), announcements (keterbukaan info)
 src/models/       dcfEngine, lboEngine, factorEngine, alphaScreener,
                   indexAttribution, conglomerateRotation, autoValuation,
-                  brokerFlow, ownershipFlow, emitenQueryEngine, idxCompanyBridge
+                  brokerFlow, ownershipFlow, announcements (taksonomi judul),
+                  stockScreener (aturan keras), watchlist (corong 4 tahap),
+                  emitenQueryEngine, idxCompanyBridge
 src/data/         marketRepository (isomorfik: browser + Node), fundamentals,
-                  conglomerates (kurasi, 31 grup), idxIndexCatalog, chatClient,
-                  authClient
+                  conglomerates (kurasi, 31 grup), narratives (tema kebijakan
+                  kurasi), idxIndexCatalog, chatClient, authClient
 src/server/       index (HTTP + scheduler), schedule (WIB), auth (scrypt),
                   emailAlert, chatApi, marketFromDisk, alertCli
 src/components/   landing, layout, market, analytics, chat, auth, dcf, lbo
@@ -151,6 +166,7 @@ npm test                # 32 uji: guard rail DCF + rekonsiliasi atribusi indeks
 npm run data:all        # bangun ulang seluruh database (~15 menit)
 npm run data:intraday   # harga live semua emiten (~3 detik)
 npm run data:ownership  # register kepemilikan KSEI 24 bulan (~40 detik)
+npm run data:announcements # keterbukaan informasi IDX 45 hari (~10 detik)
 npm run alert:preview   # hitung pick tanpa mengirim email
 ```
 
@@ -174,6 +190,10 @@ npm run alert:preview   # hitung pick tanpa mengirim email
   tiap tarik data resmi. Resep pemadatan ada di `DEPLOY.md`.
 - **Login hanya jalan di layanan lokal.** Sesi di memori + `users.json` tidak
   bertahan di serverless.
+- **Email alert harian masih memakai mesin faktor lama** (`models/alphaScreener.ts`),
+  bukan Stock Screener atau Watchlist yang baru. Komponen UI-nya sudah dihapus,
+  jadi mesin itu sekarang hanya punya satu konsumen: digest email. Kalau digest
+  harus ikut pindah ke dua sistem baru, itu perubahan yang belum dilakukan.
 - **Valuasi otomatis adalah penyaring, bukan valuasi.** Properti dan komoditas
   sering keluar dengan upside ekstrem karena laba bergelombang.
 

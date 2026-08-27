@@ -15,6 +15,7 @@ npm run data:quotes        # rasio valuasi + mata uang pelaporan   -> ~30 detik
 npm run data:fundamentals  # laporan keuangan tahunan              -> ~3 menit
 npm run data:brokers       # aktivitas harian anggota bursa        -> ~2 menit
 npm run data:ownership     # register kepemilikan KSEI bulanan     -> ~40 detik
+npm run data:announcements # keterbukaan informasi IDX 45 hari     -> ~10 detik
 npm test                   # uji numerik guard rail mesin DCF
 ```
 
@@ -36,6 +37,7 @@ tidak ada masalah CORS saat aplikasi berjalan.
 | `intraday.json` | Harga live seluruh emiten + IHSG/LQ45 selama sesi berjalan | 0,1 MB |
 | `brokers.json` | Aktivitas harian 88 anggota bursa, 113 sesi | 0,2 MB |
 | `ownership.json` | Register kepemilikan KSEI: 962 emiten × 24 bulan × 9 jenis investor × lokal/asing | 1,6 MB |
+| `announcements.json` | Keterbukaan informasi IDX 45 hari terakhir: ~3.200 pengajuan dari ~925 emiten | 0,6 MB |
 
 ## Sumber
 
@@ -45,6 +47,10 @@ tidak ada masalah CORS saat aplikasi berjalan.
 - `/primary/ListedCompany/GetCompanyProfiles` — industri, sub-industri, kegiatan usaha
 - `/primary/TradingSummary/GetStockSummary?date=YYYYMMDD` — OHLC + net asing seluruh emiten dalam satu panggilan
 - `/primary/TradingSummary/GetIndexSummary?date=YYYYMMDD` — 45 indeks dalam satu panggilan
+- `/primary/ListedCompany/GetAnnouncement` — keterbukaan informasi per emiten: RUPS, dividen,
+  transaksi material, perolehan kontrak, dan permintaan penjelasan bursa.
+  **`indexFrom` adalah nomor HALAMAN berbasis 1, bukan offset baris** — mengirim
+  offset baris menjawab `ResultCount: 0` tanpa error, bukan halaman berikutnya.
 
 **Yahoo Finance** — laporan keuangan, rasio valuasi, dan harga intraday (IDX
 tidak menyediakan keduanya; laporan resminya berupa XBRL `instance.zip` dan
@@ -137,6 +143,24 @@ tanpa penskalaan, jadi jumlah saham harus berada pada skala yang sama dengan
 Salah skala di sini membuat target harga meleset 1000x.
 
 ## Keterbatasan yang diketahui
+
+- **Keterbukaan informasi bukan feed berita.** Emiten melapor ketika DIA yang
+  bertindak. Pengumuman program pemerintah — proyek PLTS, mandatori biodiesel,
+  program perumahan — tidak pernah masuk ke sana kecuali emitennya sendiri
+  melaporkan perannya. Tema kebijakan karena itu dikurasi tangan di
+  `src/data/narratives.ts`, lengkap dengan tautan sumber dan tanggal periksa;
+  tema tanpa sumber bobotnya dipotong setengah dan tiap tema meluruh ke nol
+  dalam 90 hari sejak terakhir diperiksa.
+- **Rincian broker per saham tidak ada di sumber publik mana pun.** Yang bisa
+  dihitung per saham adalah nilai ÷ frekuensi — ukuran tiket rata-rata satu
+  transaksi. `history.json` menyimpan nilai tetapi tidak jumlah transaksi, jadi
+  tiket sesi lampau tidak bisa direkonstruksi; perbandingannya dilakukan lintas
+  pasar pada hari yang sama.
+- **Chart memakai widget TradingView.** Ini satu-satunya dependensi runtime
+  pihak ketiga di aplikasi: skrip dimuat dari `s3.tradingview.com` dan dirender
+  dalam iframe. Tidak ada data aplikasi yang dikirim ke sana selain kode
+  emitennya. Kalau skripnya diblokir, komponennya mengatakan itu dan memberi
+  tautan langsung, bukan kotak kosong.
 
 - **Kepemilikan KSEI adalah bulanan dan tanpa nama.** Satu pengamatan per akhir
   bulan, jadi bacaan terbaru bisa berumur sampai lima minggu; arus adalah selisih

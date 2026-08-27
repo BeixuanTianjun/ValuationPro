@@ -162,6 +162,18 @@ dengan feed berbayar IDX Data Services. Tab Broker Flow membaca struktur pelaku
 pasar — ritel versus institusi lewat ukuran tiket rata-rata — dan menyatakan
 batasan ini di layar.
 
+**Tema kebijakan dikurasi, bukan ditarik dari feed.** Keterbukaan informasi IDX
+memberi tahu apa yang dilakukan emiten, bukan apa yang diumumkan pemerintah.
+Tema seperti PLTS, biodiesel, atau program perumahan ditulis tangan di
+`src/data/narratives.ts`. Isi kolom `source` dengan tautan beritanya — tema tanpa
+sumber sengaja dipotong bobotnya setengah dan ditandai di layar — dan perbarui
+`checkedOn` saat Anda memeriksanya lagi, karena tiap tema meluruh ke nol dalam 90
+hari.
+
+**Chart memakai widget TradingView.** Satu-satunya skrip pihak ketiga di
+aplikasi. Kalau pemblokir iklan atau proxy kantor menahan `s3.tradingview.com`,
+chart-nya diganti tautan langsung, bukan kotak kosong.
+
 **Kepemilikan institusi bersifat bulanan dan tanpa nama.** Sumbernya adalah
 berkas Balance Posisi Efek KSEI, satu pengamatan per akhir bulan — arus adalah
 selisih antar bulan, bukan aliran harian, dan bacaan terbaru bisa berumur sampai

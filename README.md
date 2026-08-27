@@ -9,8 +9,13 @@ harian, alat analitik ala Bloomberg, dan model DCF/LBO institusional.
 
 - **962 emiten tercatat** dengan sektor IDX-IC, sub-industri, likuiditas, dan
   arus dana asing — ditarik langsung dari API IDX, bukan agregator.
-- **Stock pick harian** dengan enam profil strategi, lengkap dengan rencana
-  perdagangan berbasis ATR yang dibulatkan ke fraksi harga IDX.
+- **Stock Screener** dengan tiga aturan keras — di atas MA3 dan MA5, volume di
+  atas 1 juta lembar, nilai transaksi di atas Rp 1 miliar. Tiap emiten lolos
+  atau tidak, dan ada kotak "kenapa emiten saya tidak lolos" yang menunjukkan
+  aturan mana yang gagal.
+- **Stock Watchlist mingguan & bulanan** dengan alur empat tahap: narasi
+  (keterbukaan informasi IDX + tema kebijakan terkurasi) → rotasi konglomerasi →
+  price action dan ukuran tiket → chart TradingView.
 - **Leaders & Laggards** — kontribusi poin indeks per emiten, dihitung dari
   bobot free-float resmi IDX. Rekonsiliasi dengan IHSG sampai 0,001 poin.
 - **Rotasi konglomerasi** — 31 grup pengendali, termasuk klaster BUMN, dengan

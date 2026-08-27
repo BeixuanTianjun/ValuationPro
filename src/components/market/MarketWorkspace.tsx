@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, LineChart, MessageSquare, ServerCrash, Target } from 'lucide-react';
+import { Building2, CalendarDays, LineChart, MessageSquare, ServerCrash, Target } from 'lucide-react';
 import { MarketDataState } from '../../hooks/useMarketData';
 import { MarketOverview } from './MarketOverview';
 import { EmitenBrowser } from './EmitenBrowser';
 import { EmitenDetail } from './EmitenDetail';
-import { AlphaScreener } from './AlphaScreener';
+import { StockScreenerPanel } from './StockScreenerPanel';
+import { StockWatchlist } from './StockWatchlist';
 import { EmitenChat } from '../chat/EmitenChat';
 import { EmitenModelBundle, buildEmitenModel } from '../../models/idxCompanyBridge';
 import { EmptyState, Segmented, SegmentedOption, Spinner } from '../common/ui';
 
-export type MarketSubTab = 'overview' | 'emiten' | 'screener' | 'chat';
+export type MarketSubTab = 'overview' | 'emiten' | 'screener' | 'watchlist' | 'chat';
 
 interface Props {
   market: MarketDataState;
@@ -23,7 +24,8 @@ interface Props {
 
 const TABS: SegmentedOption<MarketSubTab>[] = [
   { id: 'overview', label: 'Ikhtisar Pasar', shortLabel: 'Ikhtisar', icon: LineChart },
-  { id: 'screener', label: 'Stock Pick Harian', shortLabel: 'Pick', icon: Target },
+  { id: 'screener', label: 'Stock Screener', shortLabel: 'Screener', icon: Target },
+  { id: 'watchlist', label: 'Stock Watchlist', shortLabel: 'Watchlist', icon: CalendarDays },
   { id: 'chat', label: 'Tanya Emiten', shortLabel: 'Tanya', icon: MessageSquare },
   { id: 'emiten', label: 'Basis Data Emiten', shortLabel: 'Emiten', icon: Building2 },
 ];
@@ -38,6 +40,9 @@ export const MarketWorkspace: React.FC<Props> = ({
 }) => {
   const { db, fundamentals, factors, indices, breadth, loading, error, reload } = market;
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  // Set when the screener hands a ticker to the watchlist, so the workflow
+  // opens straight on the emiten you were just looking at.
+  const [chartEmiten, setChartEmiten] = useState<string | null>(null);
 
   useEffect(() => {
     if (!focusEmiten) return;
@@ -98,12 +103,23 @@ export const MarketWorkspace: React.FC<Props> = ({
       )}
 
       {subTab === 'screener' && (
-        <AlphaScreener
+        <StockScreenerPanel
+          db={db}
+          onSelectEmiten={openEmiten}
+          onOpenChart={(code) => {
+            setChartEmiten(code);
+            onSubTabChange('watchlist');
+          }}
+        />
+      )}
+
+      {subTab === 'watchlist' && (
+        <StockWatchlist
           db={db}
           factors={factors}
-          breadth={breadth}
           onSelectEmiten={openEmiten}
-          onModelEmiten={applyModel}
+          focusEmiten={chartEmiten}
+          onFocusHandled={() => setChartEmiten(null)}
         />
       )}
 

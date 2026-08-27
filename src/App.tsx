@@ -164,7 +164,7 @@ export default function App() {
     );
   }, [market.db, selectedPresetId, loadedReport]);
 
-  const enterTerminal = (destination: 'market' | 'screener' | 'emiten' | 'chat' | 'dcf' | 'analytics') => {
+  const enterTerminal = (destination: 'market' | 'screener' | 'watchlist' | 'emiten' | 'chat' | 'dcf' | 'analytics') => {
     setShowLanding(false);
     if (destination === 'dcf') {
       setActiveTab('dcf');

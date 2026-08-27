@@ -103,6 +103,15 @@ jobs:
         continue-on-error: true
         run: npm run data:refresh
 
+      # Keterbukaan informasi drives the watchlist's narrative stage. It is five
+      # pages of JSON and finishes in seconds, so it rides the daily end-of-day
+      # tier rather than the weekly one — a filing from Tuesday is exactly what
+      # the weekly watchlist is supposed to react to.
+      - name: Pengumuman keterbukaan informasi IDX
+        if: steps.plan.outputs.eod == 'true' || steps.plan.outputs.weekly == 'true'
+        continue-on-error: true
+        run: npm run data:announcements
+
       - name: Uji mesin valuasi terhadap data harga baru
         run: npm test
 
