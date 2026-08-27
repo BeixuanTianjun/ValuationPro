@@ -13,7 +13,10 @@ Saya melanjutkan pengembangan ValuationPro. Berikut konteks lengkapnya.
 ## Apa ini
 
 Terminal pasar modal Indonesia: basis data seluruh emiten IDX, penyaring alpha
-harian, alat analitik ala Bloomberg, dan model DCF/LBO institusional.
+harian, alat analitik ala Bloomberg, dan model DCF/LBO institusional. Tampilan
+sekarang memakai palet Bloomberg (hitam murni + amber) dan navigasi mnemonic
+ala Bloomberg — Ctrl+K membuka menu fungsi, mengetik kode (mis. `SCR`, `FUND`,
+`WL`) + Enter langsung berpindah layar.
 
 - **Lokal**: `C:\Users\MIchael ROG\.gemini\antigravity\scratch\financial-modeling-lbo-dcf`
 - **Repo**: https://github.com/BeixuanTianjun/ValuationPro (publik)
@@ -168,6 +171,23 @@ menolong: elemen `w-fit` mengambil lebar konten, jadi baris lima tab tumbuh
 melewati viewport alih-alih menggulung di dalam dirinya. Ini yang membuat tata
 letak 768px rusak sementara 375px justru bersih.
 
+**Fungsi serverless yang mengimpor dari `src/` gagal dimuat di Vercel — bukan
+gagal berjalan.** `api/chat.ts` versi pertama mengimpor `src/server/chatApi.ts`
+langsung dan menjawab `FUNCTION_INVOCATION_FAILED` pada SETIAP request termasuk
+GET. Diagnosisnya bukan bug logika, tapi cara builder Vercel menyelesaikan impor
+TypeScript relatif yang dalam di bawah `"type": "module"`. Solusinya: bundel
+duluan. `npm run build:chatfn` (bagian dari `npm run build`) memakai esbuild
+untuk merangkum `api/_chat-impl.ts` jadi satu berkas ESM mandiri
+`api/_chat-bundle.mjs` tanpa sisa impor relatif, dan `api/chat.ts` tinggal
+pembungkus sembilan baris yang mengimpor bundel itu. `_chat-bundle.mjs` masuk
+`.gitignore` — dibangun ulang tiap `npm run build`, jangan commit manual.
+
+**Menu fungsi & command bar membaca satu registri.** `src/data/functions.ts`
+adalah satu-satunya sumber kebenaran untuk kode mnemonic (MKT, SCR, WL, DES,
+CHAT, MOST, CNG, FUND, BRK, AVAL, DCF, LBO). Menambah layar baru = menambah satu
+baris di sana; `MenuPanel.tsx` dan `FunctionBar.tsx` keduanya membaca dari situ,
+jadi sebuah layar tidak mungkin ada di satu tempat tapi hilang di tempat lain.
+
 ## Peta kode
 
 ```
@@ -186,7 +206,19 @@ src/server/       index (HTTP + scheduler), schedule (WIB), auth (scrypt),
 src/components/   landing, layout, market, analytics, chat, auth, dcf, lbo
 src/components/common/ui.tsx   primitif bersama: Panel, Segmented, Stat,
                   TableScroll, EmptyState — semua aturan responsif ada di sini
-api/live.ts       fungsi Vercel: kutip 962 emiten dari Yahoo saat diminta
+src/components/layout/   Header, LiveStatusBar, MenuPanel (Ctrl+K),
+                  FunctionBar (command line), CurtainTransition (animasi
+                  masuk terminal, pakai `motion`)
+src/components/market/TradingViewChart.tsx   widget chart, satu-satunya
+                  dependensi runtime pihak ketiga di aplikasi
+src/data/functions.ts   registri kode mnemonic ala Bloomberg — sumber
+                  kebenaran untuk MenuPanel & FunctionBar
+api/live.ts       fungsi Vercel: kutip 962 emiten dari Yahoo (+ fallback
+                  Google Finance kalau crumb Yahoo gagal) saat diminta
+api/chat.ts       pembungkus tipis; logika sebenarnya di api/_chat-impl.ts,
+                  dibundel esbuild jadi api/_chat-bundle.mjs saat build
+scripts/gfinance-lib.mjs   fallback kutipan Google Finance, dipakai
+                  scripts/ingest-intraday.mjs saat Yahoo gagal
 ```
 
 ## Perintah
@@ -203,6 +235,15 @@ npm run alert:preview   # hitung pick tanpa mengirim email
 ```
 
 ## Yang masih terbuka
+
+- **BELUM SELESAI, sedang dikerjakan user: ANTHROPIC_API_KEY.** `.env` baris 15
+  masih dikomentari dengan placeholder (`# ANTHROPIC_API_KEY=sk-ant-...`), dan
+  environment variable Vercel-nya juga belum diisi. Tanpa keduanya chatbot
+  (baik lokal maupun live) diam-diam jatuh ke parser lokal — baris di bawah
+  tiap jawaban chat sekarang bilang jujur mesin mana yang menjawab. Setelah
+  user dapat kuncinya dari console.anthropic.com: isi `.env` baris 15 (hapus
+  `#`, ganti nilai), lalu tambah env var yang sama di Vercel → Settings →
+  Environment Variables → redeploy.
 
 - **Keanggotaan grup konglomerasi dikurasi manual** di `src/data/conglomerates.ts`.
   IDX tidak menerbitkan peta pengendali. Angka *kohesi* di UI adalah bukti
