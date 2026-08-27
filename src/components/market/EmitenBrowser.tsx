@@ -195,7 +195,7 @@ export const EmitenBrowser: React.FC<Props> = ({ db, factors, fundamentals, sele
 
       <div className="overflow-x-auto scrollbar-thin max-h-[640px] overflow-y-auto">
         <table className="w-full text-xs">
-          <thead className="bg-slate-950/90 text-slate-400 sticky top-0 z-10">
+          <thead className="bg-slate-950 text-slate-400 sticky top-0 z-10">
             <tr>
               {header('code', 'Emiten', 'left')}
               <th className="px-3 py-2.5 font-semibold text-left">Sektor</th>

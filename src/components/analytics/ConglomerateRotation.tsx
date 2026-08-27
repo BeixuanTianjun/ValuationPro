@@ -266,7 +266,7 @@ export const ConglomerateRotation: React.FC<Props> = ({ db, factors, onSelectEmi
               </div>
 
               {open && (
-                <div className="border-t border-slate-800 bg-slate-950/50">
+                <div className="border-t border-slate-800 bg-slate-950">
                   <div className="overflow-x-auto scrollbar-thin">
                     <table className="w-full min-w-[760px] text-xs">
                       <thead className="border-b border-slate-800">
@@ -291,7 +291,7 @@ export const ConglomerateRotation: React.FC<Props> = ({ db, factors, onSelectEmi
                             onClick={() => onSelectEmiten(m.code)}
                             className="cursor-pointer transition-colors hover:bg-slate-800/40"
                           >
-                            <Td align="left" sticky className="bg-slate-950/95">
+                            <Td align="left" sticky className="bg-slate-950">
                               <div className="flex items-center gap-1.5">
                                 <span className="font-bold text-slate-100">{m.code}</span>
                                 {m.role === 'leader' && <Crown className="w-3 h-3 text-amber-400" aria-hidden="true" />}
@@ -336,7 +336,7 @@ export const ConglomerateRotation: React.FC<Props> = ({ db, factors, onSelectEmi
 };
 
 const Metric: React.FC<{ label: string; value: string; cls?: string }> = ({ label, value, cls = 'text-slate-100' }) => (
-  <div className="rounded-lg border border-slate-800 bg-slate-950/60 px-2.5 py-2 min-w-0">
+  <div className="rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-2 min-w-0">
     <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
     <div className={cx('text-sm font-bold tabular-nums', cls)}>{value}</div>
   </div>

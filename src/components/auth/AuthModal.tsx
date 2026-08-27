@@ -102,7 +102,7 @@ export const AuthModal: React.FC<Props> = ({ open, isFirstRun, dismissible, onCl
             </button>
           )}
 
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-blue-900/30">
+          <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg shadow-blue-900/30">
             <ShieldCheck className="w-5 h-5 text-white" aria-hidden="true" />
           </div>
 
@@ -211,7 +211,7 @@ export const AuthModal: React.FC<Props> = ({ open, isFirstRun, dismissible, onCl
           )}
         </form>
 
-        <div className="px-7 py-3.5 bg-slate-950/60 border-t border-slate-800">
+        <div className="px-7 py-3.5 bg-slate-950 border-t border-slate-800">
           <p className="text-[10px] text-slate-600 leading-relaxed">
             Akun disimpan lokal di komputer Anda. Layanan ini berjalan lewat HTTP di localhost — aman di loopback,
             tetapi pasang TLS di depannya sebelum diekspos ke jaringan.

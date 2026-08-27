@@ -163,19 +163,19 @@ export const Header: React.FC<HeaderProps> = ({
     ));
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/90 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <button
           onClick={onHome}
           className="group flex shrink-0 cursor-pointer items-center gap-2.5"
           aria-label="Kembali ke halaman depan"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 shadow-lg shadow-blue-900/30 transition-transform duration-200 group-hover:scale-105">
-            <TrendingUp className="h-5 w-5 text-white" aria-hidden="true" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500 shadow-none transition-transform duration-200 group-hover:scale-105">
+            <TrendingUp className="h-5 w-5 text-black" aria-hidden="true" />
           </div>
           <div className="text-left">
             <div className="text-sm font-extrabold tracking-tight text-white sm:text-base">
-              Valuation<span className="text-blue-500">Pro</span>
+              Valuation<span className="text-amber-500">Pro</span>
             </div>
             <p className="-mt-0.5 hidden text-[10px] text-slate-500 sm:block">Terminal Pasar Modal Indonesia</p>
           </div>
@@ -256,7 +256,7 @@ export const MobileTabBar: React.FC<{
 }> = ({ activeTab, setActiveTab }) => (
   <nav
     aria-label="Ruang kerja"
-    className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 backdrop-blur-xl pb-safe lg:hidden"
+    className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950 backdrop-blur-xl pb-safe lg:hidden"
   >
     <div className="grid grid-cols-4">
       {NAV.map(({ id, short, icon: Icon }) => {

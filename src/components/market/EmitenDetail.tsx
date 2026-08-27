@@ -104,7 +104,7 @@ export const EmitenDetail: React.FC<Props> = ({ code, db, fundamentals, factors,
         {emiten.business && <p className="text-[11px] text-slate-400 leading-relaxed">{emiten.business}</p>}
 
         {/* price + cumulative foreign flow */}
-        <div className="h-56 bg-slate-950/50 border border-slate-800 rounded-xl p-3">
+        <div className="h-56 bg-slate-950 border border-slate-800 rounded-xl p-3">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chart} margin={{ top: 5, right: 5, left: -12, bottom: 0 }}>
               <defs>
@@ -175,7 +175,7 @@ export const EmitenDetail: React.FC<Props> = ({ code, db, fundamentals, factors,
 
         {/* statements + model handoff */}
         {bundle ? (
-          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="text-xs font-bold text-white">
                 Laporan Keuangan Tahunan — {bundle.report.years.join(', ')}
@@ -239,7 +239,7 @@ export const EmitenDetail: React.FC<Props> = ({ code, db, fundamentals, factors,
             ))}
           </div>
         ) : (
-          <div className="flex gap-2 bg-slate-950/60 border border-slate-800 rounded-xl p-4 text-[11px] text-slate-500">
+          <div className="flex gap-2 bg-slate-950 border border-slate-800 rounded-xl p-4 text-[11px] text-slate-500">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-400" />
             <span>
               Laporan keuangan tahunan untuk {emiten.code} belum tersedia di database. Anda tetap bisa memodelkannya
@@ -254,7 +254,7 @@ export const EmitenDetail: React.FC<Props> = ({ code, db, fundamentals, factors,
 };
 
 const Cell: React.FC<{ label: string; value: string; tone?: number }> = ({ label, value, tone: t }) => (
-  <div className="bg-slate-950/50 border border-slate-800 rounded-lg px-3 py-2">
+  <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2">
     <div className="text-[9px] uppercase tracking-wide text-slate-500 font-semibold">{label}</div>
     <div className={`text-xs font-bold tabular-nums ${tone(t)}`}>{value}</div>
   </div>

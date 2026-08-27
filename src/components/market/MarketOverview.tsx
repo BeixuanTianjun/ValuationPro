@@ -214,7 +214,7 @@ export const MarketOverview: React.FC<Props> = ({ db, indices, breadth, onReload
 
         <div className="overflow-x-auto scrollbar-thin">
           <table className="w-full text-xs">
-            <thead className="bg-slate-950/60 text-slate-400">
+            <thead className="bg-slate-950 text-slate-400">
               <tr>
                 <th className="text-left px-5 py-2.5 font-semibold">Indeks</th>
                 <th className="text-right px-3 py-2.5 font-semibold">Anggota</th>

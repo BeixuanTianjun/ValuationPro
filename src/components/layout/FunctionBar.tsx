@@ -95,7 +95,7 @@ export const FunctionBar: React.FC<Props> = ({ active, onOpenMenu, onRun, childr
             placeholder="Ketik kode + Enter  ·  / untuk fokus"
             spellCheck={false}
             autoComplete="off"
-            className="w-full rounded border border-slate-800 bg-slate-900/70 py-1 pl-7 pr-2 font-mono text-[11px] uppercase tracking-wider text-amber-200 placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-600 focus:border-amber-500/60 focus:outline-none"
+            className="w-full rounded border border-slate-800 bg-slate-900 py-1 pl-7 pr-2 font-mono text-[11px] uppercase tracking-wider text-amber-200 placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-600 focus:border-amber-500/60 focus:outline-none"
           />
           {error && (
             <span className="absolute left-0 top-full z-20 mt-1 rounded border border-rose-800 bg-slate-950 px-2 py-1 text-[10px] text-rose-300 shadow-lg">

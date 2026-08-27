@@ -52,7 +52,7 @@ export const BrokerFlow: React.FC<BrokerProps> = ({ db, onSelectEmiten }) => {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
         <AlertTriangle className="w-7 h-7 text-amber-400 mx-auto mb-3" aria-hidden="true" />
         <p className="text-sm text-slate-300">{error}</p>
       </div>
@@ -72,7 +72,7 @@ export const BrokerFlow: React.FC<BrokerProps> = ({ db, onSelectEmiten }) => {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/40 p-4 sm:p-5">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -120,7 +120,7 @@ export const BrokerFlow: React.FC<BrokerProps> = ({ db, onSelectEmiten }) => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 sm:p-5">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
         <h4 className="text-xs font-bold text-white">Ritel vs Institusi — dibaca dari ukuran tiket rata-rata</h4>
         <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed max-w-3xl">
           Nilai dibagi jumlah transaksi memberi ukuran tiket rata-rata tiap broker. Platform ritel mencetak ratusan
@@ -147,7 +147,7 @@ export const BrokerFlow: React.FC<BrokerProps> = ({ db, onSelectEmiten }) => {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
           {result.participants.map((p) => (
-            <div key={p.participant} className="rounded-xl border border-slate-800 bg-slate-950/50 p-3.5">
+            <div key={p.participant} className="rounded-xl border border-slate-800 bg-slate-950 p-3.5">
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${CLASS_COLORS[p.participant]}`} aria-hidden="true" />
                 <span className="text-[11px] font-bold text-slate-200">{p.label}</span>
@@ -222,7 +222,7 @@ export const BrokerFlow: React.FC<BrokerProps> = ({ db, onSelectEmiten }) => {
       {db && <PerEmitenStructure db={db} onSelectEmiten={onSelectEmiten} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-800">
             <Building className="w-4 h-4 text-cyan-400" aria-hidden="true" />
             <h4 className="text-xs font-bold text-white">Anggota Bursa Teraktif</h4>
@@ -293,7 +293,7 @@ const ShiftPanel: React.FC<{
   icon: React.ReactNode;
   rows: BrokerFlowResult['gainers'];
 }> = ({ title, subtitle, icon, rows }) => (
-  <div className="rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden">
+  <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden">
     <div className="px-5 py-3 border-b border-slate-800">
       <div className="flex items-center gap-2">
         {icon}

@@ -215,12 +215,12 @@ export const LandingPage: React.FC<Props> = ({
 
         <header className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
           <div className="flex items-center gap-3 animate-rise">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-blue-900/40">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg shadow-blue-900/40">
               <LineChart className="w-5 h-5 text-white" aria-hidden="true" />
             </div>
             <div>
               <div className="text-lg font-extrabold tracking-tight">
-                Valuation<span className="text-blue-500">Pro</span>
+                Valuation<span className="text-amber-500">Pro</span>
               </div>
               <div className="text-[11px] text-slate-500 -mt-0.5">Terminal Pasar Modal Indonesia</div>
             </div>
@@ -390,7 +390,7 @@ export const LandingPage: React.FC<Props> = ({
           {stats.map((s, i) => (
             <div
               key={s.label}
-              className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 sm:p-6 animate-rise"
+              className="rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:p-6 animate-rise"
               style={{ ['--i' as string]: i }}
             >
               <div className="text-3xl font-extrabold tabular-nums bg-gradient-to-br from-white to-slate-400 bg-clip-text text-transparent">
@@ -417,7 +417,7 @@ export const LandingPage: React.FC<Props> = ({
           {FEATURES.map((f, i) => (
             <div
               key={f.title}
-              className={`group rounded-2xl border border-slate-800 bg-slate-900/40 p-5 sm:p-6 transition-all duration-300 hover:bg-slate-900/80 ${f.ring} animate-rise`}
+              className={`group rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:p-6 transition-all duration-300 hover:bg-slate-900/80 ${f.ring} animate-rise`}
               style={{ ['--i' as string]: i }}
             >
               <div className="w-11 h-11 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">

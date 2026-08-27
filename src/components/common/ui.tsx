@@ -37,9 +37,9 @@ export const Panel: React.FC<PanelProps> = ({ children, className, tone = 'raise
     <Tag
       className={cx(
         'rounded-xl sm:rounded-2xl border overflow-hidden',
-        tone === 'raised' && 'border-slate-800 bg-gradient-to-b from-slate-900 to-slate-900/50',
-        tone === 'flat' && 'border-slate-800/70 bg-slate-950/40',
-        tone === 'accent' && 'border-cyan-900/50 bg-gradient-to-b from-cyan-950/40 to-slate-900/60',
+        tone === 'raised' && 'border-slate-800 bg-slate-900',
+        tone === 'flat' && 'border-slate-800 bg-slate-950',
+        tone === 'accent' && 'border-amber-800/60 bg-slate-900',
         padded && 'p-4 sm:p-5',
         className
       )}
@@ -57,16 +57,16 @@ interface PanelHeaderProps {
   tone?: string;
 }
 
-export const PanelHeader: React.FC<PanelHeaderProps> = ({ icon: Icon, title, subtitle, actions, tone = 'text-cyan-400' }) => (
-  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+export const PanelHeader: React.FC<PanelHeaderProps> = ({ icon: Icon, title, subtitle, actions, tone = 'text-amber-400' }) => (
+  <div className="flex flex-col gap-3 border-b border-slate-800 pb-3 sm:flex-row sm:items-start sm:justify-between">
     <div className="min-w-0">
       <div className="flex items-center gap-2">
-        {Icon && <Icon className={cx('w-4 h-4 shrink-0', tone)} aria-hidden="true" />}
-        <h3 className="text-sm font-bold text-white truncate">{title}</h3>
+        {Icon && <Icon className={cx('w-3.5 h-3.5 shrink-0', tone)} aria-hidden="true" />}
+        <h3 className="truncate text-[12px] font-bold uppercase tracking-wider text-slate-100">{title}</h3>
       </div>
-      {subtitle && <p className="text-[11px] leading-relaxed text-slate-500 mt-1.5">{subtitle}</p>}
+      {subtitle && <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">{subtitle}</p>}
     </div>
-    {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
+    {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
   </div>
 );
 
@@ -118,7 +118,7 @@ export function Segmented<T extends string>({
       <nav
         aria-label={ariaLabel}
         className={cx(
-          'flex gap-1 rounded-xl border border-slate-800 bg-slate-900/70 p-1 sm:p-1.5',
+          'flex gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1 sm:p-1.5',
           'overflow-x-auto scrollbar-thin snap-x',
           // max-w-full matters as much as the overflow rule: a `w-fit` bar sizes
           // to its content, and without the clamp a five-tab row simply grows
@@ -170,20 +170,20 @@ interface StatProps {
 }
 
 const TONE_TEXT: Record<string, string> = {
-  neutral: 'text-white',
+  neutral: 'text-slate-100',
   up: 'text-emerald-400',
   down: 'text-rose-400',
-  accent: 'text-cyan-300',
+  accent: 'text-amber-400',
   warn: 'text-amber-300',
 };
 
 export const Stat: React.FC<StatProps> = ({ label, value, hint, tone = 'neutral', icon: Icon, className }) => (
-  <div className={cx('rounded-xl border border-slate-800 bg-slate-950/50 p-3 sm:p-3.5 min-w-0', className)}>
-    <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+  <div className={cx('min-w-0 rounded-xl border border-slate-800 bg-slate-950 p-3 sm:p-3.5', className)}>
+    <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
       {Icon && <Icon className="w-3 h-3 shrink-0" aria-hidden="true" />}
       <span className="truncate">{label}</span>
     </div>
-    <div className={cx('mt-1.5 text-lg sm:text-xl font-extrabold tabular-nums leading-tight', TONE_TEXT[tone])}>
+    <div className={cx('mt-1.5 text-lg font-bold leading-tight tabular-nums sm:text-xl', TONE_TEXT[tone])}>
       {value}
     </div>
     {hint && <div className="mt-1 text-[10px] leading-snug text-slate-500">{hint}</div>}
@@ -266,7 +266,7 @@ export const Th: React.FC<{
     title={title}
     scope="col"
     className={cx(
-      'py-2 px-2 text-[10px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap',
+      'whitespace-nowrap px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500',
       align === 'left' && 'text-left',
       align === 'right' && 'text-right',
       align === 'center' && 'text-center',
@@ -314,7 +314,7 @@ export const EmptyState: React.FC<{
   <div
     className={cx(
       'rounded-2xl border p-6 sm:p-8 text-center',
-      tone === 'neutral' && 'border-slate-800 bg-slate-900/50',
+      tone === 'neutral' && 'border-slate-800 bg-slate-900',
       tone === 'warn' && 'border-amber-900/50 bg-amber-950/10',
       tone === 'error' && 'border-rose-900/50 bg-rose-950/10'
     )}
@@ -358,7 +358,7 @@ export const SourceNote: React.FC<{ children: React.ReactNode; icon?: React.Elem
   children,
   icon: Icon,
 }) => (
-  <div className="flex items-start gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2.5 text-[10px] leading-relaxed text-slate-500">
+  <div className="flex items-start gap-2 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2.5 text-[10px] leading-relaxed text-slate-500">
     {Icon && <Icon className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-600" aria-hidden="true" />}
     <div className="min-w-0">{children}</div>
   </div>

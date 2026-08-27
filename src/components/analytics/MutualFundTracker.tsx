@@ -400,8 +400,8 @@ const OwnershipDetail: React.FC<{ profile: OwnershipProfile; onSelectEmiten: (co
           'rounded-xl border p-3.5 sm:p-4',
           profile.verdict.level === 'akumulasi' && 'border-emerald-900/60 bg-emerald-950/20',
           profile.verdict.level === 'distribusi' && 'border-rose-900/60 bg-rose-950/20',
-          profile.verdict.level === 'stabil' && 'border-slate-800 bg-slate-950/50',
-          profile.verdict.level === 'tidak-cukup-data' && 'border-slate-800 bg-slate-950/50'
+          profile.verdict.level === 'stabil' && 'border-slate-800 bg-slate-950',
+          profile.verdict.level === 'tidak-cukup-data' && 'border-slate-800 bg-slate-950'
         )}
       >
         <div className="flex items-center gap-2">
@@ -607,7 +607,7 @@ const MoverTable: React.FC<{
   basis: BasisId;
   onInspect: (code: string) => void;
 }> = ({ title, tone, rows, db, basis, onInspect }) => (
-  <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3 sm:p-4">
+  <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 sm:p-4">
     <div className="flex items-center gap-2">
       {tone === 'up' ? (
         <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />

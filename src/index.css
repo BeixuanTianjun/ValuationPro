@@ -3,29 +3,36 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
-   Design tokens.
+   Design tokens — Bloomberg palette.
+
    Dark-only by intent: this is a trading terminal, read for long stretches in
    low light. Semantic names rather than raw hex so a component never hardcodes
    a colour.
+
+   The ground is PURE BLACK, not a dark blue-grey. That single choice is most of
+   what separates a terminal from a dashboard: on black, an amber field and a
+   green print carry their own light, and the panel rules can drop to a hairline
+   because there is no ambient tint for them to compete with.
    --------------------------------------------------------------------------- */
 @layer base {
   :root {
-    --bg: #020617;
-    --bg-elevated: #0b1120;
-    --surface: #0e1223;
-    --surface-hover: #151b30;
-    --border: #1e293b;
-    --border-strong: #334155;
+    --bg: #000000;
+    --bg-elevated: #0a0a0d;
+    --surface: #0e0e12;
+    --surface-hover: #17171c;
+    --border: #26262c;
+    --border-strong: #3a3a42;
 
-    --text: #f8fafc;
-    --text-muted: #94a3b8;
-    --text-faint: #64748b;
+    --text: #e9e9ee;
+    --text-muted: #8f8f9c;
+    --text-faint: #5a5a64;
 
-    --up: #22c55e;
-    --down: #f43f5e;
-    --accent: #3b82f6;
-    --accent-alt: #6366f1;
-    --warn: #f59e0b;
+    --up: #22d46f;
+    --down: #ff5b50;
+    /* Amber is the signature, so it is the accent — not blue. */
+    --accent: #ff9e18;
+    --accent-alt: #5da4ff;
+    --warn: #ffa733;
 
     /* Dense/dashboard spacing rhythm. */
     --space-1: 4px;
@@ -46,8 +53,30 @@
   body {
     background-color: var(--bg);
     color: var(--text);
-    font-family: Inter, 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-family: 'IBM Plex Sans', Inter, system-ui, -apple-system, sans-serif;
+    /* Lining, tabular figures everywhere by default. A price column that
+       reflows by a pixel every time a 1 becomes an 8 is unreadable at a
+       glance, and glancing is the whole point. */
+    font-variant-numeric: tabular-nums lining-nums;
+    letter-spacing: -0.005em;
+  }
+
+  /* Numbers are the content here, so they get the monospace face wherever they
+     are marked as tabular — which every price, percentage and ratio in this app
+     already is. */
+  .tabular-nums,
+  table td,
+  table th,
+  kbd,
+  code {
+    font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  /* Column headers on a terminal are small, spaced and quiet — the data is what
+     should be loud. */
+  th {
+    letter-spacing: 0.06em;
   }
 
   /* Figures in tables and price cells must not jitter as digits change. */
@@ -59,9 +88,9 @@
   /* A visible focus ring is not optional — it is the only affordance a
      keyboard user has. Never remove it; restyle it instead. */
   :focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    border-radius: 4px;
+    outline: 1px solid var(--accent);
+    outline-offset: 1px;
+    border-radius: 0;
   }
 }
 
@@ -173,8 +202,8 @@
 
   .grid-glow {
     background-image:
-      linear-gradient(rgba(59, 130, 246, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(59, 130, 246, 0.06) 1px, transparent 1px);
+      linear-gradient(rgba(255, 158, 24, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 158, 24, 0.05) 1px, transparent 1px);
     background-size: 44px 44px;
   }
 
@@ -249,7 +278,7 @@
      without eating vertical space in a dense table. */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #334155 transparent;
+    scrollbar-color: #3a3a42 transparent;
     -webkit-overflow-scrolling: touch;
   }
   .scrollbar-thin::-webkit-scrollbar {
@@ -260,11 +289,11 @@
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #334155;
-    border-radius: 999px;
+    background: #3a3a42;
+    border-radius: 0;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    background: #5a5a64;
   }
 
   /* Fitts' law: a finger is ~9mm wide. Only enforced on coarse pointers so the

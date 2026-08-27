@@ -142,7 +142,7 @@ export const LiveStatusBar: React.FC<Props> = ({
   const detail = status && !status.locked ? status : null;
 
   return (
-    <div className="bg-slate-900/60 border-b border-slate-800/80 px-4 sm:px-6 py-2.5">
+    <div className="bg-slate-900 border-b border-slate-800/80 px-4 sm:px-6 py-2.5">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] sm:gap-x-5">
         <div className="flex items-center gap-2">
           {phase === 'sesi-1' || phase === 'sesi-2' ? (

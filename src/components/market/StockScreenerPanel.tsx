@@ -128,7 +128,7 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten, onOpen
         />
 
         {showSettings && (
-          <div className="mt-4 grid gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3.5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-4 grid gap-3 rounded-xl border border-slate-800 bg-slate-950 p-3.5 sm:grid-cols-2 lg:grid-cols-4">
             <NumberField
               label="MA pendek (sesi)"
               value={settings.maShort}
@@ -181,7 +181,7 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten, onOpen
                 'rounded-xl border p-3',
                 i === result.funnel.length - 1
                   ? 'border-emerald-800/60 bg-emerald-950/20'
-                  : 'border-slate-800 bg-slate-950/50'
+                  : 'border-slate-800 bg-slate-950'
               )}
             >
               <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{stage.label}</div>

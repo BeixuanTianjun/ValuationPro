@@ -354,7 +354,7 @@ export default function App() {
       />
 
       {activeTab !== 'market' && activeTab !== 'analytics' && (
-        <div className="bg-slate-900/40 border-b border-slate-800/80 px-4 sm:px-6 py-2.5">
+        <div className="bg-slate-900 border-b border-slate-800/80 px-4 sm:px-6 py-2.5">
           <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
             <span className="font-semibold text-slate-500 uppercase tracking-wide">Emiten aktif</span>
             <span className="text-blue-400 font-bold">

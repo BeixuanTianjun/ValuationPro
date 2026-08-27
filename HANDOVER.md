@@ -109,6 +109,19 @@ berbeda, dan keduanya perlu ada. `daily.volume` dalam LEMBAR, sedangkan
 `PriceSeries.value` dalam JUTA rupiah. Membandingkan hitungan lot terhadap
 1.000.000 diam-diam menyaring 100 juta lembar dan mengembalikan hampir kosong.
 
+**Palet Bloomberg dipasang lewat REMAP ramp Tailwind, bukan menyunting komponen.**
+`tailwind.config.js` mendefinisikan ulang arti `slate`, `amber`, `cyan`, `blue`,
+`indigo`, `emerald`, dan `rose`, plus `borderRadius` supaya seluruh sudut jadi
+2-4px. Konsekuensinya: jangan menulis hex mentah di komponen — tulis kelas ramp,
+dan warnanya ikut. Mengubah tema seluruh aplikasi = mengubah satu berkas.
+`slate-950` sekarang hitam murni dan `slate-500` sengaja dinaikkan dari bawaan
+Tailwind karena bawaannya disetel untuk latar putih dan tidak terbaca di hitam.
+
+**Dev server TIDAK memuat ulang tailwind.config.js.** Setelah mengubah tema,
+`npm run dev` yang sudah jalan akan tetap memakai palet lama dan membuat Anda
+mengira perubahannya gagal. Verifikasi lewat `npm run build` + `vite preview`,
+atau restart dev server.
+
 **Chatbot butuh ANTHROPIC_API_KEY di DUA tempat.** `.env` lokal untuk
 `npm run auto`, dan environment variable proyek Vercel untuk `api/chat.ts`.
 Sebelum `api/chat.ts` ada, situs live sama sekali tidak punya endpoint chat —

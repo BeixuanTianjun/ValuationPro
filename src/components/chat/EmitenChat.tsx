@@ -75,8 +75,8 @@ export const EmitenChat: React.FC<Props> = ({ db, factors, fundamentals, onSelec
   };
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden flex flex-col h-[calc(100vh-260px)] min-h-[520px]">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800 bg-slate-950/50">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden flex flex-col h-[calc(100vh-260px)] min-h-[520px]">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800 bg-slate-950">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-700 flex items-center justify-center">
           <Sparkles className="w-4 h-4 text-white" aria-hidden="true" />
         </div>
@@ -100,7 +100,7 @@ export const EmitenChat: React.FC<Props> = ({ db, factors, fundamentals, onSelec
                 <button
                   key={s}
                   onClick={() => void send(s)}
-                  className="text-left px-4 py-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-blue-600/50 hover:bg-slate-900 text-[13px] text-slate-300 transition-all duration-200 cursor-pointer animate-rise"
+                  className="text-left px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-blue-600/50 hover:bg-slate-900 text-[13px] text-slate-300 transition-all duration-200 cursor-pointer animate-rise"
                   style={{ ['--i' as string]: i }}
                 >
                   {s}
@@ -168,7 +168,7 @@ export const EmitenChat: React.FC<Props> = ({ db, factors, fundamentals, onSelec
           e.preventDefault();
           void send(input);
         }}
-        className="border-t border-slate-800 bg-slate-950/50 p-4"
+        className="border-t border-slate-800 bg-slate-950 p-4"
       >
         <div className="flex items-end gap-2">
           <label htmlFor="chat-input" className="sr-only">
@@ -201,10 +201,10 @@ export const EmitenChat: React.FC<Props> = ({ db, factors, fundamentals, onSelec
 };
 
 const ResultTable: React.FC<{ rows: EmitenRow[]; onSelect: (code: string) => void }> = ({ rows, onSelect }) => (
-  <div className="rounded-xl border border-slate-800 overflow-hidden bg-slate-950/50">
+  <div className="rounded-xl border border-slate-800 overflow-hidden bg-slate-950">
     <div className="overflow-x-auto scrollbar-thin">
       <table className="w-full text-xs">
-        <thead className="bg-slate-900/70 text-slate-500">
+        <thead className="bg-slate-900 text-slate-500">
           <tr>
             <th scope="col" className="text-left px-3 py-2 font-semibold">
               Emiten

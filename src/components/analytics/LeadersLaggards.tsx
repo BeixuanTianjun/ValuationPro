@@ -32,7 +32,7 @@ export const LeadersLaggards: React.FC<Props> = ({ db, onSelectEmiten }) => {
 
   if (!result) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center text-sm text-slate-400">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-sm text-slate-400">
         Atribusi indeks membutuhkan bobot free-float dari sesi IDX terakhir. Jalankan{' '}
         <code className="text-blue-400">npm run data:refresh</code>.
       </div>
@@ -48,7 +48,7 @@ export const LeadersLaggards: React.FC<Props> = ({ db, onSelectEmiten }) => {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/40 p-4 sm:p-5">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -129,7 +129,7 @@ export const LeadersLaggards: React.FC<Props> = ({ db, onSelectEmiten }) => {
         />
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 sm:p-5">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
         <h4 className="text-xs font-bold text-white mb-4">Kontribusi per Sektor IDX-IC</h4>
         <div className="space-y-2">
           {result.sectors.map((s) => (
@@ -185,7 +185,7 @@ const ContributionPanel: React.FC<{
   positive: boolean;
   onSelect: (code: string) => void;
 }> = ({ title, subtitle, icon, rows, maxAbs, positive, onSelect }) => (
-  <div className="rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden">
+  <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden">
     <div className="px-5 py-3.5 border-b border-slate-800">
       <div className="flex items-center gap-2">
         {icon}

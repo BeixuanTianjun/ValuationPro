@@ -73,7 +73,7 @@ export const ValuationBridge: React.FC<ValuationBridgeProps> = ({
               <span className="font-sans text-slate-400">Less: Total Debt & Minority Int.</span>
               <span className="text-rose-400">- {formatCurrency(assumptions.balanceSheetDebt + assumptions.minorityInterest, assumptions.currency, 1)}</span>
             </div>
-            <div className="flex justify-between py-2 bg-slate-950/60 px-2 rounded font-bold">
+            <div className="flex justify-between py-2 bg-slate-950 px-2 rounded font-bold">
               <span className="font-sans text-white">Implied Equity Value</span>
               <span className="text-white">{formatCurrency(summary.equityValueGordonGrowth, assumptions.currency, 1)}</span>
             </div>
@@ -143,7 +143,7 @@ export const ValuationBridge: React.FC<ValuationBridgeProps> = ({
               <span className="font-sans text-slate-400">Less: Total Debt & Minority Int.</span>
               <span className="text-rose-400">- {formatCurrency(assumptions.balanceSheetDebt + assumptions.minorityInterest, assumptions.currency, 1)}</span>
             </div>
-            <div className="flex justify-between py-2 bg-slate-950/60 px-2 rounded font-bold">
+            <div className="flex justify-between py-2 bg-slate-950 px-2 rounded font-bold">
               <span className="font-sans text-white">Implied Equity Value</span>
               <span className="text-white">{formatCurrency(summary.equityValueExitMultiple, assumptions.currency, 1)}</span>
             </div>

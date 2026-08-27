@@ -148,7 +148,7 @@ export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten, f
                 key={stage.id}
                 className={cx(
                   'rounded-xl border p-3',
-                  i === 3 ? 'border-indigo-800/60 bg-indigo-950/20' : 'border-slate-800 bg-slate-950/50'
+                  i === 3 ? 'border-indigo-800/60 bg-indigo-950/20' : 'border-slate-800 bg-slate-950'
                 )}
               >
                 <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
@@ -355,7 +355,7 @@ const CandidateCard: React.FC<{
 // ---------------------------------------------------------------------------
 
 const CandidateDetail: React.FC<{ candidate: WatchlistCandidate }> = ({ candidate: c }) => (
-  <div className="space-y-4 border-t border-slate-800 bg-slate-950/50 p-4 sm:p-5">
+  <div className="space-y-4 border-t border-slate-800 bg-slate-950 p-4 sm:p-5">
     {/* 1 — narrative */}
     <StageBlock n={1} icon={Newspaper} title="Narasi" tone="text-amber-400" score={c.narrative.score}>
       {c.narrative.themes.length > 0 && (
@@ -513,7 +513,7 @@ const StageBlock: React.FC<{
   score: number | null;
   children: React.ReactNode;
 }> = ({ n, icon: Icon, title, tone, score, children }) => (
-  <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-3.5 sm:p-4">
+  <section className="rounded-xl border border-slate-800 bg-slate-900 p-3.5 sm:p-4">
     <div className="mb-3 flex items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-800 text-[10px] font-bold text-slate-300">
@@ -543,7 +543,7 @@ const ThemePanel: React.FC = () => (
     />
     <div className="mt-4 grid gap-3 lg:grid-cols-2">
       {NARRATIVE_THEMES.map((t) => (
-        <div key={t.id} className="rounded-xl border border-slate-800 bg-slate-950/50 p-3.5">
+        <div key={t.id} className="rounded-xl border border-slate-800 bg-slate-950 p-3.5">
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="text-xs font-bold text-white">{t.name}</h4>
             {t.confidence === 'medium' && <Pill tone="muted">keyakinan sedang</Pill>}
