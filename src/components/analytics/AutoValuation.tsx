@@ -134,7 +134,7 @@ export const AutoValuation: React.FC<Props> = ({ db, fundamentals, factors, onSe
                 <th scope="col" className="text-right px-3 py-2.5 font-semibold">Beta</th>
                 <th scope="col" className="text-right px-3 py-2.5 font-semibold">CAGR</th>
                 <th scope="col" className="text-right px-3 py-2.5 font-semibold">TV %</th>
-                <th scope="col" className="text-right px-3 py-2.5 font-semibold">Kap (Rp M)</th>
+                <th scope="col" className="text-right px-3 py-2.5 font-semibold">Kap (Rp miliar)</th>
                 <th scope="col" className="text-right px-5 py-2.5 font-semibold">Aksi</th>
               </tr>
             </thead>

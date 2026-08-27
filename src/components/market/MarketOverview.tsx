@@ -137,7 +137,7 @@ export const MarketOverview: React.FC<Props> = ({ db, indices, breadth, onReload
             />
             <Stat
               label="Net asing"
-              value={`Rp ${breadth.netForeignIdrBn.toFixed(0)} M`}
+              value={`Rp ${breadth.netForeignIdrBn.toFixed(0)} miliar`}
               hint={`${breadth.netForeignIdrBn >= 0 ? 'net beli' : 'net jual'} · sesi ${
                 db.live?.foreignFlowAsOf || db.meta.latestSession
               }`}
@@ -224,7 +224,7 @@ export const MarketOverview: React.FC<Props> = ({ db, indices, breadth, onReload
                 <th className="text-right px-3 py-2.5 font-semibold">3 Bln</th>
                 <th className="text-right px-3 py-2.5 font-semibold">12 Bln</th>
                 <th className="text-right px-3 py-2.5 font-semibold">YTD</th>
-                <th className="text-right px-5 py-2.5 font-semibold">Nilai (Rp M)</th>
+                <th className="text-right px-5 py-2.5 font-semibold">Nilai (Rp miliar)</th>
               </tr>
             </thead>
             <tbody>
@@ -273,21 +273,21 @@ export const MarketOverview: React.FC<Props> = ({ db, indices, breadth, onReload
           title="Teraktif (Nilai)"
           icon={<Activity className="w-4 h-4 text-blue-400" />}
           rows={movers.active}
-          render={(q) => ({ primary: `Rp ${(q.value / 1e9).toFixed(1)} M`, cls: 'text-slate-200' })}
+          render={(q) => ({ primary: `Rp ${(q.value / 1e9).toFixed(1)} miliar`, cls: 'text-slate-200' })}
           onSelect={onSelectEmiten}
         />
         <MoverCard
           title={`Net Beli Asing Terbesar · ${db.live?.foreignFlowAsOf || db.meta.latestSession}`}
           icon={<Globe2 className="w-4 h-4 text-emerald-400" />}
           rows={movers.inflow}
-          render={(q) => ({ primary: `+Rp ${(q.foreignNet / 1e9).toFixed(1)} M`, cls: 'text-emerald-400' })}
+          render={(q) => ({ primary: `+Rp ${(q.foreignNet / 1e9).toFixed(1)} miliar`, cls: 'text-emerald-400' })}
           onSelect={onSelectEmiten}
         />
         <MoverCard
           title={`Net Jual Asing Terbesar · ${db.live?.foreignFlowAsOf || db.meta.latestSession}`}
           icon={<Globe2 className="w-4 h-4 text-rose-400" />}
           rows={movers.outflow}
-          render={(q) => ({ primary: `Rp ${(q.foreignNet / 1e9).toFixed(1)} M`, cls: 'text-rose-400' })}
+          render={(q) => ({ primary: `Rp ${(q.foreignNet / 1e9).toFixed(1)} miliar`, cls: 'text-rose-400' })}
           onSelect={onSelectEmiten}
         />
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 text-[11px] text-slate-400 space-y-2">

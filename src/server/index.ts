@@ -17,7 +17,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, extname, join } from 'node:path';
 import { config as loadEnv } from 'dotenv';
 
-import { computeDailyPicks, loadFundamentalsFromDisk, loadMarketDatabaseFromDisk } from './marketFromDisk';
+import { computeDailyDigest, loadFundamentalsFromDisk, loadMarketDatabaseFromDisk } from './marketFromDisk';
 import {
   MailConfig,
   explainMailError,
@@ -131,13 +131,20 @@ async function emailDigest(trigger: string): Promise<string> {
   if (!cfg) {
     return 'email dilewati — SMTP belum dikonfigurasi di .env';
   }
-  const { result, breadth, briefing, db } = await computeDailyPicks(DATA_DIR, STRATEGY);
-  if (!result.picks.length) {
-    return 'email dilewati — tidak ada emiten yang lolos filter';
+  const { screener, watchlist, breadth, db } = await computeDailyDigest(DATA_DIR);
+  if (!screener.rows.length && !watchlist.candidates.length) {
+    return 'email dilewati — tidak ada yang lolos screener maupun watchlist';
   }
   try {
-    const id = await sendDigest(cfg, { result, breadth, briefing, live: db.live, trigger });
-    return `email terkirim ke ${cfg.to.join(', ')} (${result.picks.length} pick, id ${id})`;
+    const id = await sendDigest(cfg, {
+      session: db.meta.latestSession,
+      screener,
+      watchlist,
+      breadth,
+      live: db.live,
+      trigger,
+    });
+    return `email terkirim ke ${cfg.to.join(', ')} (${screener.rows.length} lolos screener, ${watchlist.candidates.length} watchlist, id ${id})`;
   } catch (err) {
     // Surfaced rather than swallowed: a scheduled alert that silently fails is
     // worse than no alert, because you believe you are being watched.
@@ -433,11 +440,15 @@ const server = createServer(async (req, res) => {
     // Renders exactly what would be emailed, without sending. Lets the digest
     // be reviewed before any SMTP credentials exist.
     if (url.pathname === '/api/alert/preview') {
-      const { result, breadth, briefing, db } = await computeDailyPicks(
-        DATA_DIR,
-        (url.searchParams.get('strategy') as StrategyId) || STRATEGY
-      );
-      const html = renderDigestHtml({ result, breadth, briefing, live: db.live, trigger: 'Pratinjau' });
+      const { screener, watchlist, breadth, db } = await computeDailyDigest(DATA_DIR);
+      const html = renderDigestHtml({
+        session: db.meta.latestSession,
+        screener,
+        watchlist,
+        breadth,
+        live: db.live,
+        trigger: 'Pratinjau',
+      });
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(html);
       return;

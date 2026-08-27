@@ -23,7 +23,32 @@ export interface MarketDataState {
   loading: boolean;
   error: string | null;
   reload: () => void;
+  /** Epoch ms of the last successful load. Drives the "x detik lalu" readout. */
+  loadedAt: number;
+  /** Whether the polling loop is currently armed. */
+  autoRefresh: boolean;
+  setAutoRefresh: (on: boolean) => void;
+  /** True while a background refresh is in flight — never blanks the screen. */
+  refreshing: boolean;
 }
+
+/**
+ * How often the terminal re-quotes while IDX is open.
+ *
+ * WHY 45 SECONDS AND NOT 5. The quote source is Yahoo, which publishes IDX on a
+ * roughly 15-minute delay; TradingView's IDX feed is delayed too. Polling faster
+ * than the upstream refreshes cannot produce a newer price — it only burns the
+ * serverless function's budget and the user's data to receive the same numbers
+ * again. Genuine tick-by-tick IDX data is a licensed exchange feed that brokers
+ * like Stockbit pay for and redistribute under a data agreement; there is no
+ * public endpoint for it at any polling rate. 45s keeps the screen visibly
+ * moving without pretending the underlying feed is faster than it is, and the
+ * status bar always prints how old the data actually is.
+ */
+const LIVE_POLL_MS = 45_000;
+
+/** Phases where a new quote can actually exist. */
+const LIVE_PHASES = new Set(['sesi-1', 'sesi-2', 'break', 'pre-open']);
 
 const PERIODS = { m1: 21, m3: 63, m6: 126, m12: 252 };
 
@@ -75,6 +100,9 @@ export function useMarketData(enabled: boolean): MarketDataState {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
+  const [loadedAt, setLoadedAt] = useState(0);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!enabled || db) return;
@@ -87,6 +115,7 @@ export function useMarketData(enabled: boolean): MarketDataState {
         if (cancelled) return;
         setDb(market);
         setFundamentals(funds);
+        setLoadedAt(Date.now());
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
@@ -108,6 +137,46 @@ export function useMarketData(enabled: boolean): MarketDataState {
     setNonce((n) => n + 1);
   }, []);
 
+  /**
+   * Background re-quote.
+   *
+   * Deliberately NOT `reload()`: that blanks `db` and every panel falls back to
+   * its spinner, which on a 45-second cadence would mean the terminal spends
+   * its life loading. This swaps the database in only once the new one is
+   * fully built, so the numbers change in place and nothing flickers.
+   */
+  const refreshLive = useCallback(async () => {
+    invalidateMarketDatabase();
+    setRefreshing(true);
+    try {
+      const market = await loadMarketDatabase();
+      setDb(market);
+      setLoadedAt(Date.now());
+      setError(null);
+    } catch {
+      // A failed re-quote leaves the previous prices on screen. They are stale,
+      // and the status bar's age readout is what says so — replacing a working
+      // screen with an error because one poll timed out would be worse.
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Poll only while a new quote could exist. Outside market hours the price is
+  // final and re-fetching it is pure noise.
+  useEffect(() => {
+    if (!enabled || !autoRefresh || !db) return;
+    const phase = db.live?.sessionPhase;
+    if (phase && !LIVE_PHASES.has(phase)) return;
+
+    const timer = setInterval(() => {
+      // Nothing is gained by re-quoting a tab nobody is looking at.
+      if (typeof document !== 'undefined' && document.hidden) return;
+      void refreshLive();
+    }, LIVE_POLL_MS);
+    return () => clearInterval(timer);
+  }, [enabled, autoRefresh, db, refreshLive]);
+
   // Factor computation touches every emiten's full history, so it is memoised
   // against the database identity and never recomputed on a re-render.
   const factors = useMemo(() => (db ? computeAllFactors(db) : null), [db]);
@@ -124,5 +193,18 @@ export function useMarketData(enabled: boolean): MarketDataState {
     return computeBreadth(db, sma50, sma200);
   }, [db, factors]);
 
-  return { db, fundamentals, factors, indices, breadth, loading, error, reload };
+  return {
+    db,
+    fundamentals,
+    factors,
+    indices,
+    breadth,
+    loading,
+    error,
+    reload,
+    loadedAt,
+    autoRefresh,
+    setAutoRefresh,
+    refreshing,
+  };
 }

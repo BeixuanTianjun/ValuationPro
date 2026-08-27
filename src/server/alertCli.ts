@@ -13,10 +13,9 @@
 import { join } from 'node:path';
 import { config as loadEnv } from 'dotenv';
 
-import { computeDailyPicks } from './marketFromDisk';
+import { computeDailyDigest } from './marketFromDisk';
 import { explainMailError, readMailConfig, sendDigest } from './emailAlert';
 import { administrator, configureAuth } from './auth';
-import { StrategyId } from '../types/market';
 
 const ROOT = process.env.VALUATIONPRO_ROOT || process.cwd();
 loadEnv({ path: join(ROOT, '.env') });
@@ -30,23 +29,31 @@ const argVal = (flag: string, dflt: string) => {
 
 const DRY_RUN = argv.includes('--dry-run');
 const TRIGGER = argVal('--trigger', 'Terjadwal');
-const STRATEGY = (process.env.ALERT_STRATEGY || 'balanced-alpha') as StrategyId;
 
 async function main() {
   const dataDir = join(ROOT, 'public', 'data', 'idx');
-  const { result, breadth, briefing, db } = await computeDailyPicks(dataDir, STRATEGY);
+  const { screener, watchlist, breadth, db } = await computeDailyDigest(dataDir);
+  const session = db.meta.latestSession;
 
-  console.log(`Sesi ${result.session} · strategi ${result.strategy.name} · ${result.picks.length} pick`);
-  console.log(briefing);
+  console.log(
+    `Sesi ${session} · ${screener.rows.length} lolos screener · ${watchlist.candidates.length} kandidat watchlist`
+  );
+  for (const f of screener.funnel) console.log(`  ${f.label.padEnd(44)} ${f.remaining}`);
 
-  if (!result.picks.length) {
-    console.log('Tidak ada emiten yang lolos filter — email dilewati.');
+  // An empty screener is a real answer on a weak tape, but an email with two
+  // empty sections is noise — only skip when BOTH systems come back with
+  // nothing.
+  if (!screener.rows.length && !watchlist.candidates.length) {
+    console.log('Tidak ada yang lolos screener maupun watchlist — email dilewati.');
     return;
   }
 
   if (DRY_RUN) {
-    for (const p of result.picks.slice(0, 5)) {
-      console.log(`  #${p.rank} ${p.emiten.code} skor ${p.compositeScore.toFixed(2)} (${p.conviction})`);
+    for (const r of screener.rows.slice(0, 5)) {
+      console.log(`  screener ${r.code} Rp ${r.close} · nilai ${(r.valueIdr / 1e9).toFixed(1)} mdr`);
+    }
+    for (const [i, c] of watchlist.candidates.slice(0, 5).entries()) {
+      console.log(`  watchlist #${i + 1} ${c.code} skor ${c.score.toFixed(2)} — ${c.narrative.headline.slice(0, 60)}`);
     }
     console.log('--dry-run aktif: email tidak dikirim.');
     return;
@@ -66,7 +73,14 @@ async function main() {
   }
 
   try {
-    const id = await sendDigest(cfg, { result, breadth, briefing, live: db.live, trigger: TRIGGER });
+    const id = await sendDigest(cfg, {
+      session,
+      screener,
+      watchlist,
+      breadth,
+      live: db.live,
+      trigger: TRIGGER,
+    });
     console.log(`Email terkirim ke ${cfg.to.join(', ')} — id ${id}`);
   } catch (err) {
     console.error(`Pengiriman gagal: ${explainMailError(err)}`);

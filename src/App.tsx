@@ -32,6 +32,7 @@ import { AuthModal } from './components/auth/AuthModal';
 import { AccountUser, fetchAuthState, logOut } from './data/authClient';
 import { LandingPage } from './components/landing/LandingPage';
 import { LiveStatusBar } from './components/layout/LiveStatusBar';
+import { CurtainTransition } from './components/layout/CurtainTransition';
 import { DcfDiagnostics } from './components/dcf/DcfDiagnostics';
 import { useMarketData } from './hooks/useMarketData';
 import { Segmented } from './components/common/ui';
@@ -42,6 +43,9 @@ type WorkspaceTab = ActiveModelTab | 'market' | 'analytics';
 
 export default function App() {
   const [showLanding, setShowLanding] = useState<boolean>(true);
+  // Set while the curtain is sweeping. Holds the destination so the route swap
+  // can happen at the exact frame the screen is fully covered.
+  const [curtainTo, setCurtainTo] = useState<null | (() => void)>(null);
 
   // Account state. `serviceUp` false means the local service is not running, in
   // which case the app stays usable read-only from the bundled data and no
@@ -164,7 +168,9 @@ export default function App() {
     );
   }, [market.db, selectedPresetId, loadedReport]);
 
-  const enterTerminal = (destination: 'market' | 'screener' | 'watchlist' | 'emiten' | 'chat' | 'dcf' | 'analytics') => {
+  const applyDestination = (
+    destination: 'market' | 'screener' | 'watchlist' | 'emiten' | 'chat' | 'dcf' | 'analytics'
+  ) => {
     setShowLanding(false);
     if (destination === 'dcf') {
       setActiveTab('dcf');
@@ -176,6 +182,18 @@ export default function App() {
     }
     setActiveTab('market');
     setMarketSubTab(destination === 'market' ? 'overview' : destination);
+  };
+
+  /**
+   * Entering the terminal goes behind a curtain wipe rather than swapping in
+   * place. The route change itself is deferred into the transition's `onCover`
+   * so it lands while the screen is hidden — swapping early shows the terminal
+   * assembling behind a translucent panel, which looks broken.
+   */
+  const enterTerminal = (
+    destination: 'market' | 'screener' | 'watchlist' | 'emiten' | 'chat' | 'dcf' | 'analytics'
+  ) => {
+    setCurtainTo(() => () => applyDestination(destination));
   };
 
   /** Jump from any analytics table straight to that emiten's detail panel. */
@@ -214,10 +232,18 @@ export default function App() {
     />
   );
 
+  const curtain = curtainTo ? (
+    <CurtainTransition
+      onCover={() => curtainTo()}
+      onDone={() => setCurtainTo(null)}
+    />
+  ) : null;
+
   if (showLanding) {
     return (
       <>
         {authModal}
+        {curtain}
         <LandingPage
           db={market.db}
           indices={market.indices}
@@ -235,6 +261,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {authModal}
+      {curtain}
 
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 border border-emerald-400/40 animate-bounce">
@@ -264,7 +291,14 @@ export default function App() {
         currency={dcfAssumptions.currency}
       />
 
-      <LiveStatusBar db={market.db} onDataRefreshed={market.reload} />
+      <LiveStatusBar
+        db={market.db}
+        onDataRefreshed={market.reload}
+        loadedAt={market.loadedAt}
+        autoRefresh={market.autoRefresh}
+        setAutoRefresh={market.setAutoRefresh}
+        refreshing={market.refreshing}
+      />
 
       {activeTab !== 'market' && activeTab !== 'analytics' && (
         <div className="bg-slate-900/40 border-b border-slate-800/80 px-4 sm:px-6 py-2.5">

@@ -162,6 +162,26 @@ dengan feed berbayar IDX Data Services. Tab Broker Flow membaca struktur pelaku
 pasar — ritel versus institusi lewat ukuran tiket rata-rata — dan menyatakan
 batasan ini di layar.
 
+**Harga tidak bisa real-time, dan itu batas sumbernya bukan aplikasinya.** Kutipan
+intraday berasal dari Yahoo yang menerbitkan IDX dengan jeda sekitar 15 menit;
+TradingView juga delayed untuk IDX. Data tick-by-tick adalah feed bursa berlisensi
+yang dibayar dan didistribusikan anggota bursa seperti Stockbit — tidak ada
+endpoint publiknya pada kecepatan berapa pun. Yang dilakukan aplikasi: mengutip
+ulang otomatis tiap 45 detik selama bursa buka, hanya saat tab-nya terlihat, dan
+selalu mencetak umur kuotasi yang sedang tampil di baris status. Memoles interval
+lebih cepat dari itu hanya menghabiskan kuota tanpa menghasilkan harga yang lebih
+baru.
+
+**Digest email sekarang mengirim Screener + Watchlist**, bukan lagi stock pick
+dari mesin faktor. Bagian pertama adalah corong tiga aturan dengan 12 emiten
+teratas menurut nilai transaksi; bagian kedua adalah kandidat watchlist mingguan
+lengkap dengan pemicu narasinya. `npm run alert:preview` menampilkannya tanpa
+mengirim.
+
+**Chatbot memakai Claude Sonnet 5** lewat SDK resmi Anthropic, dengan dua tool:
+`screen_emiten` untuk pertanyaan lintas emiten dan `kupas_emiten` untuk membedah
+satu kode. Tanpa `ANTHROPIC_API_KEY` chatbot tetap jalan memakai parser lokal.
+
 **Tema kebijakan dikurasi, bukan ditarik dari feed.** Keterbukaan informasi IDX
 memberi tahu apa yang dilakukan emiten, bukan apa yang diumumkan pemerintah.
 Tema seperti PLTS, biodiesel, atau program perumahan ditulis tangan di

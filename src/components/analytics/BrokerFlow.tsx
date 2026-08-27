@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Building, Loader2, TrendingDown, TrendingUp, Users } from 'lucide-react';
 import { BrokerFlowResult, BrokersFile, computeBrokerFlow } from '../../models/brokerFlow';
+import { MarketDatabase } from '../../data/marketRepository';
+import { Panel, PanelHeader, SourceNote, TableScroll, Td, Th, cx } from '../common/ui';
 
 const num = (v: number, d = 0) => (Number.isFinite(v) ? v.toLocaleString('id-ID', { maximumFractionDigits: d }) : '–');
 const pct = (v: number, d = 1) => (Number.isFinite(v) ? `${(v * 100).toFixed(d)}%` : '–');
@@ -18,7 +20,13 @@ const WINDOWS = [
   { sessions: 60, label: '3 bulan' },
 ];
 
-export const BrokerFlow: React.FC = () => {
+interface BrokerProps {
+  /** Optional — the per-emiten panel needs it, the market-wide panels do not. */
+  db?: MarketDatabase | null;
+  onSelectEmiten?: (code: string) => void;
+}
+
+export const BrokerFlow: React.FC<BrokerProps> = ({ db, onSelectEmiten }) => {
   const [file, setFile] = useState<BrokersFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [windowSessions, setWindowSessions] = useState(20);
@@ -69,7 +77,7 @@ export const BrokerFlow: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-cyan-400" aria-hidden="true" />
-              <h3 className="text-sm font-bold text-white">Broker Flow — struktur pelaku pasar</h3>
+              <h3 className="text-sm font-bold text-white">Broker Summary — anggota bursa & struktur pelaku</h3>
             </div>
             <p className="text-[11px] text-slate-500 mt-1.5">
               Sesi {result.session} · jendela {result.windowSessions} sesi · {result.brokers.length} anggota bursa
@@ -94,10 +102,13 @@ export const BrokerFlow: React.FC = () => {
         <div className="mt-4 flex gap-2 rounded-xl border border-amber-500/25 bg-amber-500/8 px-4 py-3">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-400" aria-hidden="true" />
           <p className="text-[11px] text-amber-200/90 leading-relaxed">
-            <strong>IDX tidak menerbitkan rincian broker per saham ke publik.</strong> Yang tersedia hanya total
-            volume, nilai, dan frekuensi tiap anggota bursa untuk seluruh pasar — jadi pertanyaan "broker mana yang
-            mengakumulasi BBCA hari ini" tidak bisa dijawab dari sumber ini, dan alat mana pun yang mengklaim bisa
-            memakai feed berbayar IDX Data Services. Yang bisa dibaca di sini adalah struktur pelakunya.
+            <strong>Ini BUKAN broker summary per saham seperti di aplikasi sekuritas.</strong> Yang Anda lihat di
+            Stockbit — daftar broker yang membeli dan menjual satu emiten, lengkap dengan B.Val, B.Lot dan B.Avg —
+            berasal dari feed berbayar IDX Data Services yang hanya boleh didistribusikan anggota bursa berlisensi.
+            Endpoint publik IDX menerima parameter <code>code=</code> tetapi mengabaikannya: dikirim{' '}
+            <code>code=BBCA</code>, ia tetap mengembalikan 88 baris yang sama untuk seluruh pasar. Jadi tabel di bawah
+            ini adalah aktivitas tiap anggota bursa di SELURUH PASAR, dan panel terakhir memberi pendekatan per emiten
+            yang benar-benar bisa dihitung dari data publik.
           </p>
         </div>
 
@@ -149,6 +160,66 @@ export const BrokerFlow: React.FC = () => {
           ))}
         </div>
       </div>
+
+      <Panel>
+        <PanelHeader
+          icon={Building}
+          title="Anggota bursa — seluruh pasar"
+          subtitle={`Kolomnya sengaja memakai tata nama yang sama dengan broker summary sekuritas, supaya angkanya bisa langsung dibandingkan. Bedanya satu dan penting: baris di sini adalah total anggota bursa itu di SELURUH pasar pada jendela ${result.windowSessions} sesi, bukan di satu emiten.`}
+        />
+        <TableScroll className="mt-3">
+          <table className="w-full min-w-[720px] text-xs">
+            <thead className="border-b border-slate-800">
+              <tr>
+                <Th align="left" sticky>
+                  Broker
+                </Th>
+                <Th title="Nilai transaksi, miliar rupiah">Val (Rp mdr)</Th>
+                <Th title="Volume dalam juta lot">Lot (juta)</Th>
+                <Th title="Jumlah transaksi">Freq</Th>
+                <Th title="Nilai dibagi jumlah transaksi — rata-rata rupiah per order">Avg/order</Th>
+                <Th title="Pangsa nilai transaksi terhadap seluruh pasar">Pangsa</Th>
+                <Th title="Perubahan pangsa dibanding jendela sebelumnya">Δ pangsa</Th>
+                <Th align="left">Profil</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/70">
+              {result.brokers.slice(0, 30).map((b) => (
+                <tr key={b.id} className="hover:bg-slate-800/30">
+                  <Td align="left" sticky>
+                    <span className="font-bold text-cyan-300">{b.id}</span>
+                    <div className="max-w-[170px] truncate text-[10px] text-slate-500">{b.name}</div>
+                  </Td>
+                  <Td className="font-semibold text-slate-100">{num(b.valueIdrBn, 0)}</Td>
+                  <Td className="text-slate-400">{num(b.volumeMnShares / 100, 1)}</Td>
+                  <Td className="text-slate-400">{num(b.trades, 0)}</Td>
+                  <Td className="text-slate-200">Rp {num(b.averageTicketIdr / 1e6, 1)} jt</Td>
+                  <Td className="text-slate-200">{pct(b.marketShare)}</Td>
+                  <Td className={b.shareChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                    {signedPct(b.shareChange)}
+                  </Td>
+                  <Td align="left">
+                    <span
+                      className={cx(
+                        'rounded px-1.5 py-0.5 text-[9px] font-bold',
+                        b.participant === 'institusi'
+                          ? 'bg-blue-500/15 text-blue-300'
+                          : b.participant === 'ritel'
+                            ? 'bg-emerald-500/15 text-emerald-300'
+                            : 'bg-slate-800 text-slate-400'
+                      )}
+                    >
+                      {b.participant}
+                    </span>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
+      </Panel>
+
+      {db && <PerEmitenStructure db={db} onSelectEmiten={onSelectEmiten} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden">
@@ -250,3 +321,92 @@ const ShiftPanel: React.FC<{
     </div>
   </div>
 );
+
+/**
+ * The closest thing to a per-stock broker summary that public data allows.
+ *
+ * IDX publishes, per emiten per session, the traded value AND the number of
+ * trades. Their ratio is the average rupiah size of one order in that specific
+ * stock — the same retail-versus-institution discriminator the market-wide
+ * broker table uses, only pointed at a single ticker. It cannot name the broker,
+ * and it never will from this source; what it can do is say whether the orders
+ * filling today's tape are the size retail places or the size a desk places.
+ */
+const PerEmitenStructure: React.FC<{
+  db: MarketDatabase;
+  onSelectEmiten?: (code: string) => void;
+}> = ({ db, onSelectEmiten }) => {
+  const rows = useMemo(() => {
+    const out = [...db.daily.values()]
+      .filter((q) => q.freq > 50 && q.value > 1e9)
+      .map((q) => ({
+        code: q.code,
+        name: db.byCode.get(q.code)?.name ?? '',
+        close: q.close,
+        change: q.prev > 0 ? q.close / q.prev - 1 : NaN,
+        valueIdrBn: q.value / 1e9,
+        freq: q.freq,
+        avgTicketIdr: q.value / q.freq,
+        foreignNetIdrBn: q.foreignNet / 1e9,
+      }));
+    out.sort((a, b) => b.avgTicketIdr - a.avgTicketIdr);
+    return out;
+  }, [db]);
+
+  return (
+    <Panel>
+      <PanelHeader
+        icon={Users}
+        title="Struktur transaksi per emiten"
+        subtitle={`Sesi ${db.meta.latestSession}. Nilai transaksi dibagi jumlah transaksi — berapa rupiah rata-rata satu order yang terjadi di emiten itu. Diurutkan dari yang ordernya paling besar. Hanya emiten dengan lebih dari 50 transaksi dan nilai di atas Rp 1 miliar, karena di bawah itu satu order tunggal menentukan rata-ratanya.`}
+      />
+      <TableScroll className="mt-3">
+        <table className="w-full min-w-[640px] text-xs">
+          <thead className="border-b border-slate-800">
+            <tr>
+              <Th align="left" sticky>
+                Emiten
+              </Th>
+              <Th>Harga</Th>
+              <Th>Ubah</Th>
+              <Th>Rata-rata per order</Th>
+              <Th>Nilai (Rp mdr)</Th>
+              <Th>Transaksi</Th>
+              <Th>Asing (Rp mdr)</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800/70">
+            {rows.slice(0, 25).map((r) => (
+              <tr key={r.code} className="hover:bg-slate-800/30">
+                <Td align="left" sticky>
+                  <button
+                    type="button"
+                    onClick={() => onSelectEmiten?.(r.code)}
+                    className="cursor-pointer font-bold text-cyan-300 hover:text-cyan-200"
+                  >
+                    {r.code}
+                  </button>
+                  <div className="max-w-[170px] truncate text-[10px] text-slate-500">{r.name}</div>
+                </Td>
+                <Td className="text-slate-100">{num(r.close, 0)}</Td>
+                <Td className={r.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                  {Number.isFinite(r.change) ? `${r.change >= 0 ? '+' : ''}${(r.change * 100).toFixed(1)}%` : '–'}
+                </Td>
+                <Td className="font-bold text-slate-100">Rp {num(r.avgTicketIdr / 1e6, 1)} jt</Td>
+                <Td className="text-slate-300">{num(r.valueIdrBn, 1)}</Td>
+                <Td className="text-slate-400">{num(r.freq, 0)}</Td>
+                <Td className={r.foreignNetIdrBn >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                  {num(r.foreignNetIdrBn, 1)}
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
+      <SourceNote icon={AlertTriangle}>
+        Order besar tidak otomatis berarti akumulasi — penjual institusi juga mencetak order besar. Baca kolom ini
+        bersama arus asing dan arah harganya, bukan sendirian.
+      </SourceNote>
+    </Panel>
+  );
+};

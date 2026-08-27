@@ -25,7 +25,7 @@ const TABS: SegmentedOption<AnalyticsSubTab>[] = [
   { id: 'conglo', label: 'Rotasi Konglomerasi', shortLabel: 'Konglo', icon: Network },
   { id: 'funds', label: 'Mutual Fund Tracker', shortLabel: 'Fund', icon: Landmark },
   { id: 'valuation', label: 'Valuasi Otomatis', shortLabel: 'Valuasi', icon: Calculator },
-  { id: 'broker', label: 'Broker Flow', shortLabel: 'Broker', icon: Users },
+  { id: 'broker', label: 'Broker Summary', shortLabel: 'Broker', icon: Users },
 ];
 
 /**
@@ -56,7 +56,7 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
         {nav}
         {SELF_LOADING.includes(subTab) ? (
           subTab === 'broker' ? (
-            <BrokerFlow />
+            <BrokerFlow db={db} onSelectEmiten={onSelectEmiten} />
           ) : (
             <MutualFundTracker db={db} onSelectEmiten={onSelectEmiten} focusEmiten={focusEmiten} />
           )
@@ -93,7 +93,7 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
       {subTab === 'funds' && (
         <MutualFundTracker db={db} onSelectEmiten={onSelectEmiten} focusEmiten={focusEmiten} />
       )}
-      {subTab === 'broker' && <BrokerFlow />}
+      {subTab === 'broker' && <BrokerFlow db={db} onSelectEmiten={onSelectEmiten} />}
       {subTab === 'valuation' && (
         <AutoValuation
           db={db}

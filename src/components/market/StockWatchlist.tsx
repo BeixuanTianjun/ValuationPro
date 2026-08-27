@@ -434,8 +434,9 @@ const CandidateDetail: React.FC<{ candidate: WatchlistCandidate }> = ({ candidat
     <StageBlock n={3} icon={Activity} title="Price action & broker" tone="text-emerald-400" score={c.priceAction.score}>
       <StatGrid cols={4}>
         <Stat
-          label="Asing hari ini"
-          value={`Rp ${rp(c.priceAction.foreignNetIdrBn, 1)} M`}
+          label="Asing net hari ini"
+          value={`Rp ${rp(c.priceAction.foreignNetIdrBn, 1)} miliar`}
+          hint="beli asing − jual asing, sesi ini"
           tone={c.priceAction.foreignNetIdrBn >= 0 ? 'up' : 'down'}
         />
         <Stat
@@ -446,14 +447,14 @@ const CandidateDetail: React.FC<{ candidate: WatchlistCandidate }> = ({ candidat
           }
         />
         <Stat
-          label="Tiket rata-rata"
+          label="Rata-rata per transaksi"
           value={
-            Number.isFinite(c.priceAction.avgTicketIdr) ? `Rp ${rp(c.priceAction.avgTicketIdr / 1e6, 1)} jt` : '–'
+            Number.isFinite(c.priceAction.avgTicketIdr) ? `Rp ${rp(c.priceAction.avgTicketIdr / 1e6, 1)} juta` : '–'
           }
           hint={
             Number.isFinite(c.priceAction.ticketPercentile)
-              ? `persentil ${(c.priceAction.ticketPercentile * 100).toFixed(0)} pasar`
-              : undefined
+              ? `nilai ÷ jumlah transaksi · persentil ${(c.priceAction.ticketPercentile * 100).toFixed(0)} pasar`
+              : 'nilai ÷ jumlah transaksi'
           }
           tone={c.priceAction.ticketPercentile > 0.8 ? 'accent' : 'neutral'}
         />
@@ -485,18 +486,21 @@ const CandidateDetail: React.FC<{ candidate: WatchlistCandidate }> = ({ candidat
       )}
 
       <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
-        <strong className="text-slate-400">Soal "broker summary".</strong> IDX tidak menerbitkan rincian broker per
-        saham ke publik. Yang tersedia per saham adalah nilai ÷ frekuensi — ukuran rupiah rata-rata satu transaksi di
-        emiten itu — dan itu diskriminator yang sama dengan data broker: ritel mencetak banyak tiket kecil, institusi
-        mencetak sedikit tiket besar. Perbandingannya dilakukan terhadap seluruh pasar pada hari yang sama, karena
-        history.json menyimpan nilai transaksi tetapi tidak jumlah transaksi, sehingga tiket sesi lampau tidak bisa
-        direkonstruksi. Ini inferensi dari data publik, bukan pengetahuan tentang broker mana yang membeli.
+        <strong className="text-slate-400">Apa itu "rata-rata per transaksi".</strong> Nilai transaksi sesi ini dibagi
+        jumlah transaksinya — berapa rupiah rata-rata sekali order yang terjadi di emiten ini. Angkanya penting karena
+        ritel mencetak banyak order kecil sementara institusi mencetak sedikit order besar, jadi rata-rata yang jauh di
+        atas pasar berarti tangan yang lebih besar sedang bertransaksi di sini. Persentilnya dibandingkan terhadap
+        seluruh emiten yang bertransaksi pada hari yang sama, bukan terhadap sejarah emiten itu sendiri, karena
+        history.json menyimpan nilai transaksi tetapi tidak jumlah transaksi.{' '}
+        <strong className="text-slate-400">Dan soal "asing net":</strong> itu nilai beli investor asing dikurangi nilai
+        jualnya pada sesi tersebut, dalam miliar rupiah — IDX hanya menerbitkannya di akhir sesi, jadi pada refresh
+        siang hari angkanya masih milik sesi resmi terakhir.
       </p>
     </StageBlock>
 
     {/* 4 — chart */}
     <StageBlock n={4} icon={LineChart} title="Chart" tone="text-cyan-400" score={null}>
-      <TradingViewChart symbol={c.tradingViewSymbol} height={400} />
+      <TradingViewChart symbol={c.tradingViewSymbol} />
     </StageBlock>
   </div>
 );

@@ -273,8 +273,8 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten, onOpen
                   <Th title="Berapa sesi berturut-turut close bertahan di atas MA panjang">Hari</Th>
                   <Th>Volume</Th>
                   <Th title="Volume hari ini dibagi rata-rata 20 sesi">Lonjakan</Th>
-                  <Th>Nilai (Rp M)</Th>
-                  <Th>Asing (Rp M)</Th>
+                  <Th title="Nilai transaksi sesi ini dalam miliar rupiah, angka resmi IDX (bukan harga x volume).">Nilai (Rp miliar)</Th>
+                  <Th title="Beli asing dikurangi jual asing pada sesi ini, dalam miliar rupiah. Positif berarti asing net beli. IDX hanya menerbitkannya di akhir sesi.">Asing (Rp miliar)</Th>
                   <Th align="center">Chart</Th>
                 </tr>
               </thead>
@@ -363,7 +363,7 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten, onOpen
                 hint={inspected.maStacked ? 'MA pendek di atas MA panjang' : 'MA pendek masih di bawah'}
               />
               <Stat label="Volume" value={shares(inspected.volumeShares)} hint="lembar saham" />
-              <Stat label="Nilai" value={`Rp ${bn(inspected.valueIdr)} M`} hint={`${rp(inspected.freq)} transaksi`} />
+              <Stat label="Nilai" value={`Rp ${bn(inspected.valueIdr)} miliar`} hint={`${rp(inspected.freq)} transaksi`} />
             </StatGrid>
 
             <div className="grid gap-2 sm:grid-cols-3">

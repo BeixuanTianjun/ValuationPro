@@ -45,7 +45,7 @@ interface Props {
 
 const pctOf = (v: number, d = 1) => (Number.isFinite(v) ? `${(v * 100).toFixed(d)}%` : '–');
 const pp = (v: number, d = 2) => (Number.isFinite(v) ? `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(d)} pp` : '–');
-const bn = (v: number, d = 1) => (Number.isFinite(v) ? `Rp ${v.toLocaleString('id-ID', { maximumFractionDigits: d })} M` : '–');
+const bn = (v: number, d = 1) => (Number.isFinite(v) ? `Rp ${v.toLocaleString('id-ID', { maximumFractionDigits: d })} miliar` : '–');
 const shares = (v: number) => {
   if (!Number.isFinite(v)) return '–';
   const a = Math.abs(v);

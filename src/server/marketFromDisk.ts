@@ -21,6 +21,10 @@ import { MarketDatabase, assembleMarketDatabase, computeBreadth } from '../data/
 import { computeAllFactors } from '../models/factorEngine';
 import { ScreenFilters, MarketBreadth } from '../types/market';
 import { buildDailyBriefing, runScreen } from '../models/alphaScreener';
+import { ScreenerResult, runStockScreener } from '../models/stockScreener';
+import { WatchlistResult, buildWatchlist } from '../models/watchlist';
+import { AnnouncementsFile } from '../models/announcements';
+import { OwnershipFile } from '../models/ownershipFlow';
 import {
   FundamentalsDatabase,
   FundamentalsFile,
@@ -86,4 +90,52 @@ export async function computeDailyPicks(
   const briefing = buildDailyBriefing(result, breadth.advancers, breadth.decliners);
 
   return { db, result, breadth, briefing };
+}
+
+export interface DailyDigestRun {
+  db: MarketDatabase;
+  screener: ScreenerResult;
+  watchlist: WatchlistResult;
+  breadth: MarketBreadth;
+}
+
+/**
+ * The digest the email actually sends, built from the two systems the terminal
+ * shows — not from the factor model.
+ *
+ * Both run against the SAME database the browser assembles, for the same reason
+ * `computeDailyPicks` did: a digest that disagrees with the screen is worse than
+ * no digest. The watchlist runs on the weekly clock because the email goes out
+ * daily and a monthly half-life would resend the same three names for a month.
+ */
+export async function computeDailyDigest(dataDir: string): Promise<DailyDigestRun> {
+  const db = await loadMarketDatabaseFromDisk(dataDir);
+  const factors = computeAllFactors(db);
+
+  const sma50 = new Map<string, number>();
+  const sma200 = new Map<string, number>();
+  for (const [code, f] of factors) {
+    sma50.set(code, f.sma50);
+    sma200.set(code, f.sma200);
+  }
+  const breadth = computeBreadth(db, sma50, sma200);
+
+  // Both feeds are optional: the digest degrades to screener-only rather than
+  // failing if a weekly ingest has not run yet.
+  const [announcements, ownership] = await Promise.all([
+    tryReadJson<AnnouncementsFile>(dataDir, 'announcements.json'),
+    tryReadJson<OwnershipFile>(dataDir, 'ownership.json'),
+  ]);
+
+  const screener = runStockScreener(db);
+  const watchlist = buildWatchlist({
+    db,
+    factors,
+    announcements,
+    ownership,
+    horizon: 'mingguan',
+    limit: 8,
+  });
+
+  return { db, screener, watchlist, breadth };
 }

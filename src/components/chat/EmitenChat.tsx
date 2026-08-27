@@ -214,7 +214,7 @@ const ResultTable: React.FC<{ rows: EmitenRow[]; onSelect: (code: string) => voi
               3 Bln
             </th>
             <th scope="col" className="text-right px-3 py-2 font-semibold">
-              Kap (Rp M)
+              Kap (Rp miliar)
             </th>
             <th scope="col" className="text-right px-3 py-2 font-semibold">
               Likuiditas

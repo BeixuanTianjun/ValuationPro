@@ -190,10 +190,16 @@ npm run alert:preview   # hitung pick tanpa mengirim email
   tiap tarik data resmi. Resep pemadatan ada di `DEPLOY.md`.
 - **Login hanya jalan di layanan lokal.** Sesi di memori + `users.json` tidak
   bertahan di serverless.
-- **Email alert harian masih memakai mesin faktor lama** (`models/alphaScreener.ts`),
-  bukan Stock Screener atau Watchlist yang baru. Komponen UI-nya sudah dihapus,
-  jadi mesin itu sekarang hanya punya satu konsumen: digest email. Kalau digest
-  harus ikut pindah ke dua sistem baru, itu perubahan yang belum dilakukan.
+- **Mesin faktor lama (`models/alphaScreener.ts`) sekarang tidak dipakai siapa pun.**
+  Digest email sudah pindah ke Screener + Watchlist, dan komponen UI-nya sudah
+  dihapus lebih dulu. Berkasnya masih ada; hapus kalau memang tidak akan dipakai.
+- **Broker summary per saham TIDAK akan pernah bisa dari sumber publik.** Sudah
+  diuji ulang: `GetBrokerSummary?code=BBCA` menerima parameternya dan
+  mengabaikannya — tetap 88 baris seluruh pasar. Yang ada di UI adalah aktivitas
+  anggota bursa market-wide plus nilai ÷ frekuensi per emiten sebagai pendekatan.
+- **Harga tidak bisa real-time.** Yahoo delay ~15 menit untuk IDX. Polling lebih
+  cepat dari itu tidak menghasilkan harga baru. Auto-refresh 45 detik ada di
+  `hooks/useMarketData.ts` dan hanya jalan saat fase pasar aktif dan tab terlihat.
 - **Valuasi otomatis adalah penyaring, bukan valuasi.** Properti dan komoditas
   sering keluar dengan upside ekstrem karena laba bergelombang.
 

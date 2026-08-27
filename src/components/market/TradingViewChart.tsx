@@ -1,15 +1,30 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ExternalLink, LineChart } from 'lucide-react';
+import { ExternalLink, LineChart, Maximize2, Minimize2 } from 'lucide-react';
 import { cx } from '../common/ui';
 
 interface Props {
   /** TradingView symbol, e.g. "IDX:BBCA". */
   symbol: string;
-  /** Chart height in px. Kept explicit because the widget needs a fixed box. */
+  /**
+   * Starting height in px. The widget needs a fixed box — it cannot size to
+   * content — so this is a real number, not a CSS rule. 560 is the smallest
+   * height at which a daily candle chart with a volume pane and a moving
+   * average is actually readable; below about 420 the panes squeeze into a
+   * band and the whole thing becomes decorative.
+   */
   height?: number;
-  interval?: 'D' | 'W' | '60' | '240';
+  interval?: Interval;
   className?: string;
 }
+
+type Interval = 'D' | 'W' | '60' | '240';
+
+const INTERVALS: { id: Interval; label: string }[] = [
+  { id: '60', label: '1J' },
+  { id: '240', label: '4J' },
+  { id: 'D', label: 'Harian' },
+  { id: 'W', label: 'Mingguan' },
+];
 
 /**
  * TradingView advanced-chart embed.
@@ -29,9 +44,11 @@ interface Props {
  * offline — the component says so and falls back to a direct link rather than
  * showing an empty box.
  */
-export const TradingViewChart: React.FC<Props> = ({ symbol, height = 420, interval = 'D', className }) => {
+export const TradingViewChart: React.FC<Props> = ({ symbol, height = 560, interval = 'D', className }) => {
   const holder = useRef<HTMLDivElement | null>(null);
   const [failed, setFailed] = useState(false);
+  const [tf, setTf] = useState<Interval>(interval);
+  const [tall, setTall] = useState(false);
 
   useEffect(() => {
     const node = holder.current;
@@ -54,7 +71,7 @@ export const TradingViewChart: React.FC<Props> = ({ symbol, height = 420, interv
     script.innerHTML = JSON.stringify({
       autosize: true,
       symbol,
-      interval,
+      interval: tf,
       timezone: 'Asia/Jakarta',
       theme: 'dark',
       style: '1',
@@ -81,7 +98,7 @@ export const TradingViewChart: React.FC<Props> = ({ symbol, height = 420, interv
       window.clearTimeout(timer);
       node.innerHTML = '';
     };
-  }, [symbol, interval]);
+  }, [symbol, tf]);
 
   const plain = symbol.replace('IDX:', '');
 
@@ -93,15 +110,41 @@ export const TradingViewChart: React.FC<Props> = ({ symbol, height = 420, interv
           <span className="truncate text-[11px] font-bold text-slate-200">Chart {plain}</span>
           <span className="hidden text-[10px] text-slate-500 sm:inline">TradingView · {symbol}</span>
         </div>
-        <a
-          href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex shrink-0 items-center gap-1 rounded-md border border-slate-700 px-2 py-1 text-[10px] font-bold text-slate-300 hover:border-cyan-700 hover:text-cyan-300"
-        >
-          Buka penuh
-          <ExternalLink className="w-2.5 h-2.5" aria-hidden="true" />
-        </a>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex overflow-hidden rounded-md border border-slate-700" role="group" aria-label="Rentang waktu">
+            {INTERVALS.map((i) => (
+              <button
+                key={i.id}
+                type="button"
+                onClick={() => setTf(i.id)}
+                aria-pressed={tf === i.id}
+                className={cx(
+                  'px-2 py-1 text-[10px] font-bold transition-colors cursor-pointer',
+                  tf === i.id ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-100'
+                )}
+              >
+                {i.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setTall((v) => !v)}
+            title={tall ? 'Perkecil chart' : 'Perbesar chart'}
+            className="rounded-md border border-slate-700 p-1.5 text-slate-300 hover:border-cyan-700 hover:text-cyan-300 cursor-pointer"
+          >
+            {tall ? <Minimize2 className="w-3 h-3" aria-hidden="true" /> : <Maximize2 className="w-3 h-3" aria-hidden="true" />}
+          </button>
+          <a
+            href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 rounded-md border border-slate-700 px-2 py-1 text-[10px] font-bold text-slate-300 hover:border-cyan-700 hover:text-cyan-300"
+          >
+            <span className="hidden sm:inline">Buka penuh</span>
+            <ExternalLink className="w-2.5 h-2.5" aria-hidden="true" />
+          </a>
+        </div>
       </div>
 
       {failed ? (
@@ -121,7 +164,16 @@ export const TradingViewChart: React.FC<Props> = ({ symbol, height = 420, interv
           </a>
         </div>
       ) : (
-        <div ref={holder} className="tradingview-widget-container w-full" style={{ height }} />
+        <div
+          ref={holder}
+          className="tradingview-widget-container w-full"
+          // `clamp` rather than a bare pixel number so the box scales with the
+          // screen: a phone gets ~60% of its viewport, a monitor gets the full
+          // height. 560px on an 812px-tall phone leaves nothing but chart and
+          // the reader loses everything above and below it; 400px on a monitor
+          // squeezes the candle and volume panes into a decorative band.
+          style={{ height: `clamp(300px, ${tall ? 88 : 60}vh, ${tall ? Math.round(height * 1.6) : height}px)` }}
+        />
       )}
     </div>
   );

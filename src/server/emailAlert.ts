@@ -1,12 +1,14 @@
-// Email delivery for the daily stock-pick digest.
+// Email delivery for the daily Screener + Watchlist digest.
 //
 // Credentials are read from the environment only — nothing is ever stored in
 // the repository. See .env.example for the variables and how to obtain a Gmail
 // app password.
 
 import nodemailer, { Transporter } from 'nodemailer';
-import { MarketBreadth, ScreenResult, StockPick } from '../types/market';
+import { MarketBreadth } from '../types/market';
 import { LiveStatus } from '../data/marketRepository';
+import { ScreenerResult, ScreenerRow } from '../models/stockScreener';
+import { WatchlistCandidate, WatchlistResult } from '../models/watchlist';
 
 export interface MailConfig {
   host: string;
@@ -103,68 +105,75 @@ export async function verifyMail(cfg: MailConfig): Promise<void> {
 
 const fmt = (v: number, d = 0) =>
   Number.isFinite(v) ? v.toLocaleString('id-ID', { maximumFractionDigits: d }) : '–';
-const pct = (v: number, d = 1) =>
-  Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%` : '–';
-
-const CONVICTION_TEXT: Record<StockPick['conviction'], string> = {
-  high: 'Konviksi Tinggi',
-  medium: 'Konviksi Sedang',
-  speculative: 'Konviksi Rendah',
-};
-const CONVICTION_COLOR: Record<StockPick['conviction'], string> = {
-  high: '#059669',
-  medium: '#2563eb',
-  speculative: '#d97706',
-};
 
 export interface DigestInput {
-  result: ScreenResult;
+  session: string;
+  screener: ScreenerResult;
+  watchlist: WatchlistResult;
   breadth: MarketBreadth;
-  briefing: string;
   live: LiveStatus | null;
   trigger: string;
-}
-
-function pickRow(p: StockPick): string {
-  const f = p.factors;
-  const plan = p.plan;
-  const stopPct = ((plan.stopLoss - plan.entry) / plan.entry) * 100;
-  const t1Pct = ((plan.target1 - plan.entry) / plan.entry) * 100;
-
-  return `
-  <tr>
-    <td style="padding:14px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top;">
-      <div style="font-weight:700;font-size:15px;color:#0f172a;">#${p.rank} ${p.emiten.code}</div>
-      <div style="font-size:12px;color:#64748b;margin-top:2px;">${escapeHtml(p.emiten.name)}</div>
-      <div style="font-size:11px;color:${CONVICTION_COLOR[p.conviction]};font-weight:600;margin-top:4px;">
-        ${CONVICTION_TEXT[p.conviction]} · skor ${p.compositeScore.toFixed(2)}
-      </div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${escapeHtml(p.emiten.sector)}</div>
-    </td>
-    <td style="padding:14px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top;font-size:12px;color:#334155;">
-      <div><strong>Rp ${fmt(f.close)}</strong></div>
-      <div style="color:#64748b;margin-top:3px;">3 bln ${pct(f.return3m)}</div>
-      <div style="color:#64748b;">vs IHSG ${pct(f.relativeStrength3m)}</div>
-      <div style="color:#64748b;">RSI ${Number.isFinite(f.rsi14) ? f.rsi14.toFixed(0) : '–'}</div>
-    </td>
-    <td style="padding:14px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top;font-size:12px;color:#334155;">
-      <div>Entry <strong>Rp ${fmt(plan.entry)}</strong></div>
-      <div style="color:#dc2626;">Stop Rp ${fmt(plan.stopLoss)} (${stopPct.toFixed(1)}%)</div>
-      <div style="color:#059669;">Target Rp ${fmt(plan.target1)} (+${t1Pct.toFixed(1)}%)</div>
-      <div style="color:#64748b;margin-top:3px;">${fmt(plan.suggestedLots)} lot · R:R 1:${plan.rewardRiskRatio.toFixed(2)}</div>
-    </td>
-    <td style="padding:14px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top;font-size:11px;color:#64748b;">
-      ${p.flags.length ? p.flags.map((x) => `<div style="color:#b45309;">⚠ ${escapeHtml(x)}</div>`).join('') : '<div style="color:#059669;">Tidak ada peringatan</div>'}
-    </td>
-  </tr>`;
 }
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }
 
+const bnRp = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '–');
+
+function screenerRow(r: ScreenerRow): string {
+  const chg = Number.isFinite(r.changePercent) ? r.changePercent * 100 : 0;
+  return `
+  <tr>
+    <td style="padding:11px 12px;border-bottom:1px solid #e5e7eb;">
+      <div style="font-weight:700;font-size:14px;color:#0f172a;">${escapeHtml(r.code)}</div>
+      <div style="font-size:11px;color:#64748b;margin-top:2px;">${escapeHtml(r.name)}</div>
+    </td>
+    <td style="padding:11px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#334155;">
+      <strong>Rp ${fmt(r.close)}</strong>
+      <div style="color:${chg >= 0 ? '#059669' : '#dc2626'};margin-top:2px;">${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%</div>
+    </td>
+    <td style="padding:11px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#334155;">
+      Rp ${bnRp(r.valueIdr / 1e9)} mdr
+      <div style="color:#64748b;margin-top:2px;">${bnRp(r.volumeShares / 1e6)} jt lembar</div>
+    </td>
+    <td style="padding:11px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#334155;">
+      ${r.sessionsAboveMaLong} sesi di atas MA
+      <div style="color:#64748b;margin-top:2px;">volume ${Number.isFinite(r.volumeSurge) ? r.volumeSurge.toFixed(2) : '–'}x</div>
+    </td>
+    <td style="padding:11px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:${r.foreignNetIdrBn >= 0 ? '#059669' : '#dc2626'};">
+      Rp ${bnRp(r.foreignNetIdrBn)} mdr
+    </td>
+  </tr>`;
+}
+
+function watchRow(c: WatchlistCandidate, rank: number): string {
+  const reasons = c.reasons
+    .slice(0, 2)
+    .map((x) => `<div style="margin-top:3px;">• ${escapeHtml(x)}</div>`)
+    .join('');
+  const cautions = c.cautions
+    .slice(0, 1)
+    .map((x) => `<div style="margin-top:3px;color:#b45309;">⚠ ${escapeHtml(x)}</div>`)
+    .join('');
+
+  return `
+  <tr>
+    <td style="padding:13px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top;">
+      <div style="font-weight:700;font-size:14px;color:#0f172a;">#${rank} ${escapeHtml(c.code)}</div>
+      <div style="font-size:11px;color:#64748b;margin-top:2px;">${escapeHtml(c.name)}</div>
+      <div style="font-size:11px;color:#1d4ed8;font-weight:600;margin-top:4px;">skor ${c.score.toFixed(2)} · ${c.stagesCleared}/3 tahap</div>
+    </td>
+    <td style="padding:13px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top;font-size:11px;color:#475569;line-height:1.55;">
+      <div style="color:#0f172a;font-weight:600;">${escapeHtml(c.narrative.headline)}</div>
+      ${reasons}
+      ${cautions}
+    </td>
+  </tr>`;
+}
+
 export function renderDigestHtml(input: DigestInput): string {
-  const { result, breadth, briefing, live, trigger } = input;
+  const { session, screener, watchlist, breadth, live, trigger } = input;
 
   const staleFlowNotice = live?.applied
     ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin:16px 0;font-size:12px;color:#92400e;">
@@ -174,55 +183,93 @@ export function renderDigestHtml(input: DigestInput): string {
       </div>`
     : '';
 
+  const funnel = screener.funnel
+    .map(
+      (f) => `<td style="padding:9px 10px;background:#f8fafc;border-radius:8px;">
+        <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;">${escapeHtml(f.label)}</div>
+        <div style="font-size:16px;font-weight:700;color:#0f172a;margin-top:2px;">${f.remaining}</div>
+      </td>`
+    )
+    .join('');
+
   return `<!doctype html>
 <html><body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <div style="max-width:760px;margin:0 auto;padding:24px 16px;">
     <div style="background:#0f172a;border-radius:14px 14px 0 0;padding:22px 24px;">
       <div style="color:#ffffff;font-size:19px;font-weight:800;letter-spacing:-0.3px;">
-        Valuation<span style="color:#3b82f6;">Pro</span> · Stock Pick Harian
+        Valuation<span style="color:#3b82f6;">Pro</span> · Screener &amp; Watchlist
       </div>
       <div style="color:#94a3b8;font-size:12px;margin-top:5px;">
-        ${escapeHtml(result.strategy.name)} · sesi ${escapeHtml(result.session)} · ${escapeHtml(trigger)}
+        Sesi ${escapeHtml(session)} · ${escapeHtml(trigger)}
       </div>
     </div>
 
     <div style="background:#ffffff;padding:22px 24px;">
-      <p style="font-size:13px;line-height:1.65;color:#334155;margin:0 0 16px;">${escapeHtml(briefing)}</p>
-
       <table style="width:100%;border-collapse:collapse;margin-bottom:6px;">
         <tr>
           ${statCell('Naik', String(breadth.advancers), '#059669')}
           ${statCell('Turun', String(breadth.decliners), '#dc2626')}
           ${statCell('Di atas MA200', `${(breadth.percentAboveSma200 * 100).toFixed(0)}%`, '#0f172a')}
-          ${statCell('Net asing', `Rp ${fmt(breadth.netForeignIdrBn)} M`, breadth.netForeignIdrBn >= 0 ? '#059669' : '#dc2626')}
+          ${statCell('Net asing', `Rp ${fmt(breadth.netForeignIdrBn)} mdr`, breadth.netForeignIdrBn >= 0 ? '#059669' : '#dc2626')}
         </tr>
       </table>
 
       ${staleFlowNotice}
 
-      <table style="width:100%;border-collapse:collapse;margin-top:8px;">
-        <thead>
-          <tr style="background:#f8fafc;">
-            <th style="text-align:left;padding:9px 12px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;">Emiten</th>
-            <th style="text-align:left;padding:9px 12px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;">Harga</th>
-            <th style="text-align:left;padding:9px 12px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;">Rencana</th>
-            <th style="text-align:left;padding:9px 12px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;">Peringatan</th>
-          </tr>
-        </thead>
-        <tbody>${result.picks.map(pickRow).join('')}</tbody>
-      </table>
+      <h2 style="font-size:14px;color:#0f172a;margin:22px 0 4px;">1 · Stock Screener</h2>
+      <p style="font-size:12px;color:#64748b;margin:0 0 12px;line-height:1.6;">
+        Tiga aturan keras: di atas MA${screener.settings.maShort} dan MA${screener.settings.maLong},
+        volume di atas ${fmt(screener.settings.minVolumeShares / 1e6)} juta lembar, nilai transaksi di atas
+        Rp ${fmt(screener.settings.minValueIdr / 1e9)} miliar. Lolos atau tidak — tidak ada skor di sini.
+      </p>
 
-      <p style="font-size:11px;color:#94a3b8;line-height:1.6;margin:20px 0 0;">
-        Skor bersifat lintas-emiten terhadap ${result.eligibleSize} kandidat yang lolos filter dari
-        ${result.universeSize} emiten tercatat — bukan prediksi return. Seluruh faktor dihitung dari harga,
-        volume, nilai transaksi, dan arus dana asing yang dipublikasikan IDX; tidak ada faktor fundamental di
-        dalam skor. Rencana perdagangan memakai ATR-14 dan sudah dibulatkan ke fraksi harga IDX.
-        <strong>Ini alat riset, bukan rekomendasi investasi.</strong>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px;"><tr>${funnel}</tr></table>
+
+      ${
+        screener.rows.length
+          ? `<table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#f8fafc;">
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:#64748b;text-transform:uppercase;">Emiten</th>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:#64748b;text-transform:uppercase;">Harga</th>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:#64748b;text-transform:uppercase;">Transaksi</th>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:#64748b;text-transform:uppercase;">Tren</th>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:#64748b;text-transform:uppercase;">Asing</th>
+        </tr></thead>
+        <tbody>${screener.rows.slice(0, 12).map(screenerRow).join('')}</tbody>
+      </table>
+      <p style="font-size:11px;color:#94a3b8;margin:8px 0 0;">
+        Menampilkan 12 teratas menurut nilai transaksi dari ${screener.rows.length} yang lolos.
+      </p>`
+          : `<p style="font-size:12px;color:#b45309;margin:0;">Tidak ada emiten yang lolos ketiga aturan pada sesi ini. Pada pasar yang lemah, hasil kosong adalah jawaban yang benar.</p>`
+      }
+
+      <h2 style="font-size:14px;color:#0f172a;margin:26px 0 4px;">2 · Stock Watchlist (mingguan)</h2>
+      <p style="font-size:12px;color:#64748b;margin:0 0 12px;line-height:1.6;">
+        Corong empat tahap: narasi dari keterbukaan informasi IDX dan tema kebijakan terkurasi, lalu rotasi
+        konglomerasi, lalu konfirmasi tape. Tahap chart tidak diskor — buka sendiri di terminal.
+      </p>
+
+      ${
+        watchlist.candidates.length
+          ? `<table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#f8fafc;">
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:#64748b;text-transform:uppercase;">Kandidat</th>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:#64748b;text-transform:uppercase;">Kenapa</th>
+        </tr></thead>
+        <tbody>${watchlist.candidates.map((c, i) => watchRow(c, i + 1)).join('')}</tbody>
+      </table>`
+          : `<p style="font-size:12px;color:#64748b;margin:0;">Tidak ada emiten dengan pemicu narasi pada jendela ini.</p>`
+      }
+
+      <p style="font-size:11px;color:#94a3b8;line-height:1.6;margin:22px 0 0;">
+        Screener menyaring ${screener.universe} emiten tercatat dengan aturan yang bisa Anda periksa satu per satu.
+        Watchlist masuk dari narasi, bukan dari harga — skornya bukan prediksi return. Arus asing diterbitkan IDX
+        end-of-day. <strong>Ini alat riset, bukan rekomendasi investasi.</strong>
       </p>
     </div>
 
     <div style="background:#e2e8f0;border-radius:0 0 14px 14px;padding:14px 24px;font-size:11px;color:#64748b;">
-      Dikirim otomatis oleh ValuationPro yang berjalan di komputer Anda.
+      Dikirim otomatis oleh ValuationPro.
     </div>
   </div>
 </body></html>`;
@@ -237,31 +284,36 @@ function statCell(label: string, value: string, color: string): string {
 
 export function renderDigestText(input: DigestInput): string {
   const lines = [
-    `ValuationPro — Stock Pick Harian (${input.result.strategy.name})`,
-    `Sesi ${input.result.session} · ${input.trigger}`,
+    'ValuationPro — Screener & Watchlist',
+    `Sesi ${input.session} · ${input.trigger}`,
     '',
-    input.briefing,
+    `1) SCREENER — ${input.screener.rows.length} emiten lolos dari ${input.screener.universe} tercatat.`,
+    `   Aturan: di atas MA${input.screener.settings.maShort} dan MA${input.screener.settings.maLong}, volume > ${fmt(input.screener.settings.minVolumeShares / 1e6)} juta lembar, nilai > Rp ${fmt(input.screener.settings.minValueIdr / 1e9)} miliar.`,
     '',
   ];
-  for (const p of input.result.picks) {
+  for (const r of input.screener.rows.slice(0, 12)) {
     lines.push(
-      `#${p.rank} ${p.emiten.code} — ${p.emiten.name} [${CONVICTION_TEXT[p.conviction]}, skor ${p.compositeScore.toFixed(2)}]`,
-      `   Harga Rp ${fmt(p.factors.close)} · 3 bln ${pct(p.factors.return3m)} · vs IHSG ${pct(p.factors.relativeStrength3m)}`,
-      `   Entry Rp ${fmt(p.plan.entry)} · Stop Rp ${fmt(p.plan.stopLoss)} · Target Rp ${fmt(p.plan.target1)} · ${fmt(p.plan.suggestedLots)} lot`,
-      p.flags.length ? `   Peringatan: ${p.flags.join('; ')}` : '',
-      ''
+      `   ${r.code} — ${r.name}: Rp ${fmt(r.close)} (${r.changePercent >= 0 ? '+' : ''}${(r.changePercent * 100).toFixed(1)}%), nilai Rp ${bnRp(r.valueIdr / 1e9)} mdr, ${r.sessionsAboveMaLong} sesi di atas MA.`
     );
   }
+  lines.push('', `2) WATCHLIST MINGGUAN — ${input.watchlist.candidates.length} kandidat bernarasi.`, '');
+  for (const [i, c] of input.watchlist.candidates.entries()) {
+    lines.push(`   #${i + 1} ${c.code} — ${c.name} [skor ${c.score.toFixed(2)}, ${c.stagesCleared}/3 tahap]`);
+    lines.push(`      Pemicu: ${c.narrative.headline}`);
+    for (const r of c.reasons.slice(0, 2)) lines.push(`      • ${r}`);
+    for (const r of c.cautions.slice(0, 1)) lines.push(`      ! ${r}`);
+    lines.push('');
+  }
   lines.push('Alat riset, bukan rekomendasi investasi.');
-  return lines.filter((l) => l !== undefined).join('\n');
+  return lines.join('\n');
 }
 
 export async function sendDigest(cfg: MailConfig, input: DigestInput): Promise<string> {
-  const top = input.result.picks
+  const top = input.watchlist.candidates
     .slice(0, 3)
-    .map((p) => p.emiten.code)
+    .map((c) => c.code)
     .join(', ');
-  const subject = `[ValuationPro] ${input.result.picks.length} pick · ${top || 'tidak ada kandidat'} · ${input.result.session}`;
+  const subject = `[ValuationPro] ${input.screener.rows.length} lolos screener · watchlist ${top || 'kosong'} · ${input.session}`;
 
   const info = await getTransporter(cfg).sendMail({
     from: cfg.from,

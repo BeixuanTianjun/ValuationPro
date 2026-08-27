@@ -125,7 +125,7 @@ export const EmitenDetail: React.FC<Props> = ({ code, db, fundamentals, factors,
               <Tooltip
                 contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, fontSize: 11 }}
                 formatter={(v: number, name: string) =>
-                  name === 'close' ? [`Rp ${rp(v)}`, 'Harga'] : [`Rp ${rp(v)} M`, 'Akumulasi asing']
+                  name === 'close' ? [`Rp ${rp(v)}`, 'Harga'] : [`Rp ${rp(v)} miliar`, 'Akumulasi asing']
                 }
               />
               <Area
@@ -161,9 +161,9 @@ export const EmitenDetail: React.FC<Props> = ({ code, db, fundamentals, factors,
             <Cell label="RSI-14" value={Number.isFinite(f.rsi14) ? f.rsi14.toFixed(0) : '–'} />
             <Cell label="Volatilitas thn" value={plainPct(f.annualisedVol, 0)} />
             <Cell label="ATR-14" value={`Rp ${rp(f.atr14, 1)}`} />
-            <Cell label="Likuiditas 20H" value={`Rp ${rp(f.medianValue20IdrBn, 1)} M`} />
-            <Cell label="Asing 20H" value={`Rp ${rp(f.foreignNet20IdrBn, 1)} M`} tone={f.foreignNet20IdrBn} />
-            <Cell label="Kapitalisasi" value={`Rp ${rp(f.marketCapIdrBn)} M`} />
+            <Cell label="Likuiditas 20H" value={`Rp ${rp(f.medianValue20IdrBn, 1)} miliar`} />
+            <Cell label="Asing 20H" value={`Rp ${rp(f.foreignNet20IdrBn, 1)} miliar`} tone={f.foreignNet20IdrBn} />
+            <Cell label="Kapitalisasi" value={`Rp ${rp(f.marketCapIdrBn)} miliar`} />
             {yahooQuote?.trailingPE != null && <Cell label="P/E (TTM)" value={rp(yahooQuote.trailingPE, 2)} />}
             {yahooQuote?.priceToBook != null && <Cell label="P/BV" value={rp(yahooQuote.priceToBook, 2)} />}
             {!!yahooQuote?.dividendYield && (

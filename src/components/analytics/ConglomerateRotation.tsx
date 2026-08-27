@@ -230,7 +230,7 @@ export const ConglomerateRotation: React.FC<Props> = ({ db, factors, onSelectEmi
                     <Metric label="Sebaran" value={`${(g.dispersion3m * 100).toFixed(0)} pp`} />
                     <Metric
                       label="Asing 20H"
-                      value={`Rp ${num(g.groupForeignNet20IdrBn, 1)} M`}
+                      value={`Rp ${num(g.groupForeignNet20IdrBn, 1)} miliar`}
                       cls={tone(g.groupForeignNet20IdrBn)}
                     />
                   </div>
@@ -369,7 +369,7 @@ const MemberCard: React.FC<{
     <div className="mt-3 grid grid-cols-3 gap-3">
       <Metric label="3 Bln" value={pct(member.return3m)} cls={tone(member.return3m)} />
       <Metric label="vs Grup" value={pct(member.relativeToGroup3m)} cls={tone(member.relativeToGroup3m)} />
-      <Metric label="Likuiditas" value={`Rp ${num(member.liquidityIdrBn, 1)} M`} />
+      <Metric label="Likuiditas" value={`Rp ${num(member.liquidityIdrBn, 1)} miliar`} />
     </div>
 
     {member.evidence.length > 0 && (

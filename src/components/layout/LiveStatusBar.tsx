@@ -7,6 +7,12 @@ import { sendTestAlert } from '../../data/authClient';
 interface Props {
   db: MarketDatabase | null;
   onDataRefreshed: () => void;
+  /** Epoch ms of the last successful quote load. */
+  loadedAt: number;
+  autoRefresh: boolean;
+  setAutoRefresh: (on: boolean) => void;
+  /** True while a background re-quote is in flight. */
+  refreshing: boolean;
 }
 
 const PHASE_LABELS: Record<string, string> = {
@@ -45,7 +51,30 @@ function ageLabel(minutes: number): string {
  * factors are one or two sessions old, because IDX publishes buy/sell volume
  * only end-of-day. Collapsing those into one "live" badge would be a lie.
  */
-export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
+/**
+ * Seconds since a timestamp, ticking once a second.
+ *
+ * The point of this component is telling the truth about staleness, and a
+ * static "diperbarui 12 detik lalu" that never moves is a worse lie than no
+ * number at all.
+ */
+function useAge(since: number): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return since > 0 ? Math.max(0, Math.round((now - since) / 1000)) : -1;
+}
+
+export const LiveStatusBar: React.FC<Props> = ({
+  db,
+  onDataRefreshed,
+  loadedAt,
+  autoRefresh,
+  setAutoRefresh,
+  refreshing: autoRefreshing,
+}) => {
   const [status, setStatus] = useState<ServiceStatus | null>(null);
   const [checked, setChecked] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,6 +97,8 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
       clearInterval(timer);
     };
   }, []);
+
+  const ageSeconds = useAge(loadedAt);
 
   const report = (text: string, tone: 'ok' | 'error') => {
     setMessage(text);
@@ -123,6 +154,21 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
             {PHASE_LABELS[phase] || 'Status pasar tidak diketahui'}
           </span>
         </div>
+
+        {loadedAt > 0 && (
+          <span
+            className="flex items-center gap-1.5 text-slate-500"
+            title="Umur kuotasi yang sedang tampil di layar, dihitung sejak terakhir kali aplikasi menariknya."
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                autoRefreshing ? 'bg-cyan-400 animate-pulse-dot' : ageSeconds < 90 ? 'bg-emerald-400' : 'bg-amber-400'
+              }`}
+              aria-hidden="true"
+            />
+            {autoRefreshing ? 'mengutip ulang…' : ageSeconds < 2 ? 'baru saja' : `dikutip ${ageSeconds} dtk lalu`}
+          </span>
+        )}
 
         {db && (
           <span className="text-slate-500">
@@ -186,6 +232,25 @@ export const LiveStatusBar: React.FC<Props> = ({ db, onDataRefreshed }) => {
               {message}
             </span>
           )}
+
+          <button
+            type="button"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            aria-pressed={autoRefresh}
+            title={
+              autoRefresh
+                ? 'Kutip ulang otomatis tiap 45 detik selama bursa buka. Matikan kalau Anda ingin angkanya diam.'
+                : 'Kutip ulang otomatis dimatikan — angka di layar akan terus menua sampai Anda menekan Perbarui.'
+            }
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold transition-colors cursor-pointer touch-target ${
+              autoRefresh
+                ? 'bg-cyan-600/15 text-cyan-300 border border-cyan-600/40'
+                : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+            }`}
+          >
+            <Radio className="w-3 h-3" aria-hidden="true" />
+            {autoRefresh ? 'Auto 45d' : 'Auto mati'}
+          </button>
 
           {checked && !status ? (
             <span

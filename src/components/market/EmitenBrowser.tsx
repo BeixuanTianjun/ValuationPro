@@ -204,7 +204,7 @@ export const EmitenBrowser: React.FC<Props> = ({ db, factors, fundamentals, sele
               {header('return1m', '1 Bln')}
               {header('return3m', '3 Bln')}
               {header('return12m', '12 Bln')}
-              {header('marketCap', 'Kap. (Rp M)')}
+              {header('marketCap', 'Kap. (Rp miliar)')}
               {header('liquidity', 'Likuiditas')}
               {header('foreign20', 'Asing 20H')}
               {header('pe', 'P/E')}
