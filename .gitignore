@@ -4,3 +4,4 @@ dist
 .env
 .data
 pratinjau-alert-email.html
+api/_chat-bundle.mjs

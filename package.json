@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm run build:chatfn && tsc && vite build",
+    "build:chatfn": "esbuild api/_chat-impl.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=api/_chat-bundle.mjs --log-level=error",
     "preview": "vite preview",
     "data:refresh": "node scripts/ingest-idx.mjs --days 430",
     "data:quotes": "node scripts/ingest-quotes.mjs",
