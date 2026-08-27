@@ -156,6 +156,16 @@ jobs:
         continue-on-error: true
         run: npm run data:brokers
 
+      # KSEI publishes ownership once a month, so a weekly check is more than
+      # enough. The runner has no warm cache, so this re-downloads all 24 months
+      # every time — ~3 MB and well under a minute. Rebuilding in full is also
+      # what makes it safe: unlike the price ingest there is no partial-window
+      # mode that could silently truncate the series.
+      - name: Register kepemilikan KSEI
+        if: steps.plan.outputs.weekly == 'true'
+        continue-on-error: true
+        run: npm run data:ownership
+
       - name: Commit data fundamental
         if: steps.plan.outputs.weekly == 'true'
         run: |
@@ -163,7 +173,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "Tidak ada perubahan fundamental."
           else
-            git commit -m "data: fundamental & broker $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git commit -m "data: fundamental, broker & kepemilikan $(date -u +'%Y-%m-%d %H:%M UTC')"
             git pull --rebase --autostash origin main
             git push
           fi

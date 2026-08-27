@@ -162,6 +162,19 @@ dengan feed berbayar IDX Data Services. Tab Broker Flow membaca struktur pelaku
 pasar — ritel versus institusi lewat ukuran tiket rata-rata — dan menyatakan
 batasan ini di layar.
 
+**Kepemilikan institusi bersifat bulanan dan tanpa nama.** Sumbernya adalah
+berkas Balance Posisi Efek KSEI, satu pengamatan per akhir bulan — arus adalah
+selisih antar bulan, bukan aliran harian, dan bacaan terbaru bisa berumur sampai
+lima minggu. KSEI juga menerbitkan **kategori** pemegang, bukan nama pengelola
+dana: Mutual Fund Tracker bisa mengatakan reksa dana secara keseluruhan menambah
+90 bp pada satu emiten, tidak bisa mengatakan reksa dana yang mana.
+
+**Persentase kepemilikan dihitung dari register kustodian KSEI.** Hanya saham
+dalam penitipan kolektif yang tercatat di sana. Blok pengendali sering berada di
+luar kustodian — register BBCA hanya sekitar 43% dari saham tercatatnya — jadi
+penyebutnya jauh lebih dekat ke free float daripada ke total saham. Rasionya
+selalu ditampilkan di kartu tiap emiten.
+
 **Keanggotaan grup konglomerasi dikurasi, bukan diturunkan.** IDX tidak
 menerbitkan peta pengendali yang terbaca mesin. Tabel grup ada di
 `src/data/conglomerates.ts` dan bisa Anda koreksi satu baris. Angka *kohesi* di

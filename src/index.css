@@ -218,3 +218,68 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-strong);
 }
+
+/* ---------------------------------------------------------------------------
+   Responsive foundations.
+
+   The terminal is dense by design, and dense layouts break on phones in one
+   specific way: a wide table pushes the BODY sideways, and every fixed element
+   drifts out of alignment as the user scrolls. The rule below makes that
+   impossible; wide content scrolls inside `.scrollbar-thin` containers instead.
+   --------------------------------------------------------------------------- */
+@layer base {
+  html,
+  body {
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* iOS zooms the page when a font-size < 16px input is focused. */
+  @media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+}
+
+@layer utilities {
+  /* A scrollbar that is visible enough to signal "there is more to the right"
+     without eating vertical space in a dense table. */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #334155 transparent;
+    -webkit-overflow-scrolling: touch;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+
+  /* Fitts' law: a finger is ~9mm wide. Only enforced on coarse pointers so the
+     desktop layout stays as dense as a terminal should be. */
+  @media (pointer: coarse) {
+    .touch-target {
+      min-height: 40px;
+    }
+  }
+
+  /* Home-indicator clearance for the mobile tab bar. */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .h-safe-bottom {
+    height: env(safe-area-inset-bottom, 0px);
+  }
+}

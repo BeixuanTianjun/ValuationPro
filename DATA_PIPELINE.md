@@ -13,6 +13,8 @@ npm run data:refresh       # harga, indeks, arus asing (IDX)      -> ~4 menit
 npm run data:intraday      # harga live seluruh emiten            -> ~3 detik
 npm run data:quotes        # rasio valuasi + mata uang pelaporan   -> ~30 detik
 npm run data:fundamentals  # laporan keuangan tahunan              -> ~3 menit
+npm run data:brokers       # aktivitas harian anggota bursa        -> ~2 menit
+npm run data:ownership     # register kepemilikan KSEI bulanan     -> ~40 detik
 npm test                   # uji numerik guard rail mesin DCF
 ```
 
@@ -33,6 +35,7 @@ tidak ada masalah CORS saat aplikasi berjalan.
 | `fundamentals.json` | Laporan keuangan tahunan 648 emiten (Rp miliar) | 1,1 MB |
 | `intraday.json` | Harga live seluruh emiten + IHSG/LQ45 selama sesi berjalan | 0,1 MB |
 | `brokers.json` | Aktivitas harian 88 anggota bursa, 113 sesi | 0,2 MB |
+| `ownership.json` | Register kepemilikan KSEI: 962 emiten × 24 bulan × 9 jenis investor × lokal/asing | 1,6 MB |
 
 ## Sumber
 
@@ -51,6 +54,21 @@ feed hariannya end-of-day):
 - `v7/finance/quote` — P/E, P/BV, `financialCurrency`, dan harga live seluruh emiten
 - `^JKSE` / `^JKLQ45` — IHSG dan LQ45 live
 - `IDR=X` — kurs USD/IDR harian, dirata-ratakan per tahun kalender
+
+**KSEI Balance Posisi Efek** — satu-satunya feed kepemilikan per saham yang
+publik di pasar Indonesia, dan dasar dari Mutual Fund Tracker:
+
+- `https://www.ksei.co.id/storage/Download/BalanceposEfek<YYYYMMDD>.zip` — saldo
+  kustodian akhir bulan untuk seluruh efek, dipecah ke sembilan jenis investor
+  (reksa dana, asuransi, dana pensiun, bank, yayasan, individu, korporasi,
+  perusahaan efek, lain-lain) dan lagi ke lokal versus asing.
+
+Tanggal pada nama berkas adalah hari penyelesaian terakhir bulan itu, yang tidak
+selalu tanggal kalender terakhir; skrip menelusuri mundur dari akhir bulan sampai
+sebuah URL menjawab 200 (tanggal yang salah menjawab 302 ke halaman 404). Berkas
+zip dibongkar di dalam proses dengan `zlib`, bukan lewat `unzip`, karena proses
+Node yang dijalankan dari PowerShell atau runner CI tidak bisa mengandalkan
+`unzip` ada di PATH.
 
 ### Kenapa ada dua lapisan harga
 
@@ -119,6 +137,20 @@ tanpa penskalaan, jadi jumlah saham harus berada pada skala yang sama dengan
 Salah skala di sini membuat target harga meleset 1000x.
 
 ## Keterbatasan yang diketahui
+
+- **Kepemilikan KSEI adalah bulanan dan tanpa nama.** Satu pengamatan per akhir
+  bulan, jadi bacaan terbaru bisa berumur sampai lima minggu; arus adalah selisih
+  antar bulan, bukan aliran harian. Dan KSEI menerbitkan **kategori** pemegang,
+  bukan nama pengelola dana — datanya bisa mengatakan reksa dana secara
+  keseluruhan menambah 90 bp, tidak bisa mengatakan reksa dana yang mana.
+- **Persentase kepemilikan dihitung dari register kustodian, bukan dari saham
+  tercatat.** Hanya saham dalam penitipan kolektif KSEI yang muncul. Blok
+  pengendali sering tercatat di luar kustodian — register BBCA hanya ~43% dari
+  saham tercatatnya — sehingga penyebutnya jauh lebih dekat ke free float. Rasio
+  kustodian terhadap saham tercatat selalu ditampilkan di layar.
+- **Keanggotaan grup konglomerasi dikurasi manual** di `src/data/conglomerates.ts`;
+  IDX tidak menerbitkan peta pengendali yang terbaca mesin. Angka *kohesi* di UI
+  adalah bukti terukur apakah anggota grup benar-benar bergerak bersama.
 
 - **Konstituen indeks adalah perkiraan.** IDX tidak menerbitkan daftar anggota
   LQ45/IDX30 secara terbaca mesin. Filter indeks di screener mendekati keanggotaan

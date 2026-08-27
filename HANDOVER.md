@@ -25,7 +25,8 @@ harian, alat analitik ala Bloomberg, dan model DCF/LBO institusional.
 
 962 emiten · 282 sesi (2025-06-23 → 2026-08-24) · 45 indeks · 24 hari libur
 32 aksi korporasi · 648 emiten berlaporan keuangan · 962 kuotasi (100 pelapor
-non-IDR) · 88 anggota bursa × 113 sesi · total 8,9 MB di `public/data/idx/`
+non-IDR) · 88 anggota bursa × 113 sesi · 962 emiten × 24 bulan register
+kepemilikan KSEI (2024-08 → 2026-07) · total 10,5 MB di `public/data/idx/`
 
 ## Arsitektur tiga tempat
 
@@ -95,18 +96,49 @@ halaman. Semua field detail bertipe opsional; biarkan begitu.
 **IDX TIDAK memblokir runner GitHub Actions.** Sudah terbukti — crawl penuh 430
 hari berhasil dari IP datacenter Azure.
 
+**Kepemilikan per saham ADA publiknya — di KSEI, bukan di IDX.** Berkas bulanan
+`https://www.ksei.co.id/storage/Download/BalanceposEfek<YYYYMMDD>.zip` memuat
+saldo kustodian tiap efek dipecah ke sembilan jenis investor × lokal/asing. Ini
+satu-satunya feed kepemilikan per emiten yang publik di pasar Indonesia, dan
+dasar dari Mutual Fund Tracker. Riwayatnya sampai setidaknya 2023. KSEI tidak
+memblokir `fetch` maupun `curl`.
+
+**Tanggal pada nama berkas KSEI adalah hari penyelesaian terakhir, bukan tanggal
+kalender terakhir.** Tanggal yang salah menjawab 302 ke halaman 404, bukan 404.
+Skrip menelusuri mundur dari akhir bulan sampai ada yang menjawab 200.
+
+**Zip KSEI dibongkar dengan `zlib` di dalam proses, bukan `unzip`.** Proses Node
+yang dijalankan dari PowerShell atau runner CI tidak bisa mengandalkan `unzip`
+ada di PATH — di Git Bash ada, di luar itu belum tentu.
+
+**Angka KSEI adalah persen dari REGISTER KUSTODIAN, bukan dari saham tercatat.**
+Kolom `Sec. Num` adalah saham diterbitkan; jumlah seluruh kategori jauh lebih
+kecil untuk sekitar separuh emiten karena blok pengendali tercatat di luar
+penitipan kolektif. Register BBCA hanya 42,6% dari saham tercatatnya. Memakai
+saham tercatat sebagai penyebut akan mengecilkan tiap porsi institusi lebih dari
+dua kali lipat. `custodyCoverage` selalu ditampilkan di layar.
+
+**Nav tab `w-fit` harus dipasangi `max-w-full`.** `overflow-x-auto` saja tidak
+menolong: elemen `w-fit` mengambil lebar konten, jadi baris lima tab tumbuh
+melewati viewport alih-alih menggulung di dalam dirinya. Ini yang membuat tata
+letak 768px rusak sementara 375px justru bersih.
+
 ## Peta kode
 
 ```
-scripts/          ingest via curl: idx, intraday, quotes, fundamentals, brokers
+scripts/          ingest via curl: idx, intraday, quotes, fundamentals,
+                  brokers, ownership (KSEI)
 src/models/       dcfEngine, lboEngine, factorEngine, alphaScreener,
                   indexAttribution, conglomerateRotation, autoValuation,
-                  brokerFlow, emitenQueryEngine, idxCompanyBridge
+                  brokerFlow, ownershipFlow, emitenQueryEngine, idxCompanyBridge
 src/data/         marketRepository (isomorfik: browser + Node), fundamentals,
-                  conglomerates (kurasi), idxIndexCatalog, chatClient, authClient
+                  conglomerates (kurasi, 31 grup), idxIndexCatalog, chatClient,
+                  authClient
 src/server/       index (HTTP + scheduler), schedule (WIB), auth (scrypt),
                   emailAlert, chatApi, marketFromDisk, alertCli
 src/components/   landing, layout, market, analytics, chat, auth, dcf, lbo
+src/components/common/ui.tsx   primitif bersama: Panel, Segmented, Stat,
+                  TableScroll, EmptyState — semua aturan responsif ada di sini
 api/live.ts       fungsi Vercel: kutip 962 emiten dari Yahoo saat diminta
 ```
 
@@ -118,6 +150,7 @@ npm run dev             # Vite dev, proxy /api ke :8787
 npm test                # 32 uji: guard rail DCF + rekonsiliasi atribusi indeks
 npm run data:all        # bangun ulang seluruh database (~15 menit)
 npm run data:intraday   # harga live semua emiten (~3 detik)
+npm run data:ownership  # register kepemilikan KSEI 24 bulan (~40 detik)
 npm run alert:preview   # hitung pick tanpa mengirim email
 ```
 
@@ -130,7 +163,11 @@ npm run alert:preview   # hitung pick tanpa mengirim email
   kapitalisasi. Tepat untuk blue chip, tidak identik dengan daftar resmi.
 - **Rincian broker per saham tidak tersedia publik** — hanya total per anggota
   bursa. Yang ada di UI adalah struktur pelaku (ritel vs institusi dari ukuran
-  tiket rata-rata).
+  tiket rata-rata). Untuk kepemilikan per saham, jawabannya bukan broker
+  summary melainkan register KSEI di tab Mutual Fund Tracker.
+- **Kepemilikan KSEI bulanan dan tanpa nama pengelola.** Bisa mengatakan reksa
+  dana secara keseluruhan menambah 90 bp; tidak bisa mengatakan reksa dana mana.
+  Tidak ada potongan harian di sumber mana pun yang publik.
 - **Arus dana asing hanya EOD.** Refresh intraday membawa harga segar tetapi
   faktor asing tetap per sesi resmi terakhir; UI selalu menyebut tanggalnya.
 - **Riwayat git tumbuh ~130 MB/bulan** karena `history.json` 6 MB ditulis ulang
