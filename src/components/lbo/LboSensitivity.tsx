@@ -4,6 +4,7 @@ import { generateLboSensitivityEntryVsExit, generateLboSensitivityLeverageVsExit
 import { HeatmapTable } from '../common/HeatmapTable';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
+import { CHART } from '../../theme/chart';
 
 interface LboSensitivityProps {
   assumptions: LboAssumptions;
@@ -50,17 +51,17 @@ export const LboSensitivity: React.FC<LboSensitivityProps> = ({
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} />
-              <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
-              <YAxis stroke="#94a3b8" fontSize={11} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} opacity={0.5} />
+              <XAxis dataKey="name" stroke={CHART.axis} fontSize={11} />
+              <YAxis stroke={CHART.axis} fontSize={11} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }}
+                contentStyle={{ backgroundColor: CHART.tooltipBg, borderColor: CHART.grid, borderRadius: '8px' }}
                 formatter={(value: any) => [formatCurrency(Number(value), '$', 1), '']}
               />
               <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-              <Area type="monotone" dataKey="SeniorDebt" stackId="1" stroke="#3b82f6" fill="#3b82f6" name="Senior Debt" fillOpacity={0.6} />
-              <Area type="monotone" dataKey="SubDebt" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="Subordinated Debt" fillOpacity={0.6} />
-              <Area type="monotone" dataKey="SponsorEquity" stackId="1" stroke="#10b981" fill="#10b981" name="Sponsor Equity Value" fillOpacity={0.6} />
+              <Area type="monotone" dataKey="SeniorDebt" stackId="1" stroke={CHART.blue} fill={CHART.blue} name="Senior Debt" fillOpacity={0.6} />
+              <Area type="monotone" dataKey="SubDebt" stackId="1" stroke={CHART.amber} fill={CHART.amber} name="Subordinated Debt" fillOpacity={0.6} />
+              <Area type="monotone" dataKey="SponsorEquity" stackId="1" stroke={CHART.green} fill={CHART.green} name="Sponsor Equity Value" fillOpacity={0.6} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

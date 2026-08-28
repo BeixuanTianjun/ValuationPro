@@ -17,7 +17,12 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, extname, join } from 'node:path';
 import { config as loadEnv } from 'dotenv';
 
-import { computeDailyDigest, loadFundamentalsFromDisk, loadMarketDatabaseFromDisk } from './marketFromDisk';
+import {
+  computeDailyDigest,
+  loadChatContextFromDisk,
+  loadFundamentalsFromDisk,
+  loadMarketDatabaseFromDisk,
+} from './marketFromDisk';
 import {
   MailConfig,
   explainMailError,
@@ -43,7 +48,6 @@ import {
 } from './auth';
 import { JobId, dueJobs, nextMilestone, phaseOf, setHolidays, wibNow } from './schedule';
 import { answerQuestion, ChatTurn } from './chatApi';
-import { StrategyId } from '../types/market';
 
 // Resolved from the working directory, not from import.meta.url: this file is
 // bundled to .cache/server.mjs, so a path relative to the module would land one
@@ -57,7 +61,6 @@ configureAuth(join(ROOT, '.data'));
 loadEnv({ path: join(ROOT, '.env') });
 
 const PORT = Number(process.env.PORT || 8787);
-const STRATEGY = (process.env.ALERT_STRATEGY || 'balanced-alpha') as StrategyId;
 
 const log = (...a: unknown[]) => {
   const w = wibNow();
@@ -280,7 +283,6 @@ async function handleStatus(res: ServerResponse, viewer: PublicUser | null) {
     admin: admin ? { email: admin.email, name: admin.name } : null,
     now: { ...w, phase: phaseOf(w) },
     next: nextMilestone(w),
-    strategy: STRATEGY,
     running,
     files,
     alerts: {
@@ -472,11 +474,12 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/api/chat' && req.method === 'POST') {
       const body = JSON.parse((await readBody(req)) || '{}') as { message?: string; history?: ChatTurn[] };
       if (!body.message?.trim()) return json(res, 400, { error: 'Pertanyaan kosong' });
-      const [db, fundamentals] = await Promise.all([
+      const [db, fundamentals, chatContext] = await Promise.all([
         loadMarketDatabaseFromDisk(DATA_DIR),
         loadFundamentalsFromDisk(DATA_DIR),
+        loadChatContextFromDisk(DATA_DIR),
       ]);
-      const answer = await answerQuestion(body.message, body.history || [], db, fundamentals);
+      const answer = await answerQuestion(body.message, body.history || [], db, fundamentals, chatContext);
       return json(res, 200, answer);
     }
 

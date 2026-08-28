@@ -51,25 +51,45 @@ async function main() {
   const to = new Date();
   const from = new Date(to.getTime() - DAYS * 86400000);
 
-  // `indexFrom` is a 1-BASED PAGE NUMBER, not a row offset — indexFrom=2 with
-  // pageSize=1000 returns rows 1001-2000, and passing a row offset returns an
-  // empty result set with ResultCount 0 rather than an error.
+  // `indexFrom` is a PAGE NUMBER and it is ZERO-BASED. indexFrom=0 is the
+  // newest `pageSize` filings, indexFrom=1 is the next block down. Passing a row
+  // offset (1001, 2001, …) answers ResultCount 0 with an empty Replies and no
+  // error at all, so a wrong pagination does not fail — it goes quiet.
+  //
+  // STARTING AT 1 IS THE EXPENSIVE MISTAKE. It does not shift the window by one
+  // filing, it discards the newest `pageSize` of them: with pageSize=1000 the
+  // crawl came back with 3,261 of 4,261 rows and NOTHING from the most recent
+  // seventeen days, while every log line and the file's own `to` field still
+  // claimed the window ran to today. The narrative layer of the watchlist —
+  // which decays on a 7-day half-life — was scoring a market whose freshest
+  // filing was already 17 days old, and the email digest inherited it.
+  //
+  // The guard after the crawl is what makes that impossible to repeat quietly.
   const url = (page, pageSize) =>
     `${IDX_BASE}/ListedCompany/GetAnnouncement?indexFrom=${page}&pageSize=${pageSize}` +
     `&dateFrom=${ymd(from)}&dateTo=${ymd(to)}&lang=id&keyword=&emitenType=s`;
 
-  const first = await getJson(url(1, PAGE), { timeoutMs: 90000 });
+  const first = await getJson(url(0, PAGE), { timeoutMs: 90000 });
   const total = Number(first.ResultCount) || 0;
   const pages = Math.ceil(total / PAGE);
   log(`${total} pengumuman dalam ${DAYS} hari terakhir (${pages} halaman)`);
 
   const replies = [...(first.Replies || [])];
-  for (let page = 2; page <= pages; page++) {
+  for (let page = 1; page < pages; page++) {
     const res = await getJson(url(page, PAGE), { timeoutMs: 90000 });
     const batch = res.Replies || [];
     if (!batch.length) break;
     replies.push(...batch);
-    log(`  halaman ${page}/${pages} — ${replies.length}/${total}`);
+    log(`  halaman ${page + 1}/${pages} — ${replies.length}/${total}`);
+  }
+
+  // What the exchange said it had, versus what came back. A shortfall here is
+  // always pagination, never the market being quiet.
+  if (total && replies.length < total * 0.95) {
+    throw new Error(
+      `paginasi tidak lengkap: ${replies.length} dari ${total} baris terambil. ` +
+        'Periksa indexFrom (berbasis nol) dan pageSize sebelum menulis berkas.'
+    );
   }
 
   // The feed can repeat a filing across pages when new ones land mid-crawl, so
@@ -110,6 +130,20 @@ async function main() {
   }
 
   rows.sort((a, b) => b.date.localeCompare(a.date) || a.code.localeCompare(b.code));
+
+  // The second half of the same guard, and the one that would have caught the
+  // zero-based bug on its own: a 45-day window whose newest filing is a week old
+  // is not a quiet market, it is a crawl that lost its front page. IDX files on
+  // every trading day. Weekends and holidays make a three-day gap normal, so the
+  // alarm sits above that.
+  const newest = rows[0]?.date ?? '';
+  const gapDays = newest ? Math.round((to - Date.parse(newest + 'T00:00:00')) / 86400000) : 999;
+  if (gapDays > 5) {
+    throw new Error(
+      `pengajuan terbaru berumur ${gapDays} hari (${newest || 'tidak ada'}) padahal jendela berakhir ` +
+        `${to.toISOString().slice(0, 10)}. Feed IDX tidak setertinggal itu — hampir pasti paginasi.`
+    );
+  }
 
   const byCode = {};
   for (const r of rows) (byCode[r.code] ||= []).push(r);

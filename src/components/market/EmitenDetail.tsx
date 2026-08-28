@@ -5,6 +5,7 @@ import { FactorSnapshot } from '../../types/market';
 import { MarketDatabase } from '../../data/marketRepository';
 import { FundamentalsDatabase } from '../../data/fundamentalsRepository';
 import { buildEmitenModel } from '../../models/idxCompanyBridge';
+import { CHART } from '../../theme/chart';
 
 interface Props {
   code: string;
@@ -109,21 +110,33 @@ export const EmitenDetail: React.FC<Props> = ({ code, db, fundamentals, factors,
             <AreaChart data={chart} margin={{ top: 5, right: 5, left: -12, bottom: 0 }}>
               <defs>
                 <linearGradient id="px" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.45} />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+                  <stop offset="0%" stopColor={CHART.blue} stopOpacity={0.45} />
+                  <stop offset="100%" stopColor={CHART.blue} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-              <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 9 }} minTickGap={50} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fill: CHART.tick, fontSize: 9 }}
+                minTickGap={50}
+                axisLine={{ stroke: CHART.grid }} tickLine={{ stroke: CHART.grid }}
+              />
               <YAxis
                 yAxisId="price"
-                tick={{ fill: '#64748b', fontSize: 9 }}
+                tick={{ fill: CHART.tick, fontSize: 9 }}
                 domain={['dataMin', 'dataMax']}
                 width={55}
+                axisLine={{ stroke: CHART.grid }} tickLine={{ stroke: CHART.grid }}
               />
-              <YAxis yAxisId="flow" orientation="right" tick={{ fill: '#475569', fontSize: 9 }} width={45} />
+              <YAxis
+                yAxisId="flow"
+                orientation="right"
+                tick={{ fill: CHART.tickMuted, fontSize: 9 }}
+                width={45}
+                axisLine={{ stroke: CHART.grid }} tickLine={{ stroke: CHART.grid }}
+              />
               <Tooltip
-                contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, fontSize: 11 }}
+                contentStyle={{ background: CHART.tooltipBg, border: `1px solid ${CHART.grid}`, borderRadius: 8, fontSize: 11 }}
                 formatter={(v: number, name: string) =>
                   name === 'close' ? [`Rp ${rp(v)}`, 'Harga'] : [`Rp ${rp(v)} miliar`, 'Akumulasi asing']
                 }
@@ -132,7 +145,7 @@ export const EmitenDetail: React.FC<Props> = ({ code, db, fundamentals, factors,
                 yAxisId="price"
                 type="monotone"
                 dataKey="close"
-                stroke="#3b82f6"
+                stroke={CHART.blue}
                 strokeWidth={1.8}
                 fill="url(#px)"
               />
@@ -140,7 +153,7 @@ export const EmitenDetail: React.FC<Props> = ({ code, db, fundamentals, factors,
                 yAxisId="flow"
                 type="monotone"
                 dataKey="foreign"
-                stroke="#f59e0b"
+                stroke={CHART.amber}
                 strokeWidth={1.2}
                 fill="none"
                 dot={false}

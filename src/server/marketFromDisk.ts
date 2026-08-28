@@ -13,17 +13,15 @@ import {
   IndicesFile,
   IntradayFile,
   MarketMeta,
-  ScreenResult,
-  StrategyId,
   UniverseFile,
 } from '../types/market';
 import { MarketDatabase, assembleMarketDatabase, computeBreadth } from '../data/marketRepository';
 import { computeAllFactors } from '../models/factorEngine';
-import { ScreenFilters, MarketBreadth } from '../types/market';
-import { buildDailyBriefing, runScreen } from '../models/alphaScreener';
+import { MarketBreadth } from '../types/market';
 import { ScreenerResult, runStockScreener } from '../models/stockScreener';
 import { WatchlistResult, buildWatchlist } from '../models/watchlist';
 import { AnnouncementsFile } from '../models/announcements';
+import { ChatContext } from './chatApi';
 import { OwnershipFile } from '../models/ownershipFlow';
 import {
   FundamentalsDatabase,
@@ -63,33 +61,19 @@ export async function loadFundamentalsFromDisk(dataDir: string): Promise<Fundame
   return { fundamentals, quotes };
 }
 
-export interface DailyPickRun {
-  db: MarketDatabase;
-  result: ScreenResult;
-  breadth: MarketBreadth;
-  briefing: string;
-}
-
-export async function computeDailyPicks(
-  dataDir: string,
-  strategyId: StrategyId = 'balanced-alpha',
-  filters: Partial<ScreenFilters> = {}
-): Promise<DailyPickRun> {
-  const db = await loadMarketDatabaseFromDisk(dataDir);
-  const factors = computeAllFactors(db);
-
-  const sma50 = new Map<string, number>();
-  const sma200 = new Map<string, number>();
-  for (const [code, f] of factors) {
-    sma50.set(code, f.sma50);
-    sma200.set(code, f.sma200);
-  }
-  const breadth = computeBreadth(db, sma50, sma200);
-
-  const result = runScreen(db, { strategyId, filters, factors });
-  const briefing = buildDailyBriefing(result, breadth.advancers, breadth.decliners);
-
-  return { db, result, breadth, briefing };
+/**
+ * The two optional feeds the chatbot dossier needs.
+ *
+ * Returned as nulls rather than throwing when a weekly ingest has not run: the
+ * dossier prints "this file was never built" for a null, which is a different
+ * and more useful answer than "this emiten filed nothing".
+ */
+export async function loadChatContextFromDisk(dataDir: string): Promise<ChatContext> {
+  const [announcements, ownership] = await Promise.all([
+    tryReadJson<AnnouncementsFile>(dataDir, 'announcements.json'),
+    tryReadJson<OwnershipFile>(dataDir, 'ownership.json'),
+  ]);
+  return { announcements, ownership };
 }
 
 export interface DailyDigestRun {
@@ -103,9 +87,8 @@ export interface DailyDigestRun {
  * The digest the email actually sends, built from the two systems the terminal
  * shows — not from the factor model.
  *
- * Both run against the SAME database the browser assembles, for the same reason
- * `computeDailyPicks` did: a digest that disagrees with the screen is worse than
- * no digest. The watchlist runs on the weekly clock because the email goes out
+ * Both run against the SAME database the browser assembles: a digest that
+ * disagrees with the screen the app shows would be worse than no digest. The watchlist runs on the weekly clock because the email goes out
  * daily and a monthly half-life would resend the same three names for a month.
  */
 export async function computeDailyDigest(dataDir: string): Promise<DailyDigestRun> {

@@ -71,9 +71,15 @@ export const ConglomerateRotation: React.FC<Props> = ({ db, factors, onSelectEmi
   // 1-month cap-weighted move because that is the horizon a rotation plays out
   // over; cohesion is shown beside it so a fast-moving incoherent group is
   // visibly not a group.
+  //
+  // IT RANKS `shown`, NOT `groups`. Ranking the unfiltered list made the filter
+  // look broken: picking "Hanya yang kohesif" or "BUMN" rebuilt the cards below
+  // while this table — the one read first — kept listing all 31 groups, and an
+  // empty filter result rendered "tidak ada grup pada saringan ini" directly
+  // beneath a full leaderboard.
   const leaderboard = useMemo(
-    () => [...groups].sort((a, b) => (b.groupReturn1m || -Infinity) - (a.groupReturn1m || -Infinity)),
-    [groups]
+    () => [...shown].sort((a, b) => (b.groupReturn1m || -Infinity) - (a.groupReturn1m || -Infinity)),
+    [shown]
   );
 
   return (
@@ -83,7 +89,11 @@ export const ConglomerateRotation: React.FC<Props> = ({ db, factors, onSelectEmi
           icon={Network}
           title="Rotasi Konglomerasi"
           tone="text-indigo-400"
-          subtitle={`${groups.length} grup pengendali terpantau. Alat ini mengukur tiga hal yang harus ada sebelum sebuah rotasi layak dipertimbangkan: apakah grupnya memang sedang bergerak, apakah anggotanya benar-benar bergerak bersama, dan siapa yang paling tertinggal.`}
+          subtitle={`${
+            filter === 'semua'
+              ? `${groups.length} grup pengendali terpantau`
+              : `${shown.length} dari ${groups.length} grup pengendali lolos saringan ini`
+          }. Alat ini mengukur tiga hal yang harus ada sebelum sebuah rotasi layak dipertimbangkan: apakah grupnya memang sedang bergerak, apakah anggotanya benar-benar bergerak bersama, dan siapa yang paling tertinggal.`}
           actions={
             <Segmented
               options={FILTERS}

@@ -23,9 +23,20 @@ export default defineConfig({
         // keeps the app chunk small enough to parse quickly on a cold load.
         // exceljs is deliberately absent: it is dynamically imported at export
         // time, so rollup gives it its own lazily-fetched chunk.
-        manualChunks: {
-          charts: ['recharts'],
-          vendor: ['react', 'react-dom'],
+        //
+        // WHY A FUNCTION AND NOT `{ charts: ['recharts'], vendor: ['react'] }`.
+        // The object form named the entry modules, and rollup put React inside
+        // the `charts` chunk anyway — recharts reaches it first — leaving
+        // `vendor` empty (vite even said so: "Generated an empty chunk") and
+        // React on the critical path behind 560 kB of charting library. Matching
+        // on the resolved path instead puts React where it was meant to go, and
+        // the order of these tests is what decides the tie.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          // vite normalises module ids to forward slashes on every platform, so
+          // a plain '/node_modules/' test is enough — no path-separator class.
+          if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'vendor';
+          if (/\/node_modules\/(recharts|d3-|victory-)/.test(id)) return 'charts';
         },
       },
     },

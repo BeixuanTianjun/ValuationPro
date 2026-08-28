@@ -37,11 +37,21 @@ import {
   MarketMeta,
   UniverseFile,
 } from '../src/types/market';
-import { answerQuestion, ChatTurn } from '../src/server/chatApi';
+import { answerQuestion, ChatContext, ChatTurn } from '../src/server/chatApi';
+import { AnnouncementsFile } from '../src/models/announcements';
+import { OwnershipFile } from '../src/models/ownershipFlow';
 
 interface Loaded {
   db: MarketDatabase;
   fundamentals: FundamentalsDatabase;
+  /**
+   * Filings and the KSEI register.
+   *
+   * Fetched with tryJson like the other optional files, so a deployment whose
+   * weekly ingest has not landed yet still answers — the dossier prints that the
+   * file is missing rather than reporting a quiet emiten.
+   */
+  chatContext: ChatContext;
   at: number;
 }
 
@@ -84,20 +94,24 @@ async function load(req: ChatRequestLike): Promise<Loaded> {
   if (loaded && Date.now() - loaded.at < TTL_MS) return loaded;
 
   const base = originOf(req);
-  const [meta, universe, daily, history, indices, intraday, fundamentals, quotes] = await Promise.all([
-    getJson<MarketMeta>(base, 'meta.json'),
-    getJson<UniverseFile>(base, 'universe.json'),
-    getJson<DailyFile>(base, 'daily.json'),
-    getJson<HistoryFile>(base, 'history.json'),
-    getJson<IndicesFile>(base, 'indices.json'),
-    tryJson<IntradayFile>(base, 'intraday.json'),
-    tryJson<FundamentalsFile>(base, 'fundamentals.json'),
-    tryJson<QuotesFile>(base, 'quotes.json'),
-  ]);
+  const [meta, universe, daily, history, indices, intraday, fundamentals, quotes, announcements, ownership] =
+    await Promise.all([
+      getJson<MarketMeta>(base, 'meta.json'),
+      getJson<UniverseFile>(base, 'universe.json'),
+      getJson<DailyFile>(base, 'daily.json'),
+      getJson<HistoryFile>(base, 'history.json'),
+      getJson<IndicesFile>(base, 'indices.json'),
+      tryJson<IntradayFile>(base, 'intraday.json'),
+      tryJson<FundamentalsFile>(base, 'fundamentals.json'),
+      tryJson<QuotesFile>(base, 'quotes.json'),
+      tryJson<AnnouncementsFile>(base, 'announcements.json'),
+      tryJson<OwnershipFile>(base, 'ownership.json'),
+    ]);
 
   loaded = {
     db: assembleMarketDatabase({ meta, universe, daily, history, indices, intraday }),
     fundamentals: { fundamentals, quotes },
+    chatContext: { announcements, ownership },
     at: Date.now(),
   };
   return loaded;
@@ -118,8 +132,14 @@ export async function handleChat(
   if (!message) return { status: 400, body: { error: 'Pertanyaan kosong.' } };
 
   try {
-    const { db, fundamentals } = await load(req);
-    const answer = await answerQuestion(message, Array.isArray(body.history) ? body.history : [], db, fundamentals);
+    const { db, fundamentals, chatContext } = await load(req);
+    const answer = await answerQuestion(
+      message,
+      Array.isArray(body.history) ? body.history : [],
+      db,
+      fundamentals,
+      chatContext
+    );
     return { status: 200, body: answer };
   } catch (err) {
     return { status: 500, body: { error: (err as Error).message } };

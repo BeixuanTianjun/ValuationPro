@@ -61,6 +61,19 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
     tone: 'text-emerald-300',
   },
   {
+    // CN is Bloomberg's own mnemonic for company news, and the registry note
+    // above cites it. It collides with CNG on the first two letters, which the
+    // search resolves the way a terminal should: an exact code match outranks a
+    // prefix match, so `CN` opens this and `CNG` opens the conglomerate screen.
+    code: 'CN',
+    name: 'Keterbukaan Informasi',
+    hint: 'Arsip pengajuan resmi emiten ke bursa, dikategorikan; PDF asli satu klik.',
+    group: 'Pasar',
+    area: 'market',
+    sub: 'news',
+    tone: 'text-emerald-300',
+  },
+  {
     code: 'DES',
     name: 'Basis Data Emiten',
     hint: 'Profil, harga, faktor, dan laporan keuangan 962 emiten tercatat.',

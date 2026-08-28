@@ -17,6 +17,7 @@ import {
 import { MarketDatabase } from '../../data/marketRepository';
 import { IndexQuote } from '../../types/market';
 import { AccountUser } from '../../data/authClient';
+import { CHART } from '../../theme/chart';
 
 interface Props {
   db: MarketDatabase | null;
@@ -186,13 +187,13 @@ export const LandingPage: React.FC<Props> = ({
         >
           <defs>
             <linearGradient id="heroFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.22" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+              <stop offset="0%" stopColor={CHART.blue} stopOpacity="0.22" />
+              <stop offset="100%" stopColor={CHART.blue} stopOpacity="0" />
             </linearGradient>
             <linearGradient id="heroStroke" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#6366f1" />
-              <stop offset="55%" stopColor="#3b82f6" />
-              <stop offset="100%" stopColor="#22c55e" />
+              <stop offset="0%" stopColor={CHART.violet} />
+              <stop offset="55%" stopColor={CHART.blue} />
+              <stop offset="100%" stopColor={CHART.green} />
             </linearGradient>
           </defs>
           {mounted && (

@@ -16,6 +16,7 @@ npm run data:fundamentals  # laporan keuangan tahunan              -> ~3 menit
 npm run data:brokers       # aktivitas harian anggota bursa        -> ~2 menit
 npm run data:ownership     # register kepemilikan KSEI bulanan     -> ~40 detik
 npm run data:announcements # keterbukaan informasi IDX 45 hari     -> ~10 detik
+npm run chat:dossier -- PACK  # cetak dossier yang diterima chatbot (tanpa API)
 npm test                   # uji numerik guard rail mesin DCF
 ```
 
@@ -37,7 +38,7 @@ tidak ada masalah CORS saat aplikasi berjalan.
 | `intraday.json` | Harga live seluruh emiten + IHSG/LQ45 selama sesi berjalan | 0,1 MB |
 | `brokers.json` | Aktivitas harian 88 anggota bursa, 113 sesi | 0,2 MB |
 | `ownership.json` | Register kepemilikan KSEI: 962 emiten × 24 bulan × 9 jenis investor × lokal/asing | 1,6 MB |
-| `announcements.json` | Keterbukaan informasi IDX 45 hari terakhir: ~3.200 pengajuan dari ~925 emiten | 0,6 MB |
+| `announcements.json` | Keterbukaan informasi IDX 45 hari terakhir: ~4.260 pengajuan dari ~940 emiten | 0,7 MB |
 
 ## Sumber
 
@@ -49,8 +50,14 @@ tidak ada masalah CORS saat aplikasi berjalan.
 - `/primary/TradingSummary/GetIndexSummary?date=YYYYMMDD` — 45 indeks dalam satu panggilan
 - `/primary/ListedCompany/GetAnnouncement` — keterbukaan informasi per emiten: RUPS, dividen,
   transaksi material, perolehan kontrak, dan permintaan penjelasan bursa.
-  **`indexFrom` adalah nomor HALAMAN berbasis 1, bukan offset baris** — mengirim
-  offset baris menjawab `ResultCount: 0` tanpa error, bukan halaman berikutnya.
+  **`indexFrom` adalah nomor HALAMAN berbasis NOL, bukan offset baris** —
+  mengirim offset baris menjawab `ResultCount: 0` tanpa error, bukan halaman
+  berikutnya. Mulai dari `indexFrom=1` bukan menggeser satu baris melainkan
+  membuang `pageSize` pengajuan TERBARU: dengan `pageSize=1000` crawl pulang
+  membawa 3.261 dari 4.261 baris dan nol pengajuan dari 17 hari terakhir,
+  sementara log dan field `to` tetap mengaku sampai hari ini. Skrip sekarang
+  menolak menulis berkas kalau jumlah baris meleset >5% dari `ResultCount`
+  atau kalau pengajuan terbaru berumur lebih dari 5 hari.
 
 **Yahoo Finance** — laporan keuangan, rasio valuasi, dan harga intraday (IDX
 tidak menyediakan keduanya; laporan resminya berupa XBRL `instance.zip` dan

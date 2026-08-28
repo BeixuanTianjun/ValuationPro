@@ -27,7 +27,7 @@ ala Bloomberg — Ctrl+K membuka menu fungsi, mengetik kode (mis. `SCR`, `FUND`,
 ## Kondisi data saat serah terima
 
 962 emiten · 282 sesi (2025-06-23 → 2026-08-24) · 45 indeks · 24 hari libur
-32 aksi korporasi · 648 emiten berlaporan keuangan · 962 kuotasi (100 pelapor
+4.258 pengajuan keterbukaan informasi (45 hari) · 648 emiten berlaporan keuangan · 962 kuotasi (100 pelapor
 non-IDR) · 88 anggota bursa × 113 sesi · 962 emiten × 24 bulan register
 kepemilikan KSEI (2024-08 → 2026-07) · total 10,5 MB di `public/data/idx/`
 
@@ -99,11 +99,16 @@ halaman. Semua field detail bertipe opsional; biarkan begitu.
 **IDX TIDAK memblokir runner GitHub Actions.** Sudah terbukti — crawl penuh 430
 hari berhasil dari IP datacenter Azure.
 
-**`indexFrom` pada GetAnnouncement adalah nomor HALAMAN, bukan offset baris.**
+**`indexFrom` pada GetAnnouncement adalah nomor HALAMAN BERBASIS NOL.**
 Mengirim offset baris (1001, 2001, …) menjawab `ResultCount: 0` dan `Replies: []`
-tanpa error apa pun — jadi paginasi yang salah tidak gagal, ia diam-diam hanya
-mengambil halaman pertama. `indexFrom=2` dengan `pageSize=1000` adalah baris
-1001-2000.
+tanpa error apa pun. Yang jauh lebih mahal: memulai dari `indexFrom=1` bukan
+menggeser satu baris, melainkan MEMBUANG `pageSize` pengajuan terbaru. Itu yang
+terjadi sampai 2026-08-27 — crawl pulang membawa 3.261 dari 4.261 baris, nol
+pengajuan dari 17 hari terakhir, sementara log dan field `to` tetap mengaku
+sampai hari ini, dan lapisan narasi Watchlist (paruh waktu 7 hari) diam-diam
+menilai pasar yang pengajuan tersegarnya sudah berumur 17 hari. Sekarang skrip
+menolak menulis kalau baris meleset >5% dari `ResultCount` atau kalau pengajuan
+terbaru lebih tua dari 5 hari.
 
 **Aturan volume dan aturan nilai di screener bukan aturan yang sama dua kali.**
 Volume > 1 juta lembar dan nilai > Rp 1 miliar mengikat di ujung harga yang
@@ -120,10 +125,33 @@ dan warnanya ikut. Mengubah tema seluruh aplikasi = mengubah satu berkas.
 `slate-950` sekarang hitam murni dan `slate-500` sengaja dinaikkan dari bawaan
 Tailwind karena bawaannya disetel untuk latar putih dan tidak terbaca di hitam.
 
+**Recharts tidak bisa memakai kelas Tailwind, jadi warnanya hidup di
+`src/theme/chart.ts`.** Itu satu-satunya berkas selain `tailwind.config.js` yang
+boleh memuat hex. Sebelum ada, setiap chart masih memakai hex BAWAAN Tailwind
+(#3b82f6, #10b981, #0f172a) yang berhenti menjadi warna aplikasi begitu ramp
+di-remap — chart tetap biru dasbor web di terminal yang sudah amber-di-hitam,
+dan tidak ada yang menandainya karena tiap hex sah secara individual. Recharts
+juga punya bawaannya sendiri: garis sumbu keluar `#666` kalau `axisLine` dan
+`tickLine` tidak diisi. Mengubah tema = mengubah dua berkas.
+
 **Dev server TIDAK memuat ulang tailwind.config.js.** Setelah mengubah tema,
 `npm run dev` yang sudah jalan akan tetap memakai palet lama dan membuat Anda
 mengira perubahannya gagal. Verifikasi lewat `npm run build` + `vite preview`,
 atau restart dev server.
+
+**Dossier chatbot menyatukan enam feed, dan itu inti fiturnya.** `buildDossier`
+di `src/server/chatApi.ts` menggabungkan harga + aturan screener, laporan
+keuangan, aksi korporasi terdeteksi, pengajuan ke bursa, tema kebijakan, grup
+pengendali beserta rotasi dan kohesi terukur, register KSEI, dan pembanding
+sub-industri berikut kapitalisasinya. Dua feed terakhir (`announcements.json`,
+`ownership.json`) TIDAK ada di `MarketDatabase` — keduanya masuk lewat
+`ChatContext` yang disalurkan dari `src/server/index.ts` (lokal) dan
+`api/_chat-impl.ts` (Vercel). Kalau salah satu jalur lupa menyalurkannya,
+chatbot tidak error: ia diam-diam kehilangan lapisan narasi. Dossier membedakan
+"tidak ada pengajuan" dari "berkasnya belum dibangun" secara eksplisit karena
+model yang tidak bisa membedakan keduanya akan melaporkan emiten sepi kabar
+padahal baru rights issue. Periksa isinya kapan saja dengan
+`npm run chat:dossier -- KODE` — tanpa API key, tanpa mengirim apa pun.
 
 **Chatbot butuh ANTHROPIC_API_KEY di DUA tempat.** `.env` lokal untuk
 `npm run auto`, dan environment variable proyek Vercel untuk `api/chat.ts`.
@@ -183,8 +211,8 @@ pembungkus sembilan baris yang mengimpor bundel itu. `_chat-bundle.mjs` masuk
 `.gitignore` — dibangun ulang tiap `npm run build`, jangan commit manual.
 
 **Menu fungsi & command bar membaca satu registri.** `src/data/functions.ts`
-adalah satu-satunya sumber kebenaran untuk kode mnemonic (MKT, SCR, WL, DES,
-CHAT, MOST, CNG, FUND, BRK, AVAL, DCF, LBO). Menambah layar baru = menambah satu
+adalah satu-satunya sumber kebenaran untuk kode mnemonic (MKT, SCR, WL, CN,
+DES, CHAT, MOST, CNG, FUND, BRK, AVAL, DCF, LBO). Menambah layar baru = menambah satu
 baris di sana; `MenuPanel.tsx` dan `FunctionBar.tsx` keduanya membaca dari situ,
 jadi sebuah layar tidak mungkin ada di satu tempat tapi hilang di tempat lain.
 
@@ -193,7 +221,7 @@ jadi sebuah layar tidak mungkin ada di satu tempat tapi hilang di tempat lain.
 ```
 scripts/          ingest via curl: idx, intraday, quotes, fundamentals,
                   brokers, ownership (KSEI), announcements (keterbukaan info)
-src/models/       dcfEngine, lboEngine, factorEngine, alphaScreener,
+src/models/       dcfEngine, lboEngine, factorEngine,
                   indexAttribution, conglomerateRotation, autoValuation,
                   brokerFlow, ownershipFlow, announcements (taksonomi judul),
                   stockScreener (aturan keras), watchlist (corong 4 tahap),
@@ -204,6 +232,9 @@ src/data/         marketRepository (isomorfik: browser + Node), fundamentals,
 src/server/       index (HTTP + scheduler), schedule (WIB), auth (scrypt),
                   emailAlert, chatApi, marketFromDisk, alertCli
 src/components/   landing, layout, market, analytics, chat, auth, dcf, lbo
+src/components/market/AnnouncementFeed.tsx   layar CN — arsip keterbukaan
+                  informasi, kategori + filter + tautan PDF asli
+src/theme/chart.ts   warna Recharts (satu-satunya hex di luar tailwind.config)
 src/components/common/ui.tsx   primitif bersama: Panel, Segmented, Stat,
                   TableScroll, EmptyState — semua aturan responsif ada di sini
 src/components/layout/   Header, LiveStatusBar, MenuPanel (Ctrl+K),
@@ -263,9 +294,6 @@ npm run alert:preview   # hitung pick tanpa mengirim email
   tiap tarik data resmi. Resep pemadatan ada di `DEPLOY.md`.
 - **Login hanya jalan di layanan lokal.** Sesi di memori + `users.json` tidak
   bertahan di serverless.
-- **Mesin faktor lama (`models/alphaScreener.ts`) sekarang tidak dipakai siapa pun.**
-  Digest email sudah pindah ke Screener + Watchlist, dan komponen UI-nya sudah
-  dihapus lebih dulu. Berkasnya masih ada; hapus kalau memang tidak akan dipakai.
 - **Broker summary per saham TIDAK akan pernah bisa dari sumber publik.** Sudah
   diuji ulang: `GetBrokerSummary?code=BBCA` menerima parameternya dan
   mengabaikannya — tetap 88 baris seluruh pasar. Yang ada di UI adalah aktivitas

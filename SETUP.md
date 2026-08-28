@@ -117,9 +117,10 @@ Mengirim satu email uji coba sekarang:
 curl -X POST http://localhost:8787/api/alert/test
 ```
 
-Ganti strategi yang dipakai alert lewat `ALERT_STRATEGY` di `.env`
-(`balanced-alpha`, `momentum-breakout`, `foreign-flow`, `pullback-uptrend`,
-`sector-rotation`, `liquid-turnaround`).
+Isi email dibangun dari dua sistem yang sama dengan yang tampil di terminal —
+Screener (aturan keras) dan Watchlist (corong empat tahap). Tidak ada saklar
+strategi: mengubah pick berarti mengubah aturan di `src/models/stockScreener.ts`
+atau `src/models/watchlist.ts`.
 
 ## Chatbot
 
@@ -180,7 +181,16 @@ mengirim.
 
 **Chatbot memakai Claude Sonnet 5** lewat SDK resmi Anthropic, dengan dua tool:
 `screen_emiten` untuk pertanyaan lintas emiten dan `kupas_emiten` untuk membedah
-satu kode. Lapisan Claude butuh `ANTHROPIC_API_KEY` **di dua tempat**, dan tanpa
+satu kode. Dossier `kupas_emiten` sengaja menyatukan enam lapis dalam satu blok —
+pengajuan ke bursa, tema kebijakan, grup pengendali beserta rotasi dan kohesinya,
+aksi korporasi terdeteksi, register KSEI, dan pembanding sub-industri lengkap
+dengan kapitalisasinya — supaya jawabannya bisa mengatakan *kenapa* sesuatu
+bergerak, bukan sekadar *bahwa* ia bergerak. Lihat persis apa yang diterima model
+tanpa memanggil API mana pun:
+
+```bash
+npm run chat:dossier -- PACK
+``` Lapisan Claude butuh `ANTHROPIC_API_KEY` **di dua tempat**, dan tanpa
 keduanya chatbot diam-diam turun ke parser lokal:
 
 1. `.env` di komputer Anda — untuk `npm run auto`. Baris kuncinya saat ini masih

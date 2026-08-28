@@ -4,6 +4,7 @@ import { Activity, ArrowDownRight, ArrowUpRight, Globe2, Layers3, RefreshCw } fr
 import { IndexQuote, MarketBreadth } from '../../types/market';
 import { MarketDatabase } from '../../data/marketRepository';
 import { GROUP_LABELS } from '../../data/idxIndexCatalog';
+import { CHART } from '../../theme/chart';
 
 interface Props {
   db: MarketDatabase;
@@ -166,23 +167,28 @@ export const MarketOverview: React.FC<Props> = ({ db, indices, breadth, onReload
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={sectorChart} margin={{ top: 5, right: 10, left: -10, bottom: 55 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
               <XAxis
                 dataKey="name"
                 angle={-35}
                 textAnchor="end"
                 interval={0}
-                tick={{ fill: '#94a3b8', fontSize: 10 }}
+                tick={{ fill: CHART.axis, fontSize: 10 }}
                 height={60}
+                axisLine={{ stroke: CHART.grid }} tickLine={{ stroke: CHART.grid }}
               />
-              <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={(v) => `${v}%`} />
+              <YAxis
+                tick={{ fill: CHART.axis, fontSize: 10 }}
+                tickFormatter={(v) => `${v}%`}
+                axisLine={{ stroke: CHART.grid }} tickLine={{ stroke: CHART.grid }}
+              />
               <Tooltip
-                contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
+                contentStyle={{ background: CHART.tooltipBg, border: `1px solid ${CHART.grid}`, borderRadius: 8, fontSize: 12 }}
                 formatter={(v: number) => [`${v.toFixed(2)}%`, 'Return 3 bulan']}
               />
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                 {sectorChart.map((d) => (
-                  <Cell key={d.code} fill={d.value >= 0 ? '#10b981' : '#f43f5e'} />
+                  <Cell key={d.code} fill={d.value >= 0 ? CHART.green : CHART.red} />
                 ))}
               </Bar>
             </BarChart>

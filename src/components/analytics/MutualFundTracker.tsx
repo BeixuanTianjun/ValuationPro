@@ -35,6 +35,7 @@ import {
   summariseOwnershipMarket,
 } from '../../models/ownershipFlow';
 import { EmptyState, Panel, PanelHeader, Pill, Segmented, SourceNote, Spinner, Stat, StatGrid, TableScroll, Td, Th, cx } from '../common/ui';
+import { CHART } from '../../theme/chart';
 
 interface Props {
   db: MarketDatabase | null;
@@ -431,20 +432,20 @@ const OwnershipDetail: React.FC<{ profile: OwnershipProfile; onSelectEmiten: (co
             <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: -14, bottom: 0 }}>
               <defs>
                 <linearGradient id="own-band" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.28} />
-                  <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.06} />
+                  <stop offset="0%" stopColor={CHART.cyan} stopOpacity={0.28} />
+                  <stop offset="100%" stopColor={CHART.cyan} stopOpacity={0.06} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
               <XAxis
                 dataKey="month"
-                tick={{ fill: '#64748b', fontSize: 10 }}
+                tick={{ fill: CHART.tick, fontSize: 10 }}
                 tickLine={false}
-                axisLine={{ stroke: '#1e293b' }}
+                axisLine={{ stroke: CHART.grid }}
                 minTickGap={16}
               />
               <YAxis
-                tick={{ fill: '#64748b', fontSize: 10 }}
+                tick={{ fill: CHART.tick, fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: number) => `${v.toFixed(0)}%`}
@@ -452,12 +453,12 @@ const OwnershipDetail: React.FC<{ profile: OwnershipProfile; onSelectEmiten: (co
               />
               <Tooltip
                 contentStyle={{
-                  background: '#0b1120',
-                  border: '1px solid #1e293b',
+                  background: CHART.tooltipBg,
+                  border: `1px solid ${CHART.grid}`,
                   borderRadius: 10,
                   fontSize: 11,
                 }}
-                labelStyle={{ color: '#e2e8f0', fontWeight: 700 }}
+                labelStyle={{ color: CHART.tooltipLabel, fontWeight: 700 }}
                 formatter={(value: number | [number, number], key: string) =>
                   Array.isArray(value)
                     ? [`${value[0].toFixed(2)}% – ${value[1].toFixed(2)}%`, key]
@@ -476,7 +477,7 @@ const OwnershipDetail: React.FC<{ profile: OwnershipProfile; onSelectEmiten: (co
                 type="monotone"
                 dataKey="institusi"
                 name="Institusi"
-                stroke="#22d3ee"
+                stroke={CHART.cyan}
                 strokeWidth={2.2}
                 dot={false}
                 isAnimationActive={false}
@@ -485,7 +486,7 @@ const OwnershipDetail: React.FC<{ profile: OwnershipProfile; onSelectEmiten: (co
                 type="monotone"
                 dataKey="ritel"
                 name="Individu"
-                stroke="#fbbf24"
+                stroke={CHART.amber}
                 strokeWidth={2.2}
                 dot={false}
                 isAnimationActive={false}
@@ -494,13 +495,13 @@ const OwnershipDetail: React.FC<{ profile: OwnershipProfile; onSelectEmiten: (co
                 type="monotone"
                 dataKey="reksadana"
                 name="Reksa dana"
-                stroke="#a78bfa"
+                stroke={CHART.violet}
                 strokeWidth={1.6}
                 strokeDasharray="4 3"
                 dot={false}
                 isAnimationActive={false}
               />
-              <ReferenceLine y={0} stroke="#1e293b" />
+              <ReferenceLine y={0} stroke={CHART.grid} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

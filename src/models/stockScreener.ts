@@ -1,11 +1,11 @@
 // Rule-based stock screener.
 //
-// This is deliberately NOT the factor model in alphaScreener.ts. That one ranks
-// the whole universe by a weighted composite and hands back the top of a
-// distribution — useful, but it always returns something, and it cannot be
-// checked by hand. This one applies three hard rules and reports pass or fail
-// for each, so the answer to "why is this stock here" is a row of ticks rather
-// than a score you have to trust.
+// This deliberately replaced an earlier weighted-composite factor model, which
+// ranked the whole universe and handed back the top of a distribution — useful,
+// but it always returned something, and it could not be checked by hand. This
+// one applies three hard rules and reports pass or fail for each, so the answer
+// to "why is this stock here" is a row of ticks rather than a score you have to
+// trust.
 //
 // THE RULES, as specified:
 //

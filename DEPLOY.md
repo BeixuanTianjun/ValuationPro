@@ -81,8 +81,6 @@ Di **Settings → Secrets and variables → Actions** pada repo GitHub, tambahka
 | `ALERT_EMAIL_FROM` | alamat Gmail Anda |
 | `ALERT_EMAIL_TO` | tujuan alert |
 
-Opsional, sebagai *variable* (bukan secret): `ALERT_STRATEGY`.
-
 Uji tanpa menunggu jadwal lewat tab **Actions → Refresh data IDX → Run workflow**
 dengan `send_alert` dicentang.
 

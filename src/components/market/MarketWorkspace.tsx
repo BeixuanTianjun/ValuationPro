@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, CalendarDays, LineChart, MessageSquare, ServerCrash, Target } from 'lucide-react';
+import { Building2, CalendarDays, LineChart, MessageSquare, Newspaper, ServerCrash, Target } from 'lucide-react';
 import { MarketDataState } from '../../hooks/useMarketData';
 import { MarketOverview } from './MarketOverview';
 import { EmitenBrowser } from './EmitenBrowser';
 import { EmitenDetail } from './EmitenDetail';
 import { StockScreenerPanel } from './StockScreenerPanel';
 import { StockWatchlist } from './StockWatchlist';
+import { AnnouncementFeed } from './AnnouncementFeed';
 import { EmitenChat } from '../chat/EmitenChat';
 import { EmitenModelBundle, buildEmitenModel } from '../../models/idxCompanyBridge';
 import { EmptyState, Segmented, SegmentedOption, Spinner } from '../common/ui';
 
-export type MarketSubTab = 'overview' | 'emiten' | 'screener' | 'watchlist' | 'chat';
+export type MarketSubTab = 'overview' | 'emiten' | 'screener' | 'watchlist' | 'news' | 'chat';
 
 interface Props {
   market: MarketDataState;
@@ -26,6 +27,7 @@ const TABS: SegmentedOption<MarketSubTab>[] = [
   { id: 'overview', label: 'Ikhtisar Pasar', shortLabel: 'Ikhtisar', icon: LineChart },
   { id: 'screener', label: 'Stock Screener', shortLabel: 'Screener', icon: Target },
   { id: 'watchlist', label: 'Stock Watchlist', shortLabel: 'Watchlist', icon: CalendarDays },
+  { id: 'news', label: 'Keterbukaan Informasi', shortLabel: 'Keterbukaan', icon: Newspaper },
   { id: 'chat', label: 'Tanya Emiten', shortLabel: 'Tanya', icon: MessageSquare },
   { id: 'emiten', label: 'Basis Data Emiten', shortLabel: 'Emiten', icon: Building2 },
 ];
@@ -43,6 +45,9 @@ export const MarketWorkspace: React.FC<Props> = ({
   // Set when the screener hands a ticker to the watchlist, so the workflow
   // opens straight on the emiten you were just looking at.
   const [chartEmiten, setChartEmiten] = useState<string | null>(null);
+  // Same idea for the disclosure feed: arriving from a ticker filters the feed
+  // to it, so "why is this moving" is one click from the name.
+  const [newsEmiten, setNewsEmiten] = useState<string | null>(null);
 
   useEffect(() => {
     if (!focusEmiten) return;
@@ -120,6 +125,15 @@ export const MarketWorkspace: React.FC<Props> = ({
           onSelectEmiten={openEmiten}
           focusEmiten={chartEmiten}
           onFocusHandled={() => setChartEmiten(null)}
+        />
+      )}
+
+      {subTab === 'news' && (
+        <AnnouncementFeed
+          db={db}
+          onSelectEmiten={openEmiten}
+          focusEmiten={newsEmiten}
+          onFocusHandled={() => setNewsEmiten(null)}
         />
       )}
 

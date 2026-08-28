@@ -16,6 +16,11 @@ harian, alat analitik ala Bloomberg, dan model DCF/LBO institusional.
 - **Stock Watchlist mingguan & bulanan** dengan alur empat tahap: narasi
   (keterbukaan informasi IDX + tema kebijakan terkurasi) → rotasi konglomerasi →
   price action dan ukuran tiket → chart TradingView.
+- **Keterbukaan Informasi (CN)** — arsip 45 hari pengajuan resmi emiten ke bursa,
+  ~4.260 dokumen dari ~940 emiten, dikategorikan dari judulnya dan bisa disaring
+  per kategori atau per emiten. Pengajuan rutin disembunyikan secara bawaan dan
+  jumlahnya selalu disebut. Tiap baris menautkan PDF asli di idx.co.id: bobot
+  kategori mengatakan "ini layak dibaca", tidak pernah "ini kabar baik".
 - **Leaders & Laggards** — kontribusi poin indeks per emiten, dihitung dari
   bobot free-float resmi IDX. Rekonsiliasi dengan IHSG sampai 0,001 poin.
 - **Rotasi konglomerasi** — 31 grup pengendali, termasuk klaster BUMN, dengan

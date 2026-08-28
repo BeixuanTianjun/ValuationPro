@@ -96,11 +96,18 @@ export const MenuPanel: React.FC<Props> = ({ open, onClose, onPick, activeCode }
     <AnimatePresence>
       {open && (
         <>
+          {/*
+            `pointerEvents` is animated to `none` on the way out, not left on
+            `auto`. The exit is driven by requestAnimationFrame, which a browser
+            pauses while its tab is hidden — switch tabs during the 180ms fade
+            and the overlay stays mounted at opacity 0, invisible and still
+            eating every click on the terminal behind it.
+          */}
           <motion.div
             className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, pointerEvents: 'none' }}
+            animate={{ opacity: 1, pointerEvents: 'auto' }}
+            exit={{ opacity: 0, pointerEvents: 'none' }}
             transition={{ duration: 0.18 }}
             onClick={onClose}
             aria-hidden="true"

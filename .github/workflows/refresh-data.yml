@@ -180,7 +180,6 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
           ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
-          ALERT_STRATEGY: ${{ vars.ALERT_STRATEGY }}
         run: |
           npx esbuild src/server/alertCli.ts \
             --bundle --platform=node --format=esm --target=node20 \

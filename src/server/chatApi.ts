@@ -12,11 +12,25 @@
 //
 // Claude gets TWO tools, and the split matters. `screen_emiten` answers "which
 // stocks match X" across the whole exchange. `kupas_emiten` answers "tell me
-// about THIS stock" and returns a single dossier — price and trend, the three
-// hard screener rules, liquidity and foreign flow, the financial statements,
-// and the controlling group if it has one. Without the second tool a question
-// like "kupas BBRI" degenerates into a one-row screen, and the model fills the
-// gap from memory, which is exactly what this file exists to prevent.
+// about THIS stock". Without the second tool a question like "kupas BBRI"
+// degenerates into a one-row screen, and the model fills the gap from memory,
+// which is exactly what this file exists to prevent.
+//
+// WHAT THE DOSSIER IS FOR. It is deliberately not a data dump. Every other
+// screen in this app can already say what the tape DID; the dossier exists so
+// one answer can say WHY, and "why" only ever emerges from two facts landing in
+// the same month. So it carries the filings, the curated policy themes, the
+// controlling group WITH its measured rotation and cohesion, the KSEI register
+// with its three-month drift, the detected corporate actions, and the
+// sub-industry peers with their market caps — assembled in one block so the
+// model can find the through-line instead of reciting six unrelated sections.
+//
+// The peers are there for one specific question this market asks constantly:
+// "what would this have to become to be worth what its neighbour is worth."
+// Handing over the neighbours and their caps makes that arithmetic checkable.
+// The database holds no un-injected mine and no unannounced acquisition, so the
+// prompt requires that answer to be stated as conditional arithmetic, and points
+// at the filings as the only place a real asset injection would leave a trace.
 
 import Anthropic from '@anthropic-ai/sdk';
 import { MarketDatabase } from '../data/marketRepository';
@@ -32,6 +46,24 @@ import {
 } from '../models/emitenQueryEngine';
 import { runStockScreener } from '../models/stockScreener';
 import { groupOf } from '../data/conglomerates';
+import { AnnouncementsFile, buildNarrativeSignals } from '../models/announcements';
+import { OwnershipFile, computeOwnershipProfile } from '../models/ownershipFlow';
+import { computeGroupRotation } from '../models/conglomerateRotation';
+import { THEMES_BY_CODE } from '../data/narratives';
+
+/**
+ * The two feeds the dossier needs that do not live in MarketDatabase.
+ *
+ * Both optional on purpose: the chatbot must still answer when a weekly ingest
+ * has not run. Every section that depends on one says so out loud rather than
+ * silently omitting itself — "no filings" and "the filings file was never
+ * built" are different answers, and a model that cannot tell them apart will
+ * confidently report a quiet quarter for an emiten that just did a rights issue.
+ */
+export interface ChatContext {
+  announcements?: AnnouncementsFile | null;
+  ownership?: OwnershipFile | null;
+}
 
 export interface ChatTurn {
   role: 'user' | 'assistant';
@@ -137,22 +169,47 @@ const SCREEN_TOOL = {
   },
 };
 
-const SYSTEM_PROMPT = `Kamu asisten riset saham untuk Bursa Efek Indonesia di dalam aplikasi ValuationPro.
+const SYSTEM_PROMPT = `Kamu analis saham IDX di dalam aplikasi ValuationPro. Kamu ngobrol sama trader Indonesia, bukan bikin laporan riset buat komite investasi.
 
-Aturan yang tidak boleh dilanggar:
-- SELALU panggil tool sebelum menjawab pertanyaan apa pun tentang saham Indonesia. Jangan pernah menjawab dari ingatan — harga dan rasio berubah setiap hari, dan tool ini memegang database yang sebenarnya.
-- Pakai screen_emiten untuk pertanyaan "saham mana yang ...". Pakai kupas_emiten kalau penggunanya menyebut satu kode emiten dan ingin dibedah.
-- Kalau pengguna minta "kupas", "bedah", "analisa", atau "gimana prospek" satu emiten, panggil kupas_emiten dulu, baru tulis analisisnya.
-- Jangan mengarang angka. Kalau tool tidak mengembalikan suatu data, katakan datanya tidak tersedia.
-- Jawab dalam Bahasa Indonesia. Untuk kupasan satu emiten, tulis terstruktur: kondisi harga dan tren, likuiditas dan arus dana, kondisi keuangan, lalu risiko yang harus diperhatikan.
-- Bank, asuransi, dan multifinance tidak melaporkan EBITDA dan modal kerja dalam format yang dibutuhkan DCF unlevered. Kalau relevan, sampaikan itu.
-- Ini alat riset, bukan rekomendasi investasi. Jangan menyuruh pengguna membeli atau menjual, dan jangan memberi target harga seolah-olah pasti.
-- Jangan menyebut nama tool atau format JSON-nya kepada pengguna.`;
+== CARA NGOMONG ==
+Bahasa tongkrongan. Santai, langsung, kayak ngobrol sama temen yang sama-sama ngerti pasar.
+- Pendek. Kalau bisa 5 kalimat jangan 15. Jangan bertele-tele, jangan basa-basi pembuka.
+- Boleh pakai "lo/gue", "nih", "sih", "udah", "belum", "kayaknya", "gede", "nyangkut", "ARA", "ARB", "barang", "tape".
+- JANGAN pakai bullet point bertingkat dan heading formal. Tulis mengalir, maksimal beberapa paragraf pendek.
+- Angka tetap presisi. Santai itu gayanya, bukan datanya. "Naik 12,4% sebulan" bukan "naik lumayan".
+
+== YANG BIKIN JAWABANMU BERGUNA: SAMBUNGIN TITIKNYA ==
+Kalau user nyebut satu emiten, jangan cuma bacain isi dossier baris per baris. Itu kerjaan tabel, bukan kerjaan lo.
+Yang diminta: SATU CERITA yang nyambung dari:
+  narasi/pengajuan ke bursa  ->  grup & rotasi konglomerasi  ->  price action & arus dana
+  ->  aksi korporasi  ->  kepemilikan KSEI  ->  pembanding sektor
+Tugasmu nyari BENANG MERAH di antara itu, terus bilang benang merahnya apa.
+
+Contoh cara mikirnya (bukan template yang harus diikuti persis):
+- "Institusi naik 3 pp dalam 3 bulan, dan di bulan yang sama dia filing transaksi material. Itu bukan kebetulan."
+- "Harganya lari 40% tapi kohesi grupnya cuma 0,12 — jadi ini bukan rotasi grup, ini emiten ini doang."
+- "Bursa lagi nanya (UMA) sementara ritel yang nambah, bukan institusi. Hati-hati."
+- "Kapitalisasinya 6x lebih kecil dari pesaing terdekat. Buat nyamain, dia butuh aset atau laba tambahan sebesar X — dan sampai sekarang belum ada filing yang nunjukin itu masuk."
+
+Kalau titiknya memang NGGAK nyambung, bilang begitu. "Nggak ada yang nyambung sih, dia naik sendiri tanpa kabar" itu jawaban yang jujur dan berguna.
+
+== ATURAN YANG NGGAK BOLEH DILANGGAR ==
+- SELALU panggil tool sebelum jawab apa pun soal saham Indonesia. Jangan jawab dari ingatan — harga dan rasio berubah tiap hari, tool ini megang database beneran.
+- screen_emiten buat "saham mana yang ...". kupas_emiten buat satu kode yang mau dibedah.
+- Jangan ngarang angka. Kalau dossier bilang suatu data nggak tersedia, bilang nggak tersedia. Jangan tambal pakai ingatan.
+- BEDAKAN "nggak ada kabar" dari "berkasnya belum dibangun". Dossier menyatakan yang mana; jangan dicampur.
+- Aksi korporasi: return panjang di dossier SUDAH bersih dari split/rights. Jangan sebut faktor penyesuaian sebagai jatuhnya harga.
+- Kepemilikan KSEI itu BULANAN, TANPA NAMA pengelola, dan penyebutnya register kustodian bukan saham tercatat. Sebut batas ini kalau ngutip angkanya.
+- Kohesi grup di bawah 0,25 artinya "rotasi" nggak punya dasar. Jangan sebut rotasi kalau kohesinya rendah.
+- Bank, asuransi, multifinance nggak lapor EBITDA dan modal kerja dalam format yang DCF unlevered butuh. Sebut itu kalau relevan.
+- Hitungan "biar setara pesaing butuh berapa" boleh, TAPI nyatakan sebagai aritmetika bersyarat. Database ini nggak punya rencana akuisisi atau cadangan tambang yang belum diinjeksi — kalau ada jejaknya, adanya di pengajuan ke bursa.
+- Ini alat riset, bukan rekomendasi. Jangan nyuruh beli atau jual, jangan kasih target harga seolah-olah pasti.
+- Jangan sebut nama tool atau format JSON-nya ke user.`;
 
 const DOSSIER_TOOL = {
   name: 'kupas_emiten',
   description:
-    'Pull one IDX ticker apart: price and moving averages, the three hard screener rules, liquidity, foreign flow, momentum and RSI, annual financial statements, and the controlling group if it has one. Call this whenever the user names a single ticker and wants it analysed, dissected, or explained.',
+    'Pull one IDX ticker apart into a single connected dossier: price, moving averages and the three hard screener rules; liquidity, foreign flow, momentum and RSI; annual financial statements and valuation ratios; detected corporate actions; every disclosure the emiten filed with the exchange in the last window, classified; curated policy themes it belongs to; its controlling group WITH the measured rotation and cohesion of that group; the KSEI ownership register with institutional/retail/foreign/mutual-fund movement; and its sub-industry peers with market caps for "what would it take to be worth what they are worth" questions. Call this whenever the user names a single ticker — it is the only way to answer why a stock is moving rather than merely that it moved.',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -237,11 +294,12 @@ function formatRatios(q: EmitenQuote): string {
  * labelled sentence is harder to misread than a nested object. Every missing
  * field says so out loud, so "tidak tersedia" is never mistaken for zero.
  */
-function buildDossier(
+export function buildDossier(
   code: string,
   db: MarketDatabase,
   factors: Map<string, FactorSnapshot>,
-  fundamentals: FundamentalsDatabase
+  fundamentals: FundamentalsDatabase,
+  ctx: ChatContext = {}
 ): string {
   const key = code.trim().toUpperCase();
   const emiten = db.byCode.get(key);
@@ -321,15 +379,166 @@ function buildDossier(
   lines.push(ratios ? formatRatios(ratios) : 'Rasio valuasi emiten ini belum ada di basis data.');
   lines.push('');
 
-  lines.push('GRUP PENGENDALI');
+  lines.push('AKSI KORPORASI');
+  const series = db.series.get(key);
+  if (series && series.adjustments > 0) {
+    lines.push(
+      `${series.adjustments} penyesuaian harga terdeteksi di riwayat ${db.dates.length} sesi — split, reverse split, atau rights issue. Faktornya diturunkan dari selisih field Previous milik IDX terhadap penutupan sesi sebelumnya, jadi ini terdeteksi dari data bursa sendiri, bukan dari pengumuman.`
+    );
+    lines.push(
+      'Artinya return jangka panjang di atas sudah bersih dari efek aksi korporasi. Jangan menyebut angka penyesuaian ini sebagai "penurunan harga".'
+    );
+  } else if (series) {
+    lines.push('Tidak ada penyesuaian harga dalam jendela riwayat — belum ada split, reverse split, atau rights issue.');
+  } else {
+    lines.push('Riwayat harga emiten ini belum ada, jadi aksi korporasi tidak bisa diperiksa.');
+  }
+  lines.push('');
+
+  // ---------------------------------------------------------------- narrative
+  //
+  // WHY THIS IS THE SECTION THAT MATTERS MOST. Every other block says what the
+  // tape did. This one is the only place that can say WHY. A price move without
+  // a filing behind it is a move; a price move on the week an emiten filed a
+  // material transaction is a story, and the difference is what the user is
+  // asking about when they name a ticker.
+  lines.push('PENGAJUAN KE BURSA (keterbukaan informasi)');
+  if (!ctx.announcements) {
+    lines.push(
+      'Berkas pengumuman IDX belum dibangun di lingkungan ini (npm run data:announcements). Katakan bahwa lapisan narasi TIDAK bisa diperiksa — jangan simpulkan emiten ini sepi kabar.'
+    );
+  } else {
+    const signals = buildNarrativeSignals(ctx.announcements, 14);
+    const sig = signals.get(key);
+    lines.push(
+      `Jendela data ${ctx.announcements.from} sampai ${ctx.announcements.to}. Sumbernya pengajuan resmi emiten ke bursa — BUKAN feed berita. Proyek pemerintah atau pemberitaan media hanya muncul kalau emitennya sendiri yang melaporkan perannya.`
+    );
+    if (!sig || !sig.filings.length) {
+      lines.push('Emiten ini tidak mengajukan apa pun dalam jendela tersebut.');
+    } else {
+      const routine = sig.filings.length - sig.material.length;
+      lines.push(
+        `${sig.filings.length} pengajuan, ${sig.material.length} di antaranya material (${routine} sisanya rutin: laporan bulanan, bukti iklan, ganti sekretaris perusahaan).`
+      );
+      if (sig.underExchangeAttention) {
+        lines.push(
+          'BURSA SEDANG BERTANYA ke emiten ini (UMA atau permintaan penjelasan) dalam jendela ini. Itu berarti harganya sudah bergerak cukup jauh sampai bursa minta penjelasan — sinyal sekaligus peringatan.'
+        );
+      }
+      for (const a of sig.material.slice(0, 12)) {
+        lines.push(`  ${a.date} [${a.meta.label}] ${a.title}`);
+      }
+      if (sig.material.length > 12) lines.push(`  (+${sig.material.length - 12} pengajuan material lain)`);
+      lines.push(
+        `Bobot kategori mengatakan "ini layak dibaca", TIDAK PERNAH "ini kabar baik". "Perolehan atau kehilangan kontrak penting" adalah judul IDX sendiri dan menutupi kontrak yang menang maupun yang hilang dengan kata yang sama.`
+      );
+    }
+  }
+  lines.push('');
+
+  lines.push('TEMA KEBIJAKAN TERKURASI');
+  const themes = THEMES_BY_CODE.get(key) ?? [];
+  if (!themes.length) {
+    lines.push('Emiten ini tidak masuk tema kebijakan mana pun yang dikurasi aplikasi.');
+  } else {
+    for (const { theme, member } of themes) {
+      lines.push(
+        `  ${theme.name} (${member.exposure}, keyakinan ${theme.confidence}, diperiksa ${theme.checkedOn}${theme.source ? '' : ', TANPA SUMBER — bobotnya dipotong setengah'}): ${member.why}`
+      );
+      lines.push(`    Pendorong: ${theme.driver}`);
+    }
+    lines.push('Tema ini ditulis tangan oleh kurator, bukan ditarik dari feed. Tiap tema meluruh ke nol dalam 90 hari sejak terakhir diperiksa.');
+  }
+  lines.push('');
+
+  // -------------------------------------------------------- group and rotation
+  lines.push('GRUP PENGENDALI & ROTASI');
   if (group) {
     lines.push(
       `${group.name} (${group.principal}), ${group.kind === 'negara' ? 'klaster negara' : 'grup keluarga'}, keyakinan afiliasi ${group.confidence}.`
     );
     lines.push(`Anggota lain: ${group.members.filter((m) => m !== key).join(', ') || 'tidak ada'}.`);
     if (group.note) lines.push(`Catatan kurator: ${group.note}`);
+
+    const rot = computeGroupRotation(db, factors, group);
+    if (rot) {
+      lines.push(
+        `Grup bergerak ${pctText(rot.groupReturn1m)} dalam 1 bulan dan ${pctText(rot.groupReturn3m)} dalam 3 bulan (tertimbang kapitalisasi, ${rot.membersFound} dari ${rot.membersListed} anggota ketemu di bursa).`
+      );
+      lines.push(
+        `Kohesi ${n2(rot.cohesion)} — korelasi rata-rata harian antar anggota. Di bawah 0,25 artinya "grup" ini tidak benar-benar bergerak bersama dan kata rotasi tidak punya dasar.`
+      );
+      lines.push(`Sebaran 3 bulan antar anggota ${(rot.dispersion3m * 100).toFixed(0)} poin persen. Arus asing grup 20 sesi Rp ${n2(rot.groupForeignNet20IdrBn, 1)} miliar.`);
+      lines.push(`Vonis alat: ${rot.verdict.level} — ${rot.verdict.reason}`);
+      if (rot.leader) lines.push(`Yang memimpin: ${rot.leader.code} (${pctText(rot.leader.return1m)} sebulan).`);
+      if (rot.candidate) {
+        lines.push(
+          `Kandidat tertinggal: ${rot.candidate.code} (${pctText(rot.candidate.return1m)} sebulan)${rot.candidate.code === key ? ' — YAITU EMITEN INI SENDIRI.' : '.'}`
+        );
+      }
+    }
   } else {
     lines.push('Tidak terdaftar di tabel grup pengendali yang dikurasi aplikasi ini.');
+  }
+  lines.push('');
+
+  // ------------------------------------------------------------------ holders
+  lines.push('KEPEMILIKAN (register KSEI)');
+  if (!ctx.ownership) {
+    lines.push('Register KSEI belum dibangun di lingkungan ini (npm run data:ownership). Jangan menebak siapa pemegangnya.');
+  } else {
+    const own = computeOwnershipProfile(ctx.ownership, key);
+    if (!own) {
+      lines.push('Emiten ini tidak ada di register KSEI pada bulan-bulan yang tersedia.');
+    } else {
+      const L = own.latest;
+      lines.push(
+        `Per ${L.month}: institusi ${pctText(L.institusi)}, ritel ${pctText(L.ritel)}, asing ${pctText(L.asing)}, reksa dana ${pctText(L.reksadana)}.`
+      );
+      lines.push(
+        `Perubahan 3 bulan: institusi ${own.institusiChange3m >= 0 ? '+' : ''}${(own.institusiChange3m * 100).toFixed(2)} pp, reksa dana ${own.reksadanaChange3m >= 0 ? '+' : ''}${(own.reksadanaChange3m * 100).toFixed(2)} pp, asing ${own.asingChange3m >= 0 ? '+' : ''}${(own.asingChange3m * 100).toFixed(2)} pp, jarak institusi−ritel ${own.spreadChange3m >= 0 ? 'melebar ' : 'menyempit '}${Math.abs(own.spreadChange3m * 100).toFixed(2)} pp.`
+      );
+      lines.push(`Vonis: ${own.verdict.level} — ${own.verdict.headline}. ${own.verdict.reason}`);
+      lines.push(
+        `PENYEBUTNYA REGISTER KUSTODIAN, BUKAN SAHAM TERCATAT: cakupan kustodian ${pctText(own.custodyCoverage)} dari saham tercatat. Blok pengendali sering di luar penitipan kolektif, jadi persentase di atas lebih dekat ke free float daripada ke total saham. Sebutkan ini kalau mengutip angkanya.`
+      );
+      lines.push(
+        'Data ini BULANAN dan TANPA NAMA pengelola. Bisa mengatakan reksa dana secara keseluruhan menambah sekian, tidak bisa mengatakan reksa dana yang mana.'
+      );
+    }
+  }
+  lines.push('');
+
+  // -------------------------------------------------------------------- peers
+  //
+  // The question behind "is the whole mine in yet" is always comparative: what
+  // would this have to become to be worth what its neighbour is worth. Handing
+  // the model the neighbours with their caps makes that arithmetic checkable
+  // instead of imagined.
+  lines.push('PEMBANDING SEKTOR (untuk pertanyaan "kalau mau setara siapa")');
+  const myCap = quote?.marketCap ?? 0;
+  const peers = db.emiten
+    .filter((e) => e.code !== key && e.subIndustry === emiten.subIndustry)
+    .map((e) => ({ e, q: db.daily.get(e.code) }))
+    .filter((p): p is { e: typeof emiten; q: NonNullable<ReturnType<typeof db.daily.get>> } => !!p.q && p.q.marketCap > 0)
+    .sort((a, b) => b.q.marketCap - a.q.marketCap)
+    .slice(0, 8);
+  if (!peers.length) {
+    lines.push(`Tidak ada emiten lain di sub-industri "${emiten.subIndustry}" yang punya kuotasi sesi terakhir.`);
+  } else {
+    lines.push(`Sub-industri "${emiten.subIndustry}". Kapitalisasi ${key} sendiri Rp ${(myCap / 1e12).toFixed(2)} triliun.`);
+    for (const p of peers) {
+      const r = fundamentals.quotes?.quotes[p.e.code];
+      const gap = myCap > 0 ? p.q.marketCap / myCap : 0;
+      lines.push(
+        `  ${p.e.code} ${p.e.name} — kapitalisasi Rp ${(p.q.marketCap / 1e12).toFixed(2)} T${
+          gap > 0 ? ` (${gap.toFixed(1)}x ${key})` : ''
+        }${r?.trailingPE ? `, P/E ${r.trailingPE.toFixed(1)}` : ''}${r?.priceToBook ? `, P/BV ${r.priceToBook.toFixed(2)}` : ''}`
+      );
+    }
+    lines.push(
+      'Selisih kapitalisasi ini boleh dipakai untuk menghitung "berapa besar laba atau aset tambahan yang dibutuhkan supaya setara", DENGAN SYARAT dinyatakan sebagai aritmetika bersyarat, bukan ramalan. Basis data ini tidak memuat rencana akuisisi atau cadangan tambang yang belum diinjeksi — kalau ada, jejaknya ada di bagian PENGAJUAN KE BURSA di atas, bukan di angka mana pun.'
+    );
   }
 
   return lines.join('\n');
@@ -355,7 +564,8 @@ async function answerWithClaude(
   history: ChatTurn[],
   db: MarketDatabase,
   fundamentals: FundamentalsDatabase,
-  client: Anthropic
+  client: Anthropic,
+  ctx: ChatContext
 ): Promise<ChatAnswer> {
   const factors = factorsFor(db);
 
@@ -417,7 +627,7 @@ async function answerWithClaude(
         toolResults.push({
           type: 'tool_result',
           tool_use_id: use.id,
-          content: buildDossier(wanted, db, factors, fundamentals),
+          content: buildDossier(wanted, db, factors, fundamentals, ctx),
         });
         continue;
       }
@@ -445,14 +655,15 @@ export async function answerQuestion(
   message: string,
   history: ChatTurn[],
   db: MarketDatabase,
-  fundamentals: FundamentalsDatabase
+  fundamentals: FundamentalsDatabase,
+  ctx: ChatContext = {}
 ): Promise<ChatAnswer> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return answerLocally(message, db, fundamentals);
 
   try {
     const client = new Anthropic({ apiKey });
-    return await answerWithClaude(message, history, db, fundamentals, client);
+    return await answerWithClaude(message, history, db, fundamentals, client, ctx);
   } catch (err) {
     // Falling back keeps the feature working rather than showing an error page.
     const local = answerLocally(message, db, fundamentals);
