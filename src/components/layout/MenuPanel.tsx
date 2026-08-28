@@ -116,7 +116,7 @@ export const MenuPanel: React.FC<Props> = ({ open, onClose, onPick, activeCode }
           <motion.div
             role="dialog"
             aria-modal="true"
-            aria-label="Menu fungsi terminal"
+            aria-label="Terminal function menu"
             className="fixed inset-x-0 top-0 z-[91] mx-auto flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden border border-amber-500/30 bg-slate-950 shadow-2xl sm:top-[8vh] sm:rounded-xl"
             initial={{ y: -28, opacity: 0, scaleY: 0.96 }}
             animate={{ y: 0, opacity: 1, scaleY: 1 }}
@@ -128,7 +128,7 @@ export const MenuPanel: React.FC<Props> = ({ open, onClose, onPick, activeCode }
             <div className="flex items-center justify-between gap-2 border-b border-amber-500/25 bg-slate-900 px-3 py-2">
               <div className="flex items-center gap-2">
                 <LayoutGrid className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
-                <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300">Menu Fungsi</span>
+                <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300">Function Menu</span>
               </div>
               <button
                 type="button"
@@ -146,14 +146,14 @@ export const MenuPanel: React.FC<Props> = ({ open, onClose, onPick, activeCode }
                 aria-hidden="true"
               />
               <label htmlFor="fn-search" className="sr-only">
-                Cari fungsi
+                Search functions
               </label>
               <input
                 id="fn-search"
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Ketik kode fungsi atau nama — mis. SCR, FUND, konglomerasi"
+                placeholder="Type a function code or name — e.g. SCR, FUND, konglomerasi"
                 className="w-full bg-slate-950 py-3 pl-10 pr-3 font-mono text-sm uppercase tracking-wide text-amber-200 placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-600 focus:outline-none"
               />
             </div>

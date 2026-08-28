@@ -24,12 +24,12 @@ interface Props {
 }
 
 const TABS: SegmentedOption<MarketSubTab>[] = [
-  { id: 'overview', label: 'Ikhtisar Pasar', shortLabel: 'Ikhtisar', icon: LineChart },
+  { id: 'overview', label: 'Market Overview', shortLabel: 'Overview', icon: LineChart },
   { id: 'screener', label: 'Stock Screener', shortLabel: 'Screener', icon: Target },
   { id: 'watchlist', label: 'Stock Watchlist', shortLabel: 'Watchlist', icon: CalendarDays },
-  { id: 'news', label: 'Keterbukaan Informasi', shortLabel: 'Keterbukaan', icon: Newspaper },
-  { id: 'chat', label: 'Tanya Emiten', shortLabel: 'Tanya', icon: MessageSquare },
-  { id: 'emiten', label: 'Basis Data Emiten', shortLabel: 'Emiten', icon: Building2 },
+  { id: 'news', label: 'Company Disclosures', shortLabel: 'Disclosures', icon: Newspaper },
+  { id: 'chat', label: 'Ask a Company', shortLabel: 'Ask', icon: MessageSquare },
+  { id: 'emiten', label: 'Company Database', shortLabel: 'Companies', icon: Building2 },
 ];
 
 export const MarketWorkspace: React.FC<Props> = ({

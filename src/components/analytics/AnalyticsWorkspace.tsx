@@ -24,12 +24,12 @@ interface Props {
 
 const TABS: SegmentedOption<AnalyticsSubTab>[] = [
   { id: 'leaders', label: 'Leaders & Laggards', shortLabel: 'Leaders', icon: Scale },
-  { id: 'conglo', label: 'Rotasi Konglomerasi', shortLabel: 'Konglo', icon: Network },
+  { id: 'conglo', label: 'Conglomerate Rotation', shortLabel: 'Conglo', icon: Network },
   { id: 'funds', label: 'Mutual Fund Tracker', shortLabel: 'Fund', icon: Landmark },
-  { id: 'valuation', label: 'Valuasi Otomatis', shortLabel: 'Valuasi', icon: Calculator },
+  { id: 'valuation', label: 'Auto Valuation', shortLabel: 'Valuation', icon: Calculator },
   { id: 'broker', label: 'Broker Summary', shortLabel: 'Broker', icon: Users },
-  { id: 'macro', label: 'Dunia Luar', shortLabel: 'Makro', icon: Globe },
-  { id: 'map', label: 'Peta Selat Dunia', shortLabel: 'Peta', icon: Globe2 },
+  { id: 'macro', label: 'Global Drivers', shortLabel: 'Macro', icon: Globe },
+  { id: 'map', label: 'Chokepoint Map', shortLabel: 'Map', icon: Globe2 },
 ];
 
 /*

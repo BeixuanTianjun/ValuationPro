@@ -39,8 +39,8 @@ interface HeaderProps {
 }
 
 export const NAV: { id: WorkspaceTab; label: string; short: string; icon: React.ElementType; active: string }[] = [
-  { id: 'market', label: 'Pasar IDX', short: 'Pasar', icon: CandlestickChart, active: 'bg-emerald-600 shadow-emerald-900/40' },
-  { id: 'analytics', label: 'Analitik', short: 'Analitik', icon: Gauge, active: 'bg-cyan-600 shadow-cyan-900/40' },
+  { id: 'market', label: 'IDX Market', short: 'Market', icon: CandlestickChart, active: 'bg-emerald-600 shadow-emerald-900/40' },
+  { id: 'analytics', label: 'Analytics', short: 'Analytics', icon: Gauge, active: 'bg-cyan-600 shadow-cyan-900/40' },
   { id: 'dcf', label: 'DCF', short: 'DCF', icon: TrendingUp, active: 'bg-blue-600 shadow-blue-900/40' },
   { id: 'lbo', label: 'LBO', short: 'LBO', icon: Layers, active: 'bg-indigo-600 shadow-indigo-900/40' },
 ];

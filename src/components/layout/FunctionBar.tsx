@@ -63,7 +63,7 @@ export const FunctionBar: React.FC<Props> = ({ active, onOpenMenu, onRun, childr
         <button
           type="button"
           onClick={onOpenMenu}
-          title="Menu fungsi (Ctrl+K)"
+          title="Function menu (Ctrl+K)"
           className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-300 transition-colors hover:bg-amber-500/20 touch-target"
         >
           <LayoutGrid className="w-3 h-3" aria-hidden="true" />
