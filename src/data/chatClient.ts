@@ -28,17 +28,22 @@ export interface ChatAnswer {
 const API = '/api/chat';
 
 /**
- * Whether the local service answered the last time anything asked.
+ * Whether POST /api/chat answered the last time it was tried.
  *
- * On a static deploy there is no service, and every chat question would
- * otherwise burn a round-trip on a request that is certain to 404 before
- * falling back. Once a probe has established the service is absent, the
- * browser engine answers immediately. `fetchServiceStatus` keeps this fresh,
- * so a service that comes up later is picked up on the next poll.
+ * THIS IS A SEPARATE FLAG ON PURPOSE, and collapsing it back into
+ * `serviceAvailable` is the bug it exists to prevent. On Vercel there is no
+ * /api/status — only `api/live.ts` and `api/chat.ts` are deployed — so the
+ * status probe 404s and the local service looks absent, which it is. But the
+ * chat function is right there and works. Gating chat on the status probe made
+ * the deployed app answer every question with the in-browser parser without
+ * ever issuing the request, and the fallback made that invisible: the reply
+ * still arrived, just from the weaker engine, under a footnote blaming a
+ * missing API key that had nothing to do with it.
+ *
+ * Only a real 404 from /api/chat itself may set this, because only that proves
+ * there is no chat backend.
  */
-let serviceAvailable: boolean | null = null;
-
-export const isServiceKnownDown = () => serviceAvailable === false;
+let chatEndpointAvailable: boolean | null = null;
 
 function answerInBrowser(
   message: string,
@@ -74,7 +79,7 @@ export async function askEmitenChat(
   factors: Map<string, FactorSnapshot> | null,
   fundamentals: FundamentalsDatabase | null
 ): Promise<ChatAnswer> {
-  if (serviceAvailable === false) return answerInBrowser(message, db, factors, fundamentals);
+  if (chatEndpointAvailable === false) return answerInBrowser(message, db, factors, fundamentals);
 
   try {
     const controller = new AbortController();
@@ -87,10 +92,10 @@ export async function askEmitenChat(
     });
     clearTimeout(timer);
     if (res.ok) {
-      serviceAvailable = true;
+      chatEndpointAvailable = true;
       return (await res.json()) as ChatAnswer;
     }
-    if (res.status === 404) serviceAvailable = false;
+    if (res.status === 404) chatEndpointAvailable = false;
   } catch {
     /* service not running — fall through */
   }
@@ -130,14 +135,13 @@ export async function fetchServiceStatus(): Promise<ServiceStatus | null> {
       credentials: 'include',
     });
     clearTimeout(timer);
-    if (!res.ok) {
-      serviceAvailable = false;
-      return null;
-    }
-    serviceAvailable = true;
+    // A null return is the whole signal: callers render the degraded state from
+    // it. Nothing here may touch `chatEndpointAvailable` — /api/status being
+    // absent says nothing about whether /api/chat exists, and on Vercel the
+    // answer to those two questions is genuinely different.
+    if (!res.ok) return null;
     return (await res.json()) as ServiceStatus;
   } catch {
-    serviceAvailable = false;
     return null;
   }
 }

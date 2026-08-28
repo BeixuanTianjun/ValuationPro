@@ -139,9 +139,19 @@ export const EmitenChat: React.FC<Props> = ({ db, factors, fundamentals, onSelec
 
                 {m.answer && (
                   <div className="text-[10px] text-slate-600">
+                    {/*
+                      Three engines, three different reasons — and naming the
+                      right one matters. The old text blamed a missing API key
+                      for every non-Claude answer, including the browser engine,
+                      which never had a key to miss. That sent the reader to the
+                      wrong fix while the real cause was that no request had been
+                      made at all.
+                    */}
                     {m.answer.engine === 'claude'
                       ? 'Dijawab Claude Sonnet 5 · bisa membedah satu emiten'
-                      : 'Dijawab mesin lokal — ANTHROPIC_API_KEY belum diatur, jadi lapisan Claude mati'}
+                      : m.answer.engine === 'lokal (browser)'
+                        ? 'Dijawab mesin di browser — tidak ada backend chat yang menjawab, jadi pertanyaan diproses langsung dari data yang sudah dimuat'
+                        : 'Dijawab mesin lokal di server — ANTHROPIC_API_KEY belum diatur, jadi lapisan Claude mati'}
                     {m.answer.totalMatched > m.answer.rows.length &&
                       ` · ${m.answer.totalMatched - m.answer.rows.length} emiten lain juga cocok`}
                   </div>
