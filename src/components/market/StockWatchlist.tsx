@@ -39,8 +39,6 @@ interface Props {
   factors: Map<string, FactorSnapshot> | null;
   onSelectEmiten: (code: string) => void;
   /** Emiten to expand on arrival, set when navigating in from the screener. */
-  focusEmiten?: string | null;
-  onFocusHandled?: () => void;
 }
 
 const rp = (v: number, d = 0) => (Number.isFinite(v) ? v.toLocaleString('id-ID', { maximumFractionDigits: d }) : '–');
@@ -59,7 +57,7 @@ const HORIZON_OPTIONS = [
 
 const STAGE_ICONS = [Newspaper, Network, Activity, LineChart];
 
-export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten, focusEmiten, onFocusHandled }) => {
+export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten }) => {
   const [horizon, setHorizon] = useState<Horizon>('mingguan');
   const [announcements, setAnnouncements] = useState<AnnouncementsFile | null>(null);
   const [ownership, setOwnership] = useState<OwnershipFile | null>(null);
@@ -90,12 +88,6 @@ export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten, f
       alive = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!focusEmiten) return;
-    setExpanded(focusEmiten);
-    onFocusHandled?.();
-  }, [focusEmiten, onFocusHandled]);
 
   const result = useMemo(
     () =>

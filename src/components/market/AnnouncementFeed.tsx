@@ -37,9 +37,6 @@ import { EmptyState, Panel, PanelHeader, Pill, SourceNote, Spinner, Stat, StatGr
 interface Props {
   db: MarketDatabase;
   onSelectEmiten: (code: string) => void;
-  /** Emiten to filter to on arrival, set when navigating in from another screen. */
-  focusEmiten?: string | null;
-  onFocusHandled?: () => void;
 }
 
 const TONE_PILL: Record<string, 'up' | 'warn' | 'neutral'> = {
@@ -72,7 +69,7 @@ const dateLabel = (iso: string) => {
 
 const ageLabel = (days: number) => (days === 0 ? 'hari ini' : days === 1 ? 'kemarin' : `${days} hari lalu`);
 
-export const AnnouncementFeed: React.FC<Props> = ({ db, onSelectEmiten, focusEmiten, onFocusHandled }) => {
+export const AnnouncementFeed: React.FC<Props> = ({ db, onSelectEmiten }) => {
   const [file, setFile] = useState<AnnouncementsFile | null>(null);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<AnnouncementCategory | 'semua'>('semua');
@@ -95,12 +92,6 @@ export const AnnouncementFeed: React.FC<Props> = ({ db, onSelectEmiten, focusEmi
       alive = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!focusEmiten) return;
-    setQuery(focusEmiten);
-    onFocusHandled?.();
-  }, [focusEmiten, onFocusHandled]);
 
   // Reset the page window whenever the filters change, or "muat lebih banyak"
   // would silently carry a 600-row window into a three-row result.

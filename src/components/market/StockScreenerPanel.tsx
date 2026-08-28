@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Check, Filter, Info, RotateCcw, Search, SlidersHorizontal, Target, X } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
+import { TradingViewChart } from './TradingViewChart';
 import {
   DEFAULT_SCREENER_SETTINGS,
   ScreenerRow,
@@ -24,7 +25,6 @@ import {
 interface Props {
   db: MarketDatabase;
   onSelectEmiten: (code: string) => void;
-  onOpenChart: (code: string) => void;
 }
 
 const rp = (v: number, d = 0) => (Number.isFinite(v) ? v.toLocaleString('id-ID', { maximumFractionDigits: d }) : '–');
@@ -49,12 +49,25 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: 'foreignNetIdrBn', label: 'Asing hari ini' },
 ];
 
-export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten, onOpenChart }) => {
+/**
+ * THE CHART OPENS HERE, IN THIS PANEL.
+ *
+ * It used to hand the code up to MarketWorkspace, which switched the tab to
+ * Watchlist and asked it to expand that emiten. But the watchlist is a
+ * four-stage funnel capped at 30 names and the screener is a hard-rule filter
+ * over the whole exchange: measured on live data, only 15 of the screener's 92
+ * rows survive into the weekly watchlist. Pressing "chart" on the other 77
+ * carried the user to a screen full of unrelated tickers, expanded nothing, and
+ * showed no chart — the button appeared to do something random. A control named
+ * chart has to produce a chart for the row it was pressed on.
+ */
+export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten }) => {
   const [settings, setSettings] = useState<ScreenerSettings>(DEFAULT_SCREENER_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
   const [sort, setSort] = useState<SortKey>('valueIdr');
   const [query, setQuery] = useState('');
   const [inspect, setInspect] = useState<string>('');
+  const [chartCode, setChartCode] = useState<string | null>(null);
 
   const result = useMemo(() => runStockScreener(db, settings), [db, settings]);
 
@@ -310,7 +323,10 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten, onOpen
                     <Td align="center">
                       <button
                         type="button"
-                        onClick={() => onOpenChart(r.code)}
+                        onClick={() => {
+                          setInspect(r.code);
+                          setChartCode(r.code);
+                        }}
                         title={`Buka chart ${r.code}`}
                         className="cursor-pointer rounded-md border border-slate-700 px-2 py-1 text-[10px] font-bold text-slate-300 hover:border-cyan-700 hover:text-cyan-300"
                       >
@@ -394,10 +410,10 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten, onOpen
               </Pill>
               <button
                 type="button"
-                onClick={() => onOpenChart(inspected.code)}
+                onClick={() => setChartCode(chartCode === inspected.code ? null : inspected.code)}
                 className="cursor-pointer rounded-md border border-slate-700 px-2.5 py-1 text-[10px] font-bold text-slate-300 hover:border-cyan-700 hover:text-cyan-300 touch-target"
               >
-                Buka chart {inspected.code}
+                {chartCode === inspected.code ? 'Tutup chart' : `Buka chart ${inspected.code}`}
               </button>
               <button
                 type="button"
@@ -407,6 +423,24 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten, onOpen
                 Detail {inspected.code}
               </button>
             </div>
+
+            {chartCode === inspected.code && (
+              <div className="rounded-lg border border-slate-800 bg-slate-950 p-2 sm:p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-slate-300">
+                    {inspected.code} · {inspected.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setChartCode(null)}
+                    className="cursor-pointer text-[10px] font-bold text-slate-500 hover:text-slate-300"
+                  >
+                    tutup
+                  </button>
+                </div>
+                <TradingViewChart symbol={`IDX:${inspected.code}`} />
+              </div>
+            )}
           </div>
         )}
       </Panel>

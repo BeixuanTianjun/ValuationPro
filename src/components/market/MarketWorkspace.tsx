@@ -42,12 +42,6 @@ export const MarketWorkspace: React.FC<Props> = ({
 }) => {
   const { db, fundamentals, factors, indices, breadth, loading, error, reload } = market;
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
-  // Set when the screener hands a ticker to the watchlist, so the workflow
-  // opens straight on the emiten you were just looking at.
-  const [chartEmiten, setChartEmiten] = useState<string | null>(null);
-  // Same idea for the disclosure feed: arriving from a ticker filters the feed
-  // to it, so "why is this moving" is one click from the name.
-  const [newsEmiten, setNewsEmiten] = useState<string | null>(null);
 
   useEffect(() => {
     if (!focusEmiten) return;
@@ -108,33 +102,15 @@ export const MarketWorkspace: React.FC<Props> = ({
       )}
 
       {subTab === 'screener' && (
-        <StockScreenerPanel
-          db={db}
-          onSelectEmiten={openEmiten}
-          onOpenChart={(code) => {
-            setChartEmiten(code);
-            onSubTabChange('watchlist');
-          }}
-        />
+        <StockScreenerPanel db={db} onSelectEmiten={openEmiten} />
       )}
 
       {subTab === 'watchlist' && (
-        <StockWatchlist
-          db={db}
-          factors={factors}
-          onSelectEmiten={openEmiten}
-          focusEmiten={chartEmiten}
-          onFocusHandled={() => setChartEmiten(null)}
-        />
+        <StockWatchlist db={db} factors={factors} onSelectEmiten={openEmiten} />
       )}
 
       {subTab === 'news' && (
-        <AnnouncementFeed
-          db={db}
-          onSelectEmiten={openEmiten}
-          focusEmiten={newsEmiten}
-          onFocusHandled={() => setNewsEmiten(null)}
-        />
+        <AnnouncementFeed db={db} onSelectEmiten={openEmiten} />
       )}
 
       {subTab === 'chat' && (
