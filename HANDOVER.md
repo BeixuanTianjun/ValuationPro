@@ -18,7 +18,7 @@ sesi terakhir dua lapisan di luar Indonesia — 29 instrumen makro dan peta sela
 dunia. Palet Bloomberg (hitam murni + amber), navigasi mnemonic: Ctrl+K membuka
 menu fungsi, ketik kode (`SCR`, `MACRO`, `MAP`) + Enter langsung pindah layar.
 
-- **Lokal**: `C:\Users\MIchael ROG\.gemini\antigravity\scratch\financial-modeling-lbo-dcf`
+- **Lokal**: `C:\Users\MIchael ROG\Liviee`
 - **Repo**: https://github.com/BeixuanTianjun/ValuationPro (publik)
 - **Live**: https://valuation-pro-lake.vercel.app
 - **Stack**: Vite 6 + React 18 + TS 5 + Tailwind 3 + Recharts, layanan Node lokal
