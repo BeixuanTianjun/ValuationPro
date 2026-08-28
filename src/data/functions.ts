@@ -29,6 +29,12 @@ export interface TerminalFunction {
   sub?: string;
   /** Tailwind text colour for the code chip. */
   tone: string;
+  /**
+   * ISO date the screen shipped. Drives the NEW flag in the launcher, which
+   * expires on its own after NEW_FOR_DAYS — a badge that has to be removed by
+   * hand is a badge that stays on screen for a year.
+   */
+  added?: string;
 }
 
 export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
@@ -72,6 +78,7 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
     area: 'market',
     sub: 'news',
     tone: 'text-emerald-300',
+    added: '2026-08-28',
   },
   {
     code: 'DES',
@@ -128,6 +135,7 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
     area: 'analytics',
     sub: 'macro',
     tone: 'text-cyan-300',
+    added: '2026-08-28',
   },
   {
     code: 'MAP',
@@ -137,6 +145,7 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
     area: 'analytics',
     sub: 'map',
     tone: 'text-cyan-300',
+    added: '2026-08-28',
   },
   {
     code: 'BRK',
@@ -177,6 +186,41 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
 ];
 
 export const FUNCTION_GROUPS = ['Market', 'Analytics', 'Models'];
+
+/** How long a screen carries the NEW flag after it ships. */
+export const NEW_FOR_DAYS = 21;
+
+/**
+ * Did this screen ship recently enough to still be worth pointing at?
+ *
+ * A new screen is invisible by construction here: the launcher lists twelve
+ * functions in a fixed order and the analytics tab row scrolls sideways on a
+ * phone, so anything added at the end lands off-screen. The flag is the one
+ * thing that says "this row is not where you left it last week".
+ */
+export function isRecentlyAdded(fn: TerminalFunction, now: Date = new Date()): boolean {
+  if (!fn.added) return false;
+  const t = Date.parse(fn.added);
+  if (Number.isNaN(t)) return false;
+  const days = (now.getTime() - t) / 86_400_000;
+  return days >= 0 && days <= NEW_FOR_DAYS;
+}
+
+/** Sub-tab ids in one area that are still flagged new, for the tab rows. */
+export function recentSubs(area: FunctionArea, now: Date = new Date()): Set<string> {
+  return new Set(
+    recentFunctions(now)
+      .filter((f) => f.area === area && f.sub)
+      .map((f) => f.sub as string)
+  );
+}
+
+/** The recently-shipped screens, newest first. Empty once they all age out. */
+export function recentFunctions(now: Date = new Date()): TerminalFunction[] {
+  return TERMINAL_FUNCTIONS.filter((f) => isRecentlyAdded(f, now)).sort((a, b) =>
+    (b.added ?? '').localeCompare(a.added ?? '')
+  );
+}
 
 export function findFunction(query: string): TerminalFunction | null {
   const q = query.trim().toUpperCase();

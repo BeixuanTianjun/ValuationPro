@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, Clock, Lock, Mail, RefreshCw, Radio, Send, WifiOff } from 'lucide-react';
+import { Activity, AlertTriangle, Clock, Lock, Mail, RefreshCw, Radio, Send, WifiOff } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
 import { ServiceStatus, fetchServiceStatus, isStatusEndpointAbsent, triggerRefresh } from '../../data/chatClient';
 import { sendTestAlert } from '../../data/authClient';
@@ -34,6 +34,42 @@ const PHASE_TONE: Record<string, string> = {
   closed: 'text-slate-400',
   weekend: 'text-slate-500',
 };
+
+/**
+ * How many IDX sessions the official series is behind.
+ *
+ * WHY THIS IS NOT VISIBLE WITHOUT IT. The live overlay quotes Yahoo when the
+ * page opens, so the price and the date beside it stay today's even when the
+ * scheduled crawl has been dead for a week — and everything computed from the
+ * official series (foreign flow, index attribution, every factor) quietly keeps
+ * answering from the last session that did land. That is exactly the failure
+ * that reads as "the deployment stopped updating" while the deployment is fine.
+ *
+ * IDX publishes end-of-day one to two sessions late by design, so being two
+ * behind is normal and only three or more is worth an amber line.
+ */
+function sessionsBehind(official: string, asOf: string, holidays: string[]): number {
+  if (!official || !asOf || official >= asOf) return 0;
+  const skip = new Set(holidays);
+  let n = 0;
+  const d = new Date(`${official}T00:00:00Z`);
+  const end = new Date(`${asOf}T00:00:00Z`);
+  if (Number.isNaN(d.getTime()) || Number.isNaN(end.getTime())) return 0;
+  // A guard, not a limit: a malformed date must not spin here.
+  for (let i = 0; i < 400 && d < end; i++) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const day = d.getUTCDay();
+    if (day === 0 || day === 6) continue;
+    if (skip.has(d.toISOString().slice(0, 10))) continue;
+    n++;
+  }
+  return n;
+}
+
+/** Today in Jakarta, as an ISO date — the browser may be anywhere. */
+function todayWib(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+}
 
 function ageLabel(minutes: number): string {
   if (minutes < 0) return 'belum ada';
@@ -144,6 +180,9 @@ export const LiveStatusBar: React.FC<Props> = ({
 
   const live = db?.live;
   const phase = status?.now?.phase || live?.sessionPhase || '';
+  const behind = db
+    ? sessionsBehind(db.meta.officialSession || db.meta.latestSession, todayWib(), db.meta.holidays || [])
+    : 0;
   const intradayAge = status?.files?.['intraday.json']?.ageMinutes ?? -1;
   // A signed-out caller gets only { accountsExist, locked }, so every detail
   // below has to tolerate its absence.
@@ -198,6 +237,16 @@ export const LiveStatusBar: React.FC<Props> = ({
         {live?.applied && (
           <span className="text-amber-400/80" title="IDX hanya menerbitkan volume beli/jual asing di akhir sesi">
             Arus asing per {live.foreignFlowAsOf}
+          </span>
+        )}
+
+        {behind >= 3 && (
+          <span
+            className="flex items-center gap-1.5 font-semibold text-amber-300"
+            title={`Seri resmi IDX berhenti di ${db?.meta.officialSession}. Harga di layar tetap dikutip langsung, tapi arus asing, atribusi indeks, dan seluruh faktor dihitung dari sesi resmi terakhir. Penyebab paling umum: ingest terjadwal (GitHub Actions) tidak jalan.`}
+          >
+            <AlertTriangle className="w-3 h-3" aria-hidden="true" />
+            Seri resmi tertinggal {behind} sesi
           </span>
         )}
 

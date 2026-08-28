@@ -80,6 +80,8 @@ export interface SegmentedOption<T extends string> {
   shortLabel?: string;
   icon?: React.ElementType;
   badge?: string | number | null;
+  /** Mark a recently added tab with a dot, so a phone user notices it exists. */
+  isNew?: boolean;
 }
 
 interface SegmentedProps<T extends string> {
@@ -98,10 +100,17 @@ interface SegmentedProps<T extends string> {
 /**
  * The one tab control.
  *
- * It scrolls horizontally rather than wrapping, with the scroll contained and
- * the edges faded so it is visibly scrollable. Wrapping tab rows reflow the
- * whole page every time a label changes length, which on a live terminal is
- * constantly.
+ * It scrolls horizontally rather than wrapping, with the scroll contained.
+ * Wrapping tab rows reflow the whole page every time a label changes length,
+ * which on a live terminal is constantly.
+ *
+ * TWO THINGS MAKE THE SCROLL HONEST, and both were missing while the comment
+ * above already claimed them. A seven-tab row on a 390px phone shows four; the
+ * rest are off-screen with nothing on screen saying so, which is how a shipped
+ * screen can be invisible to the person who asked for it. So: a fade on
+ * whichever edge still has content behind it, and the active tab scrolled into
+ * view — jumping to a function from the launcher used to leave its tab
+ * highlighted somewhere past the right edge.
  */
 export function Segmented<T extends string>({
   options,
@@ -113,9 +122,61 @@ export function Segmented<T extends string>({
   fill = false,
   className,
 }: SegmentedProps<T>) {
+  const navRef = React.useRef<HTMLElement | null>(null);
+  const activeRef = React.useRef<HTMLButtonElement | null>(null);
+  const [edges, setEdges] = React.useState({ left: false, right: false });
+
+  const measure = React.useCallback(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const slack = el.scrollWidth - el.clientWidth;
+    // 2px of slack is sub-pixel rounding, not content.
+    setEdges({ left: el.scrollLeft > 2, right: slack - el.scrollLeft > 2 });
+  }, []);
+
+  React.useEffect(() => {
+    measure();
+    const el = navRef.current;
+    if (!el) return;
+    // ResizeObserver rather than a window listener: the row also changes width
+    // when a sibling panel appears, which no resize event reports.
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [measure, options.length]);
+
+  React.useEffect(() => {
+    const el = navRef.current;
+    const btn = activeRef.current;
+    if (el && btn) {
+      // Deliberately NOT scrollIntoView: that scrolls every scrollable ancestor,
+      // so arriving at a function from the launcher would also yank the page
+      // itself. Nudging the row's own scrollLeft cannot move anything else.
+      const b = btn.getBoundingClientRect();
+      const n = el.getBoundingClientRect();
+      if (b.left < n.left) el.scrollBy({ left: b.left - n.left - 12, behavior: 'smooth' });
+      else if (b.right > n.right) el.scrollBy({ left: b.right - n.right + 12, behavior: 'smooth' });
+    }
+    measure();
+  }, [value, measure]);
+
   return (
     <div className={cx('relative -mx-1 min-w-0 max-w-full px-1', className)}>
+      {edges.left && (
+        <span
+          className="pointer-events-none absolute inset-y-0 left-1 z-10 w-6 rounded-l-xl bg-gradient-to-r from-slate-950 to-transparent"
+          aria-hidden="true"
+        />
+      )}
+      {edges.right && (
+        <span
+          className="pointer-events-none absolute inset-y-0 right-1 z-10 w-6 rounded-r-xl bg-gradient-to-l from-slate-950 to-transparent"
+          aria-hidden="true"
+        />
+      )}
       <nav
+        ref={navRef}
+        onScroll={measure}
         aria-label={ariaLabel}
         className={cx(
           'flex gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1 sm:p-1.5',
@@ -126,12 +187,13 @@ export function Segmented<T extends string>({
           fill ? 'w-full' : 'w-full max-w-full sm:w-fit'
         )}
       >
-        {options.map(({ id, label, shortLabel, icon: Icon, badge }) => {
+        {options.map(({ id, label, shortLabel, icon: Icon, badge, isNew }) => {
           const on = value === id;
           return (
             <button
               key={id}
               type="button"
+              ref={on ? activeRef : undefined}
               onClick={() => onChange(id)}
               aria-current={on ? 'page' : undefined}
               className={cx(
@@ -147,6 +209,9 @@ export function Segmented<T extends string>({
               {shortLabel && <span className="sm:hidden">{shortLabel}</span>}
               {badge != null && badge !== '' && (
                 <span className="ml-0.5 rounded bg-black/25 px-1.5 py-0.5 text-[10px] tabular-nums">{badge}</span>
+              )}
+              {isNew && !on && (
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" aria-label="baru" />
               )}
             </button>
           );

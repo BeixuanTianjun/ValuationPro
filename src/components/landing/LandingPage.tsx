@@ -4,8 +4,10 @@ import {
   Bell,
   Building2,
   Calculator,
+  Globe,
   Globe2,
   LineChart,
+  Ship,
   LogIn,
   MessageSquare,
   Network,
@@ -17,6 +19,7 @@ import {
 import { MarketDatabase } from '../../data/marketRepository';
 import { IndexQuote } from '../../types/market';
 import { AccountUser } from '../../data/authClient';
+import { TERMINAL_FUNCTIONS, isRecentlyAdded } from '../../data/functions';
 import { CHART } from '../../theme/chart';
 
 interface Props {
@@ -74,7 +77,24 @@ function useHeroSeries(indices: IndexQuote[]): { points: string; area: string; r
   }, [indices]);
 }
 
-const FEATURES = [
+/*
+ * The front page is where a returning visitor decides whether anything changed.
+ * A screen that ships without a card here is invisible to anyone who does not
+ * already know to open the launcher and read fifteen rows — which is how the
+ * macro layer and the chokepoint map spent a day being "missing from the
+ * deploy" while sitting on the deploy the whole time.
+ *
+ * `code` ties a card to its function in the registry, so the BARU chip lights
+ * up and expires from the same date the launcher uses.
+ */
+const FEATURES: {
+  icon: React.ElementType;
+  title: string;
+  body: string;
+  accent: string;
+  ring: string;
+  code?: string;
+}[] = [
   {
     icon: Building2,
     title: '962 emiten tercatat',
@@ -125,6 +145,22 @@ const FEATURES = [
     ring: 'group-hover:border-violet-500/40',
   },
   {
+    icon: Globe,
+    code: 'MACRO',
+    title: 'Penggerak dari luar',
+    body: '29 aset di luar IDX — kurs, minyak, batu bara, indeks global, bunga, kripto — diukur seberapa nempel ke tiap sektor sini. Hasilnya lemah, dan layarnya bilang lemah; itu jawabannya, bukan kegagalannya.',
+    accent: 'text-amber-400',
+    ring: 'group-hover:border-amber-500/40',
+  },
+  {
+    icon: Ship,
+    code: 'MAP',
+    title: 'Peta selat dunia',
+    body: '28 selat kunci, 5 di antaranya perairan kita, lengkap sama tanker per hari dan alert yang bikin pelabuhan tutup. Konteks rantai pasok — bukan klaim bahwa Hormuz menggerakkan harga saham Anda.',
+    accent: 'text-cyan-400',
+    ring: 'group-hover:border-cyan-500/40',
+  },
+  {
     icon: Calculator,
     title: 'Model DCF & LBO',
     body: 'Ditarik langsung dari laporan keuangan asli, beta diregresi ke IHSG, dan tiap asumsi yang rapuh dikasih tanda. Bank dan asuransi ditolak, soalnya DCF unlevered emang nggak cocok buat mereka.',
@@ -132,6 +168,12 @@ const FEATURES = [
     ring: 'group-hover:border-cyan-500/40',
   },
 ];
+
+/** Is the screen behind this card still flagged new in the function registry? */
+function isNewFeature(code: string): boolean {
+  const fn = TERMINAL_FUNCTIONS.find((f) => f.code === code);
+  return !!fn && isRecentlyAdded(fn);
+}
 
 export const LandingPage: React.FC<Props> = ({
   db,
@@ -424,7 +466,14 @@ export const LandingPage: React.FC<Props> = ({
               <div className="w-11 h-11 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
                 <f.icon className={`w-5 h-5 ${f.accent}`} aria-hidden="true" />
               </div>
-              <h3 className="mt-4 font-bold text-[15px]">{f.title}</h3>
+              <h3 className="mt-4 flex items-center gap-2 font-bold text-[15px]">
+                {f.title}
+                {f.code && isNewFeature(f.code) && (
+                  <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">
+                    baru
+                  </span>
+                )}
+              </h3>
               <p className="mt-2 text-[13px] text-slate-400 leading-relaxed">{f.body}</p>
             </div>
           ))}

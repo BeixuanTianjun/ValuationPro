@@ -49,6 +49,12 @@ import {
   loadFundamentalsFromDisk,
   loadMarketDatabaseFromDisk,
 } from '../src/server/marketFromDisk';
+import {
+  TERMINAL_FUNCTIONS,
+  findFunction,
+  isRecentlyAdded,
+  searchFunctions,
+} from '../src/data/functions';
 
 const DATA_DIR = join(process.cwd(), 'public', 'data', 'idx');
 const PASSES = Math.max(1, Number(process.argv[2] || 1));
@@ -89,6 +95,50 @@ async function main() {
       ctx.ownership ? 'ada' : 'TIDAK ADA'
     } macro=${ctx.macro ? 'ada' : 'TIDAK ADA'} worldmap=${ctx.worldmap ? 'ada' : 'TIDAK ADA'}\n`
   );
+
+  // ---- navigation ---------------------------------------------------------
+  //
+  // A screen that ships and cannot be reached is the same as a screen that did
+  // not ship, and it is invisible to every other check here: the engines are
+  // fine, the data is fine, and the user simply never finds the thing. These
+  // are the registry invariants that keep the launcher and the command line
+  // honest — the CN/CNG prefix collision in particular is one keystroke away
+  // from sending `CN` to the conglomerate screen forever.
+  {
+    const seen = new Set<string>();
+    for (const fn of TERMINAL_FUNCTIONS) {
+      checks++;
+      if (seen.has(fn.code)) fail('navigasi', `kode ganda: ${fn.code}`);
+      seen.add(fn.code);
+
+      checks++;
+      if (findFunction(fn.code)?.code !== fn.code) {
+        fail('navigasi', `mengetik ${fn.code} membuka ${findFunction(fn.code)?.code ?? 'tidak ada'}`);
+      }
+
+      checks++;
+      if (searchFunctions(fn.code)[0]?.code !== fn.code) {
+        fail('navigasi', `pencarian ${fn.code} tidak menaruh dirinya di urutan pertama`);
+      }
+
+      checks++;
+      if ((fn.area === 'market' || fn.area === 'analytics') && !fn.sub) {
+        fail('navigasi', `${fn.code} ada di area bertab tapi tidak menyebut sub-tab`);
+      }
+
+      checks++;
+      if (fn.added !== undefined && Number.isNaN(Date.parse(fn.added))) {
+        fail('navigasi', `${fn.code} punya tanggal rilis tidak sah: ${fn.added}`);
+      }
+
+      // The NEW flag has to expire on its own; a badge that needs a human to
+      // remove it is a badge that is still there next year.
+      checks++;
+      if (fn.added && isRecentlyAdded(fn, new Date(Date.parse(fn.added) + 400 * 86_400_000))) {
+        fail('navigasi', `${fn.code} masih ditandai baru 400 hari setelah rilis`);
+      }
+    }
+  }
 
   const signatures: string[] = [];
 

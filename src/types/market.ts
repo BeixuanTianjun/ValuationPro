@@ -153,7 +153,19 @@ export interface IntradayFile {
 
 export interface MarketMeta {
   generatedAt: string;
+  /**
+   * The newest session on screen. The live overlay overwrites this with today's
+   * quote date, which is the right thing for a price label and the wrong thing
+   * for judging whether the ingest is still running — use `officialSession` for
+   * that.
+   */
   latestSession: string;
+  /**
+   * The newest session in the OFFICIAL IDX series, before any live overlay.
+   * Foreign flow, index attribution and every factor are computed from this
+   * one, so it is what goes stale when the scheduled crawl stops.
+   */
+  officialSession?: string;
   /** Weekdays inside the covered range on which IDX did not trade. */
   holidays?: string[];
   /** Weekdays after the latest session that IDX has not published yet. */
