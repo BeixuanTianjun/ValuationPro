@@ -588,7 +588,7 @@ export default function App() {
 
       </main>
 
-      <MobileTabBar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <MobileTabBar activeTab={activeTab} setActiveTab={setActiveTab} onOpenMenu={() => setMenuOpen(true)} />
 
       <footer className="bg-slate-900 border-t border-slate-800 px-4 sm:px-6 py-4 mt-auto pb-20 lg:pb-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">

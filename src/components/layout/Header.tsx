@@ -7,6 +7,7 @@ import {
   FileSpreadsheet,
   Gauge,
   Layers,
+  LayoutGrid,
   LogIn,
   LogOut,
   MessageSquare,
@@ -16,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { AccountUser } from '../../data/authClient';
+import { recentFunctions } from '../../data/functions';
 import { cx } from '../common/ui';
 
 type WorkspaceTab = ActiveModelTab | 'market' | 'analytics';
@@ -249,33 +251,65 @@ export const Header: React.FC<HeaderProps> = ({
  * Fixed to the bottom because that is where a thumb rests, and because a
  * terminal is scrolled constantly — a top tab row would be off-screen exactly
  * when it is wanted.
+ *
+ * THE FIFTH BUTTON IS THE FUNCTION MENU, and it is the fix for a real
+ * navigation dead end. Four workspaces cannot show fifteen screens: on a phone
+ * the analytics sub-tabs scroll sideways, so the newest ones sit past the right
+ * edge of a 390px viewport and simply are not there as far as anybody scrolling
+ * vertically is concerned. The launcher lists every function on one screen, and
+ * before this it was reachable only by Ctrl+K — a keystroke a phone does not
+ * have — or by the small MENU chip in the command bar, which is above the fold
+ * and easy to read as decoration. It carries a dot while any screen is still
+ * flagged new, so "there is something here you have not seen" is visible
+ * without opening anything.
  */
 export const MobileTabBar: React.FC<{
   activeTab: WorkspaceTab;
   setActiveTab: (tab: WorkspaceTab) => void;
-}> = ({ activeTab, setActiveTab }) => (
-  <nav
-    aria-label="Ruang kerja"
-    className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950 backdrop-blur-xl pb-safe lg:hidden"
-  >
-    <div className="grid grid-cols-4">
-      {NAV.map(({ id, short, icon: Icon }) => {
-        const on = activeTab === id;
-        return (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            aria-current={on ? 'page' : undefined}
-            className={cx(
-              'flex cursor-pointer flex-col items-center gap-1 py-2.5 text-[10px] font-bold transition-colors',
-              on ? 'text-cyan-300' : 'text-slate-500 hover:text-slate-300'
+  onOpenMenu: () => void;
+}> = ({ activeTab, setActiveTab, onOpenMenu }) => {
+  const hasNew = recentFunctions().length > 0;
+  return (
+    <nav
+      aria-label="Ruang kerja"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950 backdrop-blur-xl pb-safe lg:hidden"
+    >
+      <div className="grid grid-cols-5">
+        {NAV.map(({ id, short, icon: Icon }) => {
+          const on = activeTab === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              aria-current={on ? 'page' : undefined}
+              className={cx(
+                'flex cursor-pointer flex-col items-center gap-1 py-2.5 text-[10px] font-bold transition-colors',
+                on ? 'text-cyan-300' : 'text-slate-500 hover:text-slate-300'
+              )}
+            >
+              <Icon className={cx('h-5 w-5', on && 'drop-shadow-[0_0_6px_rgba(34,211,238,0.5)]')} aria-hidden="true" />
+              <span>{short}</span>
+            </button>
+          );
+        })}
+
+        <button
+          onClick={onOpenMenu}
+          aria-label="Buka function menu"
+          className="flex cursor-pointer flex-col items-center gap-1 py-2.5 text-[10px] font-bold text-amber-400 transition-colors hover:text-amber-300"
+        >
+          <span className="relative">
+            <LayoutGrid className="h-5 w-5" aria-hidden="true" />
+            {hasNew && (
+              <span
+                className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-slate-950"
+                aria-hidden="true"
+              />
             )}
-          >
-            <Icon className={cx('h-5 w-5', on && 'drop-shadow-[0_0_6px_rgba(34,211,238,0.5)]')} aria-hidden="true" />
-            <span>{short}</span>
-          </button>
-        );
-      })}
-    </div>
-  </nav>
-);
+          </span>
+          <span>Menu</span>
+        </button>
+      </div>
+    </nav>
+  );
+};

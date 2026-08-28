@@ -107,6 +107,42 @@ ADRO" habis waktu, dan gejalanya bukan error melainkan **balasan kosong** —
 HTTP 504 tanpa satu byte pun. Live backtest sekarang mengukur waktunya dan
 memperingatkan kalau mendekati batas.
 
+**Layar yang sudah ter-deploy bisa tetap tak terlihat di HP, dan itu terbaca
+persis seperti deploy yang gagal.** MACRO dan MAP tayang sejak commit-nya
+mendarat, tapi dari telepon keduanya tidak ada: baris tab Analytics memuat tujuh
+tab yang menggulung ke samping, jadi tab ketujuh berada di luar layar 390px tanpa
+satu pun tanda bahwa barisnya masih berlanjut; peluncur fungsi hanya bisa dibuka
+lewat Ctrl+K — tombol yang tidak dimiliki telepon — atau chip MENU kecil di
+command bar; dan halaman depan tidak menyebut keduanya sama sekali. Tiga jalan
+masuk, tiga-tiganya buntu di layar sentuh. Sekarang: tab bar bawah punya tombol
+kelima yang membuka peluncur, tab baru diberi titik amber, baris tab yang
+menggulung diberi gradasi di sisi yang masih ada isinya, dan tab aktif
+di-scroll ke dalam pandangan.
+
+**Bundel yang sedang dijalankan browser sekarang tercetak di layar.** Footer
+Function Menu memuat `build <sha> · <waktu WIB>`, diisi vite dari
+`VERCEL_GIT_COMMIT_SHA` saat build (lihat `src/data/build.ts`). Tanpa itu,
+"deploy-nya belum jalan" dan "browser saya masih memegang bundel lama" terlihat
+identik dari telepon — tidak ada view-source, tidak ada log build — dan keduanya
+sudah pernah di-debug sebagai yang keliru. Kalau sha di footer sama dengan commit
+terakhir, deployment-nya benar dan yang salah ada di tempat lain.
+
+**Header cache untuk HTML sekarang eksplisit di `vercel.json`.** `/assets/*`
+immutable satu tahun (namanya ber-hash, aman), tapi `index.html` yang menunjuk ke
+hash itu wajib `max-age=0, must-revalidate` — kalau tidak, telepon yang menyimpan
+HTML lama akan terus memuat bundel lama sampai cache-nya kedaluwarsa sendiri.
+
+**Cron GitHub Actions bisa berhenti total, bukan cuma melewatkan satu slot.**
+Antara 2026-08-26 11:53 UTC dan 2026-08-28 11:20 UTC tidak ada satu pun run
+terjadwal — tujuh slot berturut-turut hilang — sementara `state` workflow-nya
+tetap `active` dan tidak ada run gagal yang bisa dilihat. Gejalanya halus karena
+lapisan intraday menutupinya: harga di layar tetap hari ini (Yahoo dikutip saat
+halaman dibuka), tapi seri resmi IDX berhenti di 2026-08-24 — empat sesi
+tertinggal — dan arus asing, atribusi indeks, serta tiap faktor yang dihitung
+dari sesi resmi ikut berhenti di sana. Kalau data di live terlihat basi, periksa
+daftar run Actions DULU sebelum mencurigai Vercel: deployment yang sehat
+menyajikan data basi kalau yang mati adalah ingest-nya.
+
 **Env var Vercel hanya berlaku setelah REDEPLOY.** Mengganti nilainya di Settings
 tidak menyentuh fungsi yang sudah ter-deploy; ia tetap memakai nilai lama sampai
 ada build baru. Ini memakan satu putaran penuh debugging yang mengira key-nya
@@ -349,7 +385,10 @@ src/components/layout/   Header, LiveStatusBar, MenuPanel (Ctrl+K),
 src/components/market/TradingViewChart.tsx   widget chart, satu-satunya
                   dependensi runtime pihak ketiga di aplikasi
 src/data/functions.ts   registri kode mnemonic ala Bloomberg — sumber
-                  kebenaran untuk MenuPanel & FunctionBar
+                  kebenaran untuk MenuPanel & FunctionBar; field `added`
+                  menyalakan tanda NEW yang kedaluwarsa sendiri setelah 21 hari
+src/data/build.ts   sha commit + waktu build yang disuntik vite, dicetak di
+                  footer Function Menu
 api/live.ts       fungsi Vercel: kutip 962 emiten dari Yahoo (+ fallback
                   Google Finance kalau crumb Yahoo gagal) saat diminta
 api/chat.ts       pembungkus tipis; logika sebenarnya di api/_chat-impl.ts,
