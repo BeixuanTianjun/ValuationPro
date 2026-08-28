@@ -136,15 +136,21 @@ jobs:
       # it. Rebuilding from a 25-day window would silently shorten the series
       # from a year to a fortnight and break every momentum factor.
       #
-      # Run #1 proved IDX does NOT block GitHub's datacenter IPs — the full
-      # 430-day crawl completed from a runner. `continue-on-error` stays as a
-      # safety net in case that changes.
+      # Run #1 (2026-08-26) proved IDX did NOT block GitHub's datacenter IPs —
+      # the full 430-day crawl completed from a runner. THAT HAS CHANGED. Two
+      # days later every IDX request from a runner came back as HTML after a
+      # 40-second wait, which is a Cloudflare challenge, and the step below
+      # returned nothing. `continue-on-error` still protects the price refresh,
+      # but the run is now marked red by the reporting step at the end of the
+      # job instead of passing green with an empty crawl.
       - name: Data resmi IDX (catch-up harian)
+        id: idx_daily
         if: steps.plan.outputs.eod == 'true' && steps.plan.outputs.weekly != 'true'
         continue-on-error: true
         run: node scripts/ingest-idx.mjs --days 25
 
       - name: Data resmi IDX (crawl penuh mingguan)
+        id: idx_weekly
         if: steps.plan.outputs.weekly == 'true'
         continue-on-error: true
         run: npm run data:refresh
@@ -154,6 +160,7 @@ jobs:
       # tier rather than the weekly one — a filing from Tuesday is exactly what
       # the weekly watchlist is supposed to react to.
       - name: Pengumuman keterbukaan informasi IDX
+        id: idx_announcements
         if: steps.plan.outputs.eod == 'true' || steps.plan.outputs.weekly == 'true'
         continue-on-error: true
         run: npm run data:announcements
@@ -239,3 +246,33 @@ jobs:
             git pull --rebase --autostash origin main
             git push
           fi
+
+      # ------------------------------------------------- laporkan yang gagal
+      #
+      # `continue-on-error` di tiga langkah IDX di atas ada supaya crawl yang
+      # gagal tidak ikut membuang refresh harga yang sudah berhasil — itu masih
+      # benar, dan urutan langkahnya sudah menjamin harga ter-commit duluan.
+      # Yang salah adalah akibat sampingannya: run-nya HIJAU. Pada 2026-08-28,
+      # IDX menjawab HTML (tantangan Cloudflare) untuk setiap permintaan dari
+      # runner, dua crawl mati, dan job-nya tetap sukses sambil meng-commit satu
+      # berkas — persis bentuk kegagalan yang paling mahal di repo ini: berhasil
+      # mengerjakan lebih sedikit daripada yang diminta, tanpa satu pun pesan.
+      #
+      # Langkah ini berada di paling akhir supaya semua yang berhasil sudah
+      # tersimpan dan digest sudah terkirim sebelum run-nya dimerahkan.
+      - name: Laporkan crawl IDX yang diblokir
+        if: always()
+        run: |
+          FAILED=""
+          for pair in \
+            "catch-up harian:${{ steps.idx_daily.outcome }}" \
+            "crawl penuh mingguan:${{ steps.idx_weekly.outcome }}" \
+            "pengumuman keterbukaan informasi:${{ steps.idx_announcements.outcome }}"; do
+            NAME="${pair%%:*}"; OUTCOME="${pair##*:}"
+            if [ "$OUTCOME" = "failure" ]; then FAILED="$FAILED $NAME;"; fi
+          done
+          if [ -n "$FAILED" ]; then
+            echo "::error::Crawl IDX gagal:$FAILED Harga live tetap ter-commit, tapi seri resmi IDX TIDAK bertambah. Penyebab yang sudah terbukti: IDX menjawab HTML/Cloudflare untuk permintaan dari IP datacenter. Tarik dari mesin lokal dengan 'npm run data:refresh'."
+            exit 1
+          fi
+          echo "Semua crawl IDX yang dijadwalkan berhasil."
