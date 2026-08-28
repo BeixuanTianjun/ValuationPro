@@ -61,6 +61,13 @@ git status --short | grep -E '\.env|\.data' || echo "aman"
 
 ### 2. Hubungkan ke Vercel
 
+**`maxDuration` fungsi 60 detik, bukan bawaan.** `/api/chat` harus memuat
+sebelas berkas data lewat HTTP di dalam fungsi — termasuk `history.json` 6,4 MB —
+lalu menjalankan dua sampai tiga putaran tool Claude sebelum menjawab. Pada batas
+20 detik pertanyaan pendek lolos sementara "kupas ADRO" habis waktu, dan
+gejalanya bukan pesan error melainkan balasan kosong. Menaikkan batasnya lebih
+jujur daripada memangkas isi dossier supaya muat.
+
 Import repo-nya di <https://vercel.com/new>. `vercel.json` sudah mengatur
 build command, output directory, SPA rewrite, dan header cache — file data
 `no-cache` supaya refresh langsung terlihat, aset ber-hash `immutable`.
