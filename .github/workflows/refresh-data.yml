@@ -35,12 +35,26 @@ on:
     - cron: '47 9 * * 1-5'
     - cron: '32 11 * * 1-5'
     - cron: '0 1 * * 6'
+  # A MANUAL RUN MEANS "MAKE THE DATA CURRENT", and it did not.
+  #
+  # With no cron to match, the plan step left EOD=false, so pressing Run
+  # workflow refreshed Yahoo quotes and nothing else: the official IDX series,
+  # foreign flow and the disclosure archive stayed exactly as stale as before
+  # while the run went green and committed a file. That is the failure mode this
+  # repository keeps meeting — a step that succeeds at less than you asked for.
+  # The official catch-up plus announcements take about 25 seconds together, so
+  # a manual run now does them by default; `full_refresh` still guards the slow
+  # weekly crawls.
   workflow_dispatch:
     inputs:
       send_alert:
         description: 'Kirim email digest setelah refresh'
         type: boolean
         default: false
+      official_catchup:
+        description: 'Tarik juga data resmi IDX + pengumuman (cepat, ~25 detik)'
+        type: boolean
+        default: true
       full_refresh:
         description: 'Tarik ulang fundamental, rasio valuasi, dan broker (lambat, ~30 menit)'
         type: boolean
@@ -83,6 +97,7 @@ jobs:
             "0 1 * * 6")     WEEKLY=true; EOD=true ;;
           esac
           if [ "${{ inputs.send_alert }}" = "true" ]; then ALERT=true; fi
+          if [ "${{ inputs.official_catchup }}" = "true" ]; then EOD=true; fi
           if [ "${{ inputs.full_refresh }}" = "true" ]; then WEEKLY=true; EOD=true; fi
           {
             echo "alert=$ALERT"
