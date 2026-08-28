@@ -9,6 +9,7 @@ import { StockWatchlist } from './StockWatchlist';
 import { AnnouncementFeed } from './AnnouncementFeed';
 import { EmitenChat } from '../chat/EmitenChat';
 import { EmitenModelBundle, buildEmitenModel } from '../../models/idxCompanyBridge';
+import { recentSubs } from '../../data/functions';
 import { EmptyState, Segmented, SegmentedOption, Spinner } from '../common/ui';
 
 export type MarketSubTab = 'overview' | 'emiten' | 'screener' | 'watchlist' | 'news' | 'chat';
@@ -90,7 +91,7 @@ export const MarketWorkspace: React.FC<Props> = ({
   return (
     <div className="space-y-4 sm:space-y-5">
       <Segmented
-        options={TABS}
+        options={TABS.map((t) => (recentSubs('market').has(t.id) ? { ...t, isNew: true } : t))}
         value={subTab}
         onChange={onSubTabChange}
         ariaLabel="Bagian pasar"

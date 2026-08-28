@@ -277,7 +277,14 @@ export function assembleMarketDatabase(files: RawFiles): MarketDatabase {
   const boards = [...new Set(universe.emiten.map((e) => e.board).filter(Boolean))].sort();
 
   return {
-    meta: { ...meta, latestSession: live?.tradingDate || meta.latestSession },
+    meta: {
+      ...meta,
+      latestSession: live?.tradingDate || meta.latestSession,
+      // Kept separately because the line above destroys it: the overlay makes
+      // the newest session look like today even when the official crawl has
+      // not run for a week.
+      officialSession: meta.latestSession,
+    },
     emiten: universe.emiten,
     byCode,
     daily: dailyMap,

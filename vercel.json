@@ -5,6 +5,15 @@
   "framework": "vite",
   "headers": [
     {
+      "source": "/((?!api|assets|data|.*\\.).*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/data/idx/(.*)",
       "headers": [
         {

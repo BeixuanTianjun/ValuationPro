@@ -5,8 +5,10 @@ import {
   FUNCTION_GROUPS,
   TERMINAL_FUNCTIONS,
   TerminalFunction,
+  isRecentlyAdded,
   searchFunctions,
 } from '../../data/functions';
+import { BUILD_REF, BUILD_SHA, buildTimeWib } from '../../data/build';
 import { cx } from '../common/ui';
 
 interface Props {
@@ -176,6 +178,7 @@ export const MenuPanel: React.FC<Props> = ({ open, onClose, onPick, activeCode }
                           key={f.code}
                           fn={f}
                           active={f.code === activeCode}
+                          isNew={isRecentlyAdded(f)}
                           selected={results[cursor]?.code === f.code}
                           onPick={onPick}
                           onHover={() => setCursor(results.findIndex((r) => r.code === f.code))}
@@ -188,6 +191,7 @@ export const MenuPanel: React.FC<Props> = ({ open, onClose, onPick, activeCode }
                       key={f.code}
                       fn={f}
                       active={f.code === activeCode}
+                      isNew={isRecentlyAdded(f)}
                       selected={i === cursor}
                       onPick={onPick}
                       onHover={() => setCursor(i)}
@@ -209,8 +213,20 @@ export const MenuPanel: React.FC<Props> = ({ open, onClose, onPick, activeCode }
               <span className="flex items-center gap-1">
                 <Key>Esc</Key> tutup
               </span>
-              <span className="ml-auto hidden sm:inline">
+              <span className="hidden sm:inline">
                 <Key>Ctrl</Key> <Key>K</Key> membukanya dari mana saja
+              </span>
+              {/*
+                The build the browser is actually running. It sits here because
+                this panel is one tap away on every screen including a phone,
+                and because "the deploy did not update" and "my browser kept the
+                old bundle" look identical without it.
+              */}
+              <span
+                className="ml-auto font-mono text-[9px] text-slate-600"
+                title={`Bundel ini dibangun dari commit ${BUILD_SHA} (${BUILD_REF}) pada ${buildTimeWib()}. Kalau angkanya tidak berubah setelah deploy baru, yang Anda lihat masih versi lama dari cache.`}
+              >
+                build {BUILD_SHA} · {buildTimeWib()}
               </span>
             </div>
           </motion.div>
@@ -230,9 +246,10 @@ const Row: React.FC<{
   fn: TerminalFunction;
   active: boolean;
   selected: boolean;
+  isNew: boolean;
   onPick: (fn: TerminalFunction) => void;
   onHover: () => void;
-}> = ({ fn, active, selected, onPick, onHover }) => (
+}> = ({ fn, active, selected, isNew, onPick, onHover }) => (
   <button
     type="button"
     onClick={() => onPick(fn)}
@@ -253,6 +270,11 @@ const Row: React.FC<{
     <span className="min-w-0 flex-1">
       <span className="flex items-center gap-2">
         <span className="text-xs font-bold text-slate-100">{fn.name}</span>
+        {isNew && (
+          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">
+            new
+          </span>
+        )}
         {active && (
           <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300">
             di layar

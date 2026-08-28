@@ -8,6 +8,7 @@ import { AutoValuation } from './AutoValuation';
 import { MutualFundTracker } from './MutualFundTracker';
 import { MacroMonitor } from './MacroMonitor';
 import { WorldMap } from './WorldMap';
+import { recentSubs } from '../../data/functions';
 import { EmptyState, Segmented, SegmentedOption, Spinner } from '../common/ui';
 
 export type AnalyticsSubTab = 'leaders' | 'conglo' | 'funds' | 'broker' | 'valuation' | 'macro' | 'map';
@@ -53,8 +54,17 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
 }) => {
   const { db, fundamentals, factors, loading, error, reload } = market;
 
+  /*
+   * The new-tab dots come from the function registry, not from a second list
+   * kept in step by hand. Macro and the chokepoint map both shipped at the end
+   * of this row, which on a phone means past the right edge of the screen — the
+   * dot plus the edge fade is what says the row continues.
+   */
+  const fresh = recentSubs('analytics');
+  const tabs = TABS.map((t) => (fresh.has(t.id) ? { ...t, isNew: true } : t));
+
   const nav = (
-    <Segmented options={TABS} value={subTab} onChange={onSubTabChange} ariaLabel="Alat analitik" />
+    <Segmented options={tabs} value={subTab} onChange={onSubTabChange} ariaLabel="Alat analitik" />
   );
 
   if (loading || (!db && !error)) {
