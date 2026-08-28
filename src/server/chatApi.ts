@@ -61,10 +61,24 @@ import { MacroFile, RECENT_WINDOW, buildMacroLinkage, linkagesForEmiten } from '
  * built" are different answers, and a model that cannot tell them apart will
  * confidently report a quiet quarter for an emiten that just did a rights issue.
  */
+/** Only the parts of worldmap.json the dossier reads. */
+export interface WorldMapSummary {
+  to: string | null;
+  chokepoints: {
+    name: string;
+    indonesian: boolean;
+    tankers7d: number;
+    tankersPrior30d: number;
+    tankerTrend: number | null;
+  }[];
+  events: { typeLabel: string; name: string; alert: string; country: string; from: string | null; affectedPorts: number }[];
+}
+
 export interface ChatContext {
   announcements?: AnnouncementsFile | null;
   ownership?: OwnershipFile | null;
   macro?: MacroFile | null;
+  worldmap?: WorldMapSummary | null;
 }
 
 export interface ChatTurn {
@@ -578,6 +592,48 @@ export function buildDossier(
     }
   }
   lines.push('');
+
+  // ------------------------------------------------------------- shipping
+  //
+  // Only reached for emiten whose business actually rides on sea freight.
+  // Handing a bank the tanker count for the Malacca Strait invites the model to
+  // build a connection that does not exist, which is the opposite of the point.
+  const SEA_SECTORS = new Set([
+    'Energy',
+    'Basic Materials',
+    'Transportation & Logistic',
+    'Consumer Non-Cyclicals',
+    'Industrials',
+  ]);
+  if (ctx.worldmap && SEA_SECTORS.has(emiten.sector)) {
+    lines.push('JALUR LAUT (selat yang dilewati ekspor Indonesia)');
+    const idn = ctx.worldmap.chokepoints.filter((c) => c.indonesian);
+    if (!idn.length) {
+      lines.push('Data lalu lintas selat tidak memuat perairan Indonesia.');
+    } else {
+      lines.push(
+        `Rata-rata tanker per hari, 7 hari terakhir dibanding 30 hari sebelumnya (data sampai ${ctx.worldmap.to}):`
+      );
+      for (const c of idn) {
+        const trend = c.tankerTrend === null ? 'tidak terukur' : `${(c.tankerTrend * 100).toFixed(0)}%`;
+        lines.push(`  ${c.name}: ${c.tankers7d} tanker/hari (sebelumnya ${c.tankersPrior30d}, arah ${trend})`);
+      }
+      const hits = ctx.worldmap.events.filter((e) => e.affectedPorts > 0).slice(0, 5);
+      if (hits.length) {
+        lines.push('Kejadian yang menutup pelabuhan belakangan:');
+        for (const e of hits) {
+          lines.push(`  ${e.from} [${e.alert}] ${e.typeLabel} ${e.name} (${e.country}) — ${e.affectedPorts} pelabuhan`);
+        }
+      }
+      lines.push(
+        'INI GANGGUAN PERDAGANGAN, BUKAN KONFLIK. Sumbernya IMF PortWatch yang melacak bencana alam dan penutupan pelabuhan; tidak ada data perang atau sanksi di aplikasi ini. Jumlah transit juga bukan posisi kapal per unit — data AIS per kapal berbayar dan tidak dipakai di sini.'
+      );
+      lines.push(
+        'Hubungan selat ke satu emiten BELUM diukur secara statistik seperti bagian penggerak luar. Sebutkan angkanya sebagai konteks rantai pasok, jangan mengklaim itu menggerakkan harganya.'
+      );
+    }
+    lines.push('');
+  }
 
   lines.push('PEMBANDING SEKTOR (untuk pertanyaan "kalau mau setara siapa")');
   const myCap = quote?.marketCap ?? 0;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator, Globe, Landmark, Network, Scale, ServerCrash, Users } from 'lucide-react';
+import { Calculator, Globe, Globe2, Landmark, Network, Scale, ServerCrash, Users } from 'lucide-react';
 import { MarketDataState } from '../../hooks/useMarketData';
 import { LeadersLaggards } from './LeadersLaggards';
 import { ConglomerateRotation } from './ConglomerateRotation';
@@ -7,9 +7,10 @@ import { BrokerFlow } from './BrokerFlow';
 import { AutoValuation } from './AutoValuation';
 import { MutualFundTracker } from './MutualFundTracker';
 import { MacroMonitor } from './MacroMonitor';
+import { WorldMap } from './WorldMap';
 import { EmptyState, Segmented, SegmentedOption, Spinner } from '../common/ui';
 
-export type AnalyticsSubTab = 'leaders' | 'conglo' | 'funds' | 'broker' | 'valuation' | 'macro';
+export type AnalyticsSubTab = 'leaders' | 'conglo' | 'funds' | 'broker' | 'valuation' | 'macro' | 'map';
 
 interface Props {
   market: MarketDataState;
@@ -28,15 +29,19 @@ const TABS: SegmentedOption<AnalyticsSubTab>[] = [
   { id: 'valuation', label: 'Valuasi Otomatis', shortLabel: 'Valuasi', icon: Calculator },
   { id: 'broker', label: 'Broker Summary', shortLabel: 'Broker', icon: Users },
   { id: 'macro', label: 'Dunia Luar', shortLabel: 'Makro', icon: Globe },
+  { id: 'map', label: 'Peta Selat Dunia', shortLabel: 'Peta', icon: Globe2 },
 ];
 
-/**
- * Two of these tools read their own data file — the ownership register and the
- * broker tape — and neither needs the price database. They stay usable while
- * the rest of the terminal is still parsing 280 sessions of history, so the
- * loading branch renders them rather than a spinner.
+/*
+ * Three of these tools read their own data file — the ownership register, the
+ * broker tape and the chokepoint map — and none needs the price database. They
+ * stay usable while the rest of the terminal is still parsing 280 sessions of
+ * history, so the loading branch below renders them rather than a spinner.
+ *
+ * They are listed inline in that branch rather than in an array. The array
+ * version paired with a two-way ternary, so adding a third member silently
+ * rendered the second one's component for it.
  */
-const SELF_LOADING: AnalyticsSubTab[] = ['broker', 'funds'];
 
 export const AnalyticsWorkspace: React.FC<Props> = ({
   market,
@@ -56,12 +61,19 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
     return (
       <div className="space-y-4 sm:space-y-5">
         {nav}
-        {SELF_LOADING.includes(subTab) ? (
-          subTab === 'broker' ? (
-            <BrokerFlow db={db} onSelectEmiten={onSelectEmiten} />
-          ) : (
-            <MutualFundTracker db={db} onSelectEmiten={onSelectEmiten} focusEmiten={focusEmiten} />
-          )
+        {/*
+          Each self-loading tab must be named explicitly. A two-branch ternary
+          quietly rendered the fund tracker for any third member added to
+          SELF_LOADING — the loading state would have shown the wrong screen
+          entirely, and only while the price database was still parsing, which is
+          exactly when nobody is looking closely.
+        */}
+        {subTab === 'broker' ? (
+          <BrokerFlow db={db} onSelectEmiten={onSelectEmiten} />
+        ) : subTab === 'funds' ? (
+          <MutualFundTracker db={db} onSelectEmiten={onSelectEmiten} focusEmiten={focusEmiten} />
+        ) : subTab === 'map' ? (
+          <WorldMap />
         ) : (
           <Spinner label="Memuat basis data pasar…" />
         )}
@@ -97,6 +109,7 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
       )}
       {subTab === 'broker' && <BrokerFlow db={db} onSelectEmiten={onSelectEmiten} />}
       {subTab === 'macro' && <MacroMonitor db={db} />}
+      {subTab === 'map' && <WorldMap />}
       {subTab === 'valuation' && (
         <AutoValuation
           db={db}

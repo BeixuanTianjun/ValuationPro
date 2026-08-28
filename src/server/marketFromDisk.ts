@@ -23,6 +23,7 @@ import { WatchlistResult, buildWatchlist } from '../models/watchlist';
 import { AnnouncementsFile } from '../models/announcements';
 import { ChatContext } from './chatApi';
 import { MacroFile } from '../models/macroLinkage';
+import { WorldMapSummary } from './chatApi';
 import { OwnershipFile } from '../models/ownershipFlow';
 import {
   FundamentalsDatabase,
@@ -70,12 +71,13 @@ export async function loadFundamentalsFromDisk(dataDir: string): Promise<Fundame
  * and more useful answer than "this emiten filed nothing".
  */
 export async function loadChatContextFromDisk(dataDir: string): Promise<ChatContext> {
-  const [announcements, ownership, macro] = await Promise.all([
+  const [announcements, ownership, macro, worldmap] = await Promise.all([
     tryReadJson<AnnouncementsFile>(dataDir, 'announcements.json'),
     tryReadJson<OwnershipFile>(dataDir, 'ownership.json'),
     tryReadJson<MacroFile>(dataDir, 'macro.json'),
+    tryReadJson<WorldMapSummary>(dataDir, 'worldmap.json'),
   ]);
-  return { announcements, ownership, macro };
+  return { announcements, ownership, macro, worldmap };
 }
 
 export interface DailyDigestRun {

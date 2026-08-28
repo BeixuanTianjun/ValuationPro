@@ -41,6 +41,7 @@ import { answerQuestion, ChatContext, ChatTurn } from '../src/server/chatApi';
 import { AnnouncementsFile } from '../src/models/announcements';
 import { OwnershipFile } from '../src/models/ownershipFlow';
 import { MacroFile } from '../src/models/macroLinkage';
+import type { WorldMapSummary } from '../src/server/chatApi';
 
 interface Loaded {
   db: MarketDatabase;
@@ -95,7 +96,7 @@ async function load(req: ChatRequestLike): Promise<Loaded> {
   if (loaded && Date.now() - loaded.at < TTL_MS) return loaded;
 
   const base = originOf(req);
-  const [meta, universe, daily, history, indices, intraday, fundamentals, quotes, announcements, ownership, macro] =
+  const [meta, universe, daily, history, indices, intraday, fundamentals, quotes, announcements, ownership, macro, worldmap] =
     await Promise.all([
       getJson<MarketMeta>(base, 'meta.json'),
       getJson<UniverseFile>(base, 'universe.json'),
@@ -108,12 +109,13 @@ async function load(req: ChatRequestLike): Promise<Loaded> {
       tryJson<AnnouncementsFile>(base, 'announcements.json'),
       tryJson<OwnershipFile>(base, 'ownership.json'),
       tryJson<MacroFile>(base, 'macro.json'),
+      tryJson<WorldMapSummary>(base, 'worldmap.json'),
     ]);
 
   loaded = {
     db: assembleMarketDatabase({ meta, universe, daily, history, indices, intraday }),
     fundamentals: { fundamentals, quotes },
-    chatContext: { announcements, ownership, macro },
+    chatContext: { announcements, ownership, macro, worldmap },
     at: Date.now(),
   };
   return loaded;

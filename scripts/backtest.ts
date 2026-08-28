@@ -87,7 +87,7 @@ async function main() {
       fundamentals.quotes ? 'ada' : 'TIDAK ADA'
     } announcements=${ctx.announcements ? 'ada' : 'TIDAK ADA'} ownership=${
       ctx.ownership ? 'ada' : 'TIDAK ADA'
-    } macro=${ctx.macro ? 'ada' : 'TIDAK ADA'}\n`
+    } macro=${ctx.macro ? 'ada' : 'TIDAK ADA'} worldmap=${ctx.worldmap ? 'ada' : 'TIDAK ADA'}\n`
   );
 
   const signatures: string[] = [];
@@ -318,6 +318,49 @@ async function main() {
         if (ls.length > 5) fail('makro', `${e.code} mengembalikan ${ls.length} tautan padahal batasnya 5`);
         for (const l of ls) {
           assertFinite(`makro emiten`, `${e.code}.${l.instrumentId}`, { correlation: l.correlation, beta: l.beta });
+        }
+      }
+    }
+
+    // ---- world map / chokepoints -------------------------------------------
+    if (ctx.worldmap) {
+      const wm = ctx.worldmap;
+      checks++;
+      if (!wm.chokepoints.length) fail('peta', 'tidak ada chokepoint di worldmap.json');
+      checks++;
+      const idn = wm.chokepoints.filter((c) => c.indonesian);
+      // Five Indonesian straits is a geographic fact, not a preference. Losing
+      // one means the upstream name changed and the IDX linkage silently shrank
+      // — the dossier would keep printing, just with a strait missing.
+      if (idn.length !== 5) fail('peta', `selat Indonesia terbaca ${idn.length}, seharusnya 5`);
+      for (const c of wm.chokepoints) {
+        assertFinite('peta', c.name, { tankers7d: c.tankers7d, tankersPrior30d: c.tankersPrior30d });
+        checks++;
+        if (c.tankers7d < 0) fail('peta', `${c.name} tanker negatif: ${c.tankers7d}`);
+        checks++;
+        if (c.tankerTrend !== null && !Number.isFinite(c.tankerTrend)) {
+          fail('peta', `${c.name} tren bukan angka dan bukan null`);
+        }
+      }
+      for (const e of wm.events) {
+        checks++;
+        if (e.affectedPorts < 0) fail('peta', `${e.name} pelabuhan terdampak negatif`);
+        checks++;
+        if (!['RED', 'ORANGE', 'GREEN'].includes(e.alert)) fail('peta', `${e.name} level alert tak dikenal: ${e.alert}`);
+      }
+      // The dossier gates this section on sector; a bank must never receive it.
+      const bank = db.emiten.find((e) => e.sector === 'Financials');
+      if (bank) {
+        checks++;
+        if (buildDossier(bank.code, db, factors, fundamentals, ctx).includes('JALUR LAUT')) {
+          fail('peta', `${bank.code} (Financials) dapat bagian jalur laut`);
+        }
+      }
+      const miner = db.emiten.find((e) => e.sector === 'Energy');
+      if (miner) {
+        checks++;
+        if (!buildDossier(miner.code, db, factors, fundamentals, ctx).includes('JALUR LAUT')) {
+          fail('peta', `${miner.code} (Energy) tidak dapat bagian jalur laut`);
         }
       }
     }

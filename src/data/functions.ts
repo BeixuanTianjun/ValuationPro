@@ -130,6 +130,15 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
     tone: 'text-cyan-300',
   },
   {
+    code: 'MAP',
+    name: 'Peta Selat Dunia',
+    hint: 'Tanker per hari di 28 selat kunci, 5 di antaranya perairan kita, plus alert yang bikin pelabuhan tutup.',
+    group: 'Analitik',
+    area: 'analytics',
+    sub: 'map',
+    tone: 'text-cyan-300',
+  },
+  {
     code: 'BRK',
     name: 'Broker Summary',
     hint: 'Aktivitas 88 anggota bursa dan struktur transaksi per emiten.',

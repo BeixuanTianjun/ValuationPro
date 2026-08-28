@@ -17,6 +17,7 @@ npm run data:brokers       # aktivitas harian anggota bursa        -> ~2 menit
 npm run data:ownership     # register kepemilikan KSEI bulanan     -> ~40 detik
 npm run data:announcements # keterbukaan informasi IDX 45 hari     -> ~10 detik
 npm run data:macro         # 29 aset di luar IDX, 6 kelas           -> ~5 detik
+npm run data:worldmap      # lalu lintas 28 selat + alert disrupsi   -> ~15 detik
 npm run chat:dossier -- PACK  # cetak dossier yang diterima chatbot (tanpa API)
 npm test                   # uji numerik guard rail mesin DCF
 npm run backtest -- 3      # sapu seluruh semesta lewat tiap mesin, 3 pass
@@ -42,6 +43,7 @@ tidak ada masalah CORS saat aplikasi berjalan.
 | `ownership.json` | Register kepemilikan KSEI: 962 emiten × 24 bulan × 9 jenis investor × lokal/asing | 1,6 MB |
 | `announcements.json` | Keterbukaan informasi IDX 45 hari terakhir: ~4.260 pengajuan dari ~940 emiten | 0,7 MB |
 | `macro.json` | 29 instrumen di luar IDX (kurs, energi, logam, indeks global, bunga, kripto) pada grid sesi IDX | 0,08 MB |
+| `worldmap.json` | Transit kapal harian 28 selat kunci, kejadian disrupsi sejak 2024, dan garis pantai untuk globe | 0,07 MB |
 
 ## Sumber
 
@@ -93,6 +95,34 @@ kemarin, karena harga hari ini belum ada saat Jakarta pulang. Pasar Asia yang
 tutup sebelum atau bersamaan (Tokyo, Seoul, Shanghai, Hong Kong, Singapura,
 Kuala Lumpur) dibandingkan hari yang sama. Field `after` menyimpan keputusan itu
 per instrumen.
+
+**IMF PortWatch (ArcGIS FeatureServer)** — lalu lintas kapal dan gangguan
+perdagangan. Gratis, tanpa kunci.
+
+- `Daily_Chokepoints_Data` — jumlah kapal per hari per selat, dipecah per jenis
+  kapal termasuk `n_tanker`
+- `PortWatch_chokepoints_database` — nama dan koordinat 28 selat
+- `portwatch_disruptions_database` — kejadian gangguan berikut level alert dan
+  jumlah pelabuhan terdampak
+
+**ArcGIS memotong tiap respons di `maxRecordCount` TANPA error.** Meminta 32.000
+baris menjawab tepat 1.000 dan menyetel `exceededTransferLimit`; permintaan
+pertama file ini melakukan itu dan menghitung tren "7 hari vs 30 hari" dari
+jendela yang diam-diam sepertiga panjangnya. Sekarang dipaginasi lewat
+`resultOffset`, dan skrip menolak menulis kalau jumlah barisnya jauh di bawah
+`28 selat x jumlah hari`. Angka baris yang bulat pantas dicurigai.
+
+**Ini bukan feed konflik dan bukan posisi kapal.** PortWatch melacak gangguan
+terhadap PERDAGANGAN — gempa, siklon, banjir, kebakaran, dan pelabuhan yang
+tutup. Tidak ada data perang atau sanksi di aplikasi ini; sumber gratis yang
+biasa dipakai untuk itu (GDELT) tidak bisa dijangkau dari host ingest, setiap
+permintaan menjawab HTTP 000. Yang tersedia juga jumlah transit per selat, bukan
+koordinat tiap kapal — data AIS per unit berbayar dan tidak punya endpoint
+publik.
+
+**Garis pantai** dari Natural Earth `land-110m` (domain publik) lewat
+world-atlas. TopoJSON-nya di-decode di skrip ingest, bukan di browser, supaya
+aplikasi tetap punya persis satu dependensi runtime pihak ketiga.
 
 **KSEI Balance Posisi Efek** — satu-satunya feed kepemilikan per saham yang
 publik di pasar Indonesia, dan dasar dari Mutual Fund Tracker:

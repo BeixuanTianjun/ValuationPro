@@ -21,6 +21,12 @@ harian, alat analitik ala Bloomberg, dan model DCF/LBO institusional.
   per kategori atau per emiten. Pengajuan rutin disembunyikan secara bawaan dan
   jumlahnya selalu disebut. Tiap baris menautkan PDF asli di idx.co.id: bobot
   kategori mengatakan "ini layak dibaca", tidak pernah "ini kabar baik".
+- **Peta Selat Dunia (MAP)** — globe yang bisa diputar, menunjukkan berapa kapal
+  tanker melintas 28 selat kunci dunia tiap hari plus kejadian yang menutup
+  pelabuhan. Lima selat di antaranya perairan Indonesia, dan 19% lalu lintas
+  tanker dunia lewat sini. Digambar SVG murni tanpa pustaka 3D, jadi tidak
+  menambah dependensi runtime. Alert-nya bencana alam dan penutupan pelabuhan,
+  BUKAN konflik bersenjata, dan layarnya menyatakan itu.
 - **Dunia Luar (MACRO)** — 29 instrumen di luar IDX dalam 6 kelas aset: kurs,
   energi, logam, indeks global, suku bunga, dan kripto. Bukan dashboard kedua:
   tiap instrumen diregresikan ke tiap sektor IDX supaya pertanyaan "harga batu
