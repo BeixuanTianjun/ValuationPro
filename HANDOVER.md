@@ -17,6 +17,8 @@ keras, watchlist bernarasi, alat analitik ala Bloomberg, model DCF/LBO, dan seja
 sesi terakhir dua lapisan di luar Indonesia — 29 instrumen makro dan peta selat
 dunia. Palet Bloomberg (hitam murni + amber), navigasi mnemonic: Ctrl+K membuka
 menu fungsi, ketik kode (`SCR`, `MACRO`, `MAP`) + Enter langsung pindah layar.
+Di layar sentuh Ctrl+K tidak ada, jadi tombol kelima di tab bar bawah membuka
+peluncur yang sama — itu satu-satunya jalan ke daftar lengkap fungsi dari HP.
 
 - **Lokal**: `C:\Users\MIchael ROG\Liviee`
 - **Repo**: https://github.com/BeixuanTianjun/ValuationPro (publik)
@@ -41,6 +43,15 @@ menu fungsi, ketik kode (`SCR`, `MACRO`, `MAP`) + Enter langsung pindah layar.
 962 emiten × 24 bulan register KSEI (2024-08 → 2026-07)
 29 instrumen makro × 282 sesi · 28 selat dunia × 120 hari + 41 kejadian disrupsi
 total ~11 MB di `public/data/idx/`
+
+**Sesi ke-283 itu overlay intraday, bukan sesi resmi.** Seri resmi IDX berhenti
+di **2026-08-24** dan belum bertambah sejak — empat sesi tertinggal saat catatan
+ini ditulis — karena ingest resmi tidak bisa lagi jalan dari CI (lihat entri IDX
+memblokir runner di bawah). Harga di layar tetap hari ini karena dikutip langsung
+dari Yahoo, tapi arus asing, atribusi indeks, dan tiap faktor yang dihitung dari
+sesi resmi masih menjawab dari 2026-08-24. Status bar menyatakannya sendiri:
+"Seri resmi tertinggal N sesi". Pekerjaan pertama sesi berikutnya kemungkinan
+besar menjalankan `npm run data:refresh` dari mesin lokal.
 
 ## Arsitektur tiga tempat
 
@@ -228,6 +239,25 @@ digest terkirim. Sampai IDX melonggar, seri resmi hanya bisa ditarik dari mesin
 lokal (`npm run data:refresh`) — dan status bar aplikasi akan berkata "Seri resmi
 tertinggal N sesi" selama itu belum dilakukan.
 
+Ada tembok KETIGA yang bentuknya mirip dan penyebabnya lain sama sekali: dari
+sesi Claude Code yang jalan di cloud, `www.idx.co.id` ditolak di gerbang egress
+sesi itu sendiri — `403 to CONNECT (policy denial)`, nol byte dalam 0,3 detik,
+tidak pernah menyentuh IDX. Jangan salah baca itu sebagai IDX yang memblokir:
+tantangan Cloudflare memakan 40 detik dan mengembalikan HTML, penolakan
+kebijakan langsung dan mengembalikan nol. Yang pertama bisa disiasati, yang
+kedua tidak boleh diakali dan harus dilaporkan apa adanya. Ringkasnya, dari tiga
+tempat hanya satu yang bisa menarik data resmi IDX sekarang: **koneksi rumah**.
+
+**`workflow_dispatch` dulu berarti "segarkan kuotasi Yahoo saja".** Langkah
+perencana memetakan pekerjaan dari `github.event.schedule`; pada run manual
+variabel itu kosong, tidak ada `case` yang cocok, dan `EOD` tetap `false`. Jadi
+menekan Run workflow menyegarkan harga Yahoo lalu berhenti — seri resmi dan arsip
+pengumuman setenang sebelumnya — sementara run-nya hijau dan tetap meng-commit
+satu berkas, sehingga terlihat persis seperti refresh yang berhasil. Sekarang ada
+input `official_catchup` yang menyala secara default; `full_refresh` tetap
+menjaga crawl mingguan yang lambat. Pola yang sama muncul dua kali dalam satu
+sesi: langkah yang berhasil mengerjakan lebih sedikit daripada yang diminta.
+
 **`indexFrom` pada GetAnnouncement adalah nomor HALAMAN BERBASIS NOL.**
 Mengirim offset baris (1001, 2001, …) menjawab `ResultCount: 0` dan `Replies: []`
 tanpa error apa pun. Yang jauh lebih mahal: memulai dari `indexFrom=1` bukan
@@ -389,8 +419,14 @@ src/components/market/AnnouncementFeed.tsx   layar CN — arsip keterbukaan
                   informasi, kategori + filter + tautan PDF asli
 src/theme/chart.ts   warna Recharts (satu-satunya hex di luar tailwind.config)
 src/components/common/ui.tsx   primitif bersama: Panel, Segmented, Stat,
-                  TableScroll, EmptyState — semua aturan responsif ada di sini
-src/components/layout/   Header, LiveStatusBar, MenuPanel (Ctrl+K),
+                  TableScroll, EmptyState — semua aturan responsif ada di sini.
+                  Segmented memberi gradasi di sisi yang masih ada isinya dan
+                  menggeser tab aktif ke dalam pandangan lewat scrollLeft-nya
+                  sendiri (scrollIntoView ikut menarik seluruh halaman)
+src/components/layout/   Header + MobileTabBar (tombol kelima = Function
+                  Menu, satu-satunya jalan ke peluncur dari layar sentuh),
+                  LiveStatusBar (termasuk "Seri resmi tertinggal N sesi"),
+                  MenuPanel (Ctrl+K),
                   FunctionBar (command line), CurtainTransition (animasi
                   masuk terminal, pakai `motion`)
 src/components/market/TradingViewChart.tsx   widget chart, satu-satunya
@@ -493,6 +529,19 @@ npm run alert:preview   # hitung pick tanpa mengirim email
   MENU.
 - **Valuasi otomatis adalah penyaring, bukan valuasi.** Properti dan komoditas
   sering keluar dengan upside ekstrem karena laba bergelombang.
+- **Ingest resmi IDX sekarang HANYA bisa dari mesin lokal.** GitHub Actions
+  dijawab HTML/Cloudflare, sesi cloud ditolak di gerbang egress-nya sendiri.
+  Selama itu berlaku, pipeline ini punya satu langkah manual yang tidak bisa
+  dihilangkan, dan `refresh-data.yml` akan MERAH tiap kali slot EOD jalan — itu
+  disengaja, bukan workflow yang rusak. Empat sesi (25–28 Agu) masih menunggu
+  ditarik dari rumah.
+- **Kenapa cron Actions berhenti total belum terjawab.** Tujuh slot berturut-turut
+  tidak menghasilkan run apa pun antara 26 dan 28 Agu, `state` workflow tetap
+  `active`, tidak ada run gagal. Saya tidak punya bukti penyebabnya, jadi tidak
+  saya tebak — yang dikerjakan justru membuat akibatnya kelihatan di layar
+  ("Seri resmi tertinggal N sesi") daripada menambah slot cron asal-asalan.
+  Kalau sesi berikutnya melihat pola yang sama berlanjut, itu sinyal untuk
+  memindahkan penjadwalan keluar dari GitHub, bukan menambah cron lagi.
 
 ## Dokumen lain
 
@@ -519,10 +568,17 @@ dikerjakan duluan.
 
 ```bash
 npx tsc --noEmit         # harus bersih
-npm test                 # 34/34
+npm test                 # 34/34  (16 DCF + 18 atribusi/konglomerasi)
 npm run backtest -- 5    # ~108k pemeriksaan, nol temuan
 npm run backtest:live    # 50 pemeriksaan terhadap deployment, nol temuan
 ```
+
+Backtest juga menyapu NAVIGASI sekarang, 90 pemeriksaan di luar loop pass: tiap
+kode mnemonic unik, tiap kode membuka dirinya sendiri (penjaga tabrakan CN/CNG,
+yang satu keystroke dari mengirim `CN` ke layar konglomerasi selamanya), tiap
+layar bertab menyebut sub-tab-nya, dan tanda NEW terbukti padam sendiri setelah
+400 hari. Layar yang tidak bisa dijangkau sama dengan layar yang tidak pernah
+di-deploy, dan tidak ada pemeriksaan lain di sini yang bisa melihatnya.
 
 `backtest:live` yang paling sering menangkap masalah nyata, karena ia satu-satunya
 yang tahu apa yang benar-benar disajikan ke pengunjung: berkas data yang tidak
@@ -531,9 +587,24 @@ mendekati batas waktu, dan chatbot yang diam-diam jatuh ke parser browser.
 
 ## Kondisi saat serah terima ini ditulis
 
-Commit `e44926b` di `main`, working tree bersih, sinkron dengan remote. Live
-menyajikan bundel yang identik dengan build lokal. Semua verifikasi di atas hijau.
-Layanan lokal `npm run auto` jalan di `:8787` dengan Claude aktif.
+Bekerja di branch `claude/map3d-vercel-deploy-issue-4ovlcn`, digabung ke `main`
+dan sudah ter-push; Vercel produksi mengikuti `main`. Verifikasi lokal hijau
+semua: `tsc` bersih, 34/34 uji, backtest 65.204 pemeriksaan 3 pass nol temuan,
+build sukses, dan alur HP 390px diperiksa lewat Chromium sungguhan — nol overflow
+horizontal.
+
+`backtest:live` BELUM dijalankan dari sesi ini: kebijakan egress sesi cloud
+menolak `valuation-pro-lake.vercel.app` sama seperti ia menolak `idx.co.id`, jadi
+tidak ada satu pun pemeriksaan terhadap deployment yang bisa saya lakukan.
+Jalankan dari mesin lokal sebelum mengandalkan apa pun tentang situs live.
+
+Dua hal yang sengaja ditinggalkan merah, bukan lupa:
+- `refresh-data.yml` sekarang GAGAL tiap kali crawl IDX diblokir. Itu penjaganya
+  bekerja, dan sudah dibuktikan sekali (run #7, bukan diasumsikan): pesan
+  errornya menyebut kedua crawl yang mati sementara refresh harga tetap
+  ter-commit lebih dulu.
+- Seri resmi IDX tertinggal empat sesi sampai `npm run data:refresh` dijalankan
+  dari rumah.
 
 ---
 
