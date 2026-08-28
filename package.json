@@ -25,7 +25,8 @@
     "backtest": "esbuild scripts/backtest.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/backtest.mjs --log-level=warning && node .cache/backtest.mjs",
     "backtest:live": "esbuild scripts/backtest-live.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/backtest-live.mjs --log-level=warning && node .cache/backtest-live.mjs",
     "chat:dossier": "esbuild scripts/preview-dossier.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/dossier.mjs --log-level=warning && node .cache/dossier.mjs",
-    "alert:preview": "esbuild src/server/alertCli.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/alert.mjs --log-level=warning && node .cache/alert.mjs --dry-run"
+    "alert:preview": "esbuild src/server/alertCli.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/alert.mjs --log-level=warning && node .cache/alert.mjs --dry-run",
+    "agents:sync": "node scripts/sync-agents.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.121.0",

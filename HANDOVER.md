@@ -18,7 +18,11 @@ sesi terakhir dua lapisan di luar Indonesia — 29 instrumen makro dan peta sela
 dunia. Palet Bloomberg (hitam murni + amber), navigasi mnemonic: Ctrl+K membuka
 menu fungsi, ketik kode (`SCR`, `MACRO`, `MAP`) + Enter langsung pindah layar.
 
-- **Lokal**: `C:\Users\MIchael ROG\.gemini\antigravity\scratch\financial-modeling-lbo-dcf`
+- **Lokal**: `C:\Users\MIchael ROG\OneDrive - Bina Nusantara\Documents\liviee\ValuationPro`
+  (dipindah 2026-08-29 dari `~\.gemini\antigravity\scratch\financial-modeling-lbo-dcf`,
+  folder scratch milik tool lain yang bisa dihapus sewaktu-waktu — sekarang di
+  dalam folder ter-sync OneDrive, jadi `node_modules` dan 11 MB `public/data/idx/`
+  ikut ter-upload tiap tulis, dan `tsc` jalan jauh lebih lambat dari sebelumnya)
 - **Repo**: https://github.com/BeixuanTianjun/ValuationPro (publik)
 - **Live**: https://valuation-pro-lake.vercel.app
 - **Stack**: Vite 6 + React 18 + TS 5 + Tailwind 3 + Recharts, layanan Node lokal
@@ -35,7 +39,7 @@ menu fungsi, ketik kode (`SCR`, `MACRO`, `MAP`) + Enter langsung pindah layar.
 
 ## Kondisi data saat serah terima
 
-962 emiten · 283 sesi (2025-06-23 → 2026-08-28) · 45 indeks · 24 hari libur
+962 emiten · 285 sesi (2025-06-23 → 2026-08-28) · 45 indeks · 25 hari libur
 4.258 pengajuan keterbukaan informasi (45 hari) · 648 emiten berlaporan keuangan
 962 kuotasi (100 pelapor non-IDR) · 88 anggota bursa × 113 sesi
 962 emiten × 24 bulan register KSEI (2024-08 → 2026-07)
@@ -62,6 +66,39 @@ yang bergeser saat satu berkas tumbuh. Semua lolos typecheck dan tes. Yang
 menangkapnya bukan review, tapi `npm run backtest` yang menyapu 962 emiten dan
 membandingkan angka terhadap invariannya. **Kalau menambah mesin baru, tambahkan
 invariannya ke backtest di commit yang sama.**
+
+**Satu sesi bursa yang hilang dari kalender terbaca sebagai 701 aksi korporasi.**
+Ini gabungan dua kesalahan yang masing-masing tidak berbahaya. Pertama, `cached()`
+di `ingest-idx.mjs` menyimpan jawaban KOSONG ke disk selamanya. Feed EOD IDX
+tertinggal 1-2 hari kalender, jadi crawl yang menanyakan 2026-08-26 pada pukul
+12:00 WIB tanggal 26 dijawab nol baris — bukan karena libur, tapi karena IDX
+belum menerbitkannya. Jawaban itu tersimpan, tiap run berikutnya membaca cache
+alih-alih bertanya lagi, dan sesi bursa yang sungguhan pun dicatat sebagai
+**hari libur**. Kedua, faktor aksi korporasi diturunkan dari
+`Previous[i] / close[i-1]` tanpa memeriksa bahwa `i-1` benar-benar sesi
+sebelumnya. Begitu 08-26 hilang, `Previous` milik 08-27 menunjuk penutupan yang
+tidak pernah tersimpan, dan selisih dua hari gerak harga terbaca sebagai split
+untuk **701 dari 962 emiten** — yang lalu menyesuaikan mundur SELURUH 283 sesi
+riwayat tiap emiten dengan faktor yang tidak pernah ada.
+
+Tidak ada yang melempar, tidak ada NaN, tiap harga masih terlihat seperti harga:
+BBCA hanya berubah dari 6400 jadi 6350,0032 pada 08-24. Yang bergerak adalah
+atribusi indeks — meleset 95 poin di SETIAP jendela lebih panjang dari sehari,
+sementara jendela satu hari tetap rekonsiliasi sempurna sehingga layar MOST
+terlihat sehat. Backtest pun lolos nol temuan, karena residualnya "sudah
+dijelaskan" oleh catatan rekonsiliasi. Satu-satunya yang menangkap adalah
+`npm test` lewat toleransi 8% pada 1w/1m/3m. Gejala di meta: `corporateActions`
+melonjak 32 → 733.
+
+Sekarang: jawaban hari kosong tidak pernah disimpan (dan entri lama yang telanjur
+tersimpan diperlakukan sebagai cache miss, jadi cache yang sudah teracuni sembuh
+sendiri), dan ingest MENOLAK menulis kalau satu sesi memicu faktor untuk >5%
+pasar — pesannya menyebutkan hari kerja yang hilang di antaranya. `--allow-gap`
+ada untuk sesi yang memang tidak pernah diterbitkan IDX; ia menulis TANPA faktor
+pada sesi itu, bukan dengan faktor yang salah, dan mencatatnya di
+`meta.gapSessions`. Invariannya ada di backtest: tidak boleh ada satu tanggal pun
+yang memuat faktor aksi korporasi pada lebih dari 5% emiten yang berharga hari
+itu.
 
 **Angka baris yang bulat pantas dicurigai.** ArcGIS memotong tiap respons di
 `maxRecordCount` tanpa error: minta 32.000, dijawab tepat 1.000, dan
@@ -364,6 +401,8 @@ scripts/preview-dossier.ts    cetak dossier chatbot tanpa memanggil API
 src/models/macroLinkage.ts    korelasi/beta tiap instrumen luar ke tiap sektor
 src/components/analytics/MacroMonitor.tsx   layar MACRO
 src/components/analytics/WorldMap.tsx       layar MAP, globe SVG tanpa pustaka 3D
+.claude/agents/               enam subagent proyek ini; disalin ke folder
+                              induk lewat `npm run agents:sync`
 ```
 
 ## Perintah
@@ -385,6 +424,36 @@ npm run data:macro      # 29 aset di luar IDX, 6 kelas (~5 detik)
 npm run data:worldmap   # 28 selat + alert disrupsi + garis pantai (~15 detik)
 npm run alert:preview   # hitung pick tanpa mengirim email
 ```
+
+## Agen proyek ini
+
+Enam subagent di `.claude/agents/`. Masing-masing memuat jebakan yang relevan
+untuk tugasnya, jadi sesi baru tidak perlu menemukan ulang hal yang sudah mahal
+ditemukan di repo ini.
+
+| Agen | Dipakai untuk |
+|---|---|
+| **data-doctor** | menjalankan tangga verifikasi dan melokalisasi kegagalan sampai ke sesi/emiten/field. Dilarang "memperbaiki" dengan melonggarkan toleransi |
+| **ingest-operator** | menarik & memperbaiki data. Tahu tiga tembok IDX dan mana yang boleh disiasati (Cloudflare) dan mana yang tidak (penolakan egress) |
+| **emiten-analyst** | merangkai enam feed jadi satu benang cerita untuk satu emiten, lewat 9 langkah yang ditarik dari cara @beyondthefundamental membaca MITI. Memuat tabel jujur langkah mana yang BELUM didukung data kita |
+| **filing-researcher** | mengambil dokumen primernya: PDF keterbukaan informasi IDX, situs IR emiten, prospektus. Tiap fakta pulang membawa URL, tanggal, dan kutipan — tanpa itu tidak dilaporkan |
+| **screen-builder** | menambah/mengubah layar: registri `functions.ts`, tema lewat ramp, dan keterjangkauan dari layar sentuh |
+| **deploy-verifier** | memeriksa apa yang BENAR-BENAR disajikan ke pengunjung, dan memisahkan "deployment salah" dari "deployment benar tapi datanya basi" |
+
+Dua agen terakhir sengaja dipisah. `filing-researcher` MENGAMBIL dan mengutip;
+`emiten-analyst` MERANGKAI. Langkah paling bernilai dalam metode itu — menemukan
+kaitan antar entitas yang tidak kelihatan — juga yang paling gampang dikarang
+model, dan kaitan seperti itu menempel pada orang sungguhan. Memisahkan "apa kata
+dokumen" dari "apa artinya" membuat batas itu terlihat, bukan tersembunyi di
+tengah paragraf.
+
+Agen disimpan di repo supaya ikut ter-commit bersama kode yang dijelaskannya.
+Tapi Claude Code mencari agen di folder tempat sesi dibuka, dan sesi biasanya
+dibuka di folder INDUK (`liviee`) yang memuat dua proyek lain juga — tanpa
+salinan di sana, agennya ada tapi tidak pernah ditawarkan. Itu bentuk kegagalan
+yang sama persis dengan layar yang ter-deploy tapi tidak bisa dijangkau.
+`npm run agents:sync` menyalinnya; jalankan tiap kali isi `.claude/agents/`
+berubah. Membuka Claude Code langsung di folder repo ini tidak butuh salinan.
 
 ## Yang masih terbuka
 
