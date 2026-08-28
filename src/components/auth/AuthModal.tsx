@@ -111,7 +111,7 @@ export const AuthModal: React.FC<Props> = ({ open, isFirstRun, dismissible, onCl
           </h2>
           <p className="mt-1.5 text-[12px] text-slate-400 leading-relaxed">
             {isFirstRun
-              ? 'Akun pertama menjadi administrator, dan alamat emailnya yang dipakai untuk mengirim alert stock pick harian.'
+              ? 'Akun pertama otomatis jadi administrator, dan email-nya yang dipakai buat ngirim ringkasan screener harian.'
               : mode === 'signup'
                 ? 'Akun tambahan bisa memakai terminal, tetapi hanya administrator yang menerima alert dan memicu refresh.'
                 : 'Masuk untuk memakai penyaring, chatbot, dan refresh data.'}
@@ -142,7 +142,7 @@ export const AuthModal: React.FC<Props> = ({ open, isFirstRun, dismissible, onCl
             type="email"
             placeholder="nama@contoh.com"
             autoComplete="email"
-            hint={isFirstRun ? 'Alert stock pick harian akan dikirim ke alamat ini.' : undefined}
+            hint={isFirstRun ? 'Ringkasan screener harian dikirim ke sini.' : undefined}
           />
 
           <div>

@@ -84,50 +84,50 @@ const FEATURES = [
   },
   {
     icon: Target,
-    title: 'Stock pick harian',
-    body: 'Enam profil strategi memeringkat semesta lewat momentum, tren, arus dana asing, dan likuiditas — lengkap dengan entry, stop, dan ukuran posisi.',
+    title: 'Screener tiga aturan',
+    body: 'Di atas MA3 dan MA5, volume di atas 1 juta lembar, nilai di atas Rp 1 miliar. Lolos atau nggak, per aturan. Ada kotak "kenapa saham gue nggak lolos" yang nunjukin gagalnya di mana.',
     accent: 'text-emerald-400',
     ring: 'group-hover:border-emerald-500/40',
   },
   {
     icon: Zap,
     title: 'Refresh otomatis',
-    body: 'Harga diperbarui tiap 15 menit selama sesi, lalu disaring ulang begitu Sesi I ditutup dan setelah pasar tutup.',
+    body: 'Harga ke-update tiap 15 menit selama bursa buka, terus disaring ulang pas Sesi I tutup dan pas pasar tutup.',
     accent: 'text-amber-400',
     ring: 'group-hover:border-amber-500/40',
   },
   {
     icon: Bell,
     title: 'Alert ke email',
-    body: 'Ringkasan pick dikirim otomatis pukul 12:05 dan 16:20 WIB, lengkap dengan rencana perdagangan dan peringatan risikonya.',
+    body: 'Ringkasan hasil screener dan watchlist masuk email jam 12:05 dan 16:20 WIB, lengkap sama alasan tiap nama masuk.',
     accent: 'text-rose-400',
     ring: 'group-hover:border-rose-500/40',
   },
   {
     icon: MessageSquare,
-    title: 'Chatbot pencari emiten',
-    body: '"Saham batu bara P/E di bawah 10 yang likuid" — dijawab dengan menyaring database sungguhan, bukan dari ingatan model.',
+    title: 'Tanya emiten',
+    body: 'Ketik "kupas PTBA" atau "saham batu bara P/E di bawah 10 yang likuid". Jawabannya nyaring database beneran, bukan ngarang dari ingatan.',
     accent: 'text-indigo-400',
     ring: 'group-hover:border-indigo-500/40',
   },
   {
     icon: Scale,
     title: 'Leaders & Laggards',
-    body: 'Berapa poin indeks yang benar-benar disumbang tiap emiten, dihitung dari bobot free-float resmi IDX — rekonsiliasi dengan IHSG sampai 0,01 poin.',
+    body: 'IHSG turun 24 poin, yang bikin siapa? Dihitung dari bobot free float resmi IDX, dan hasilnya cocok sama IHSG sampai 0,001 poin.',
     accent: 'text-sky-400',
     ring: 'group-hover:border-sky-500/40',
   },
   {
     icon: Network,
     title: 'Rotasi konglomerasi',
-    body: 'Mengukur apakah anggota satu grup memang bergerak bersama, lalu menunjukkan siapa yang paling tertinggal — dengan bukti korelasinya, bukan asumsi.',
+    body: '31 grup pengendali. Diukur dulu anggotanya beneran gerak bareng atau nggak, baru ditunjuk siapa yang ketinggalan. Kohesi rendah artinya "rotasi" itu cuma cerita.',
     accent: 'text-violet-400',
     ring: 'group-hover:border-violet-500/40',
   },
   {
     icon: Calculator,
     title: 'Model DCF & LBO',
-    body: 'Kalibrasi otomatis dari laporan keuangan riil, beta diregresikan ke IHSG, dan setiap asumsi yang rapuh ditandai terbuka.',
+    body: 'Ditarik langsung dari laporan keuangan asli, beta diregresi ke IHSG, dan tiap asumsi yang rapuh dikasih tanda. Bank dan asuransi ditolak, soalnya DCF unlevered emang nggak cocok buat mereka.',
     accent: 'text-cyan-400',
     ring: 'group-hover:border-cyan-500/40',
   },
@@ -277,10 +277,10 @@ export const LandingPage: React.FC<Props> = ({
                 className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.06] text-balance animate-rise"
                 style={{ animationDelay: '200ms' }}
               >
-                Seluruh bursa Indonesia,
+                Semua saham Indonesia,
                 <br />
                 <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent">
-                  dalam satu terminal.
+                  di satu layar.
                 </span>
               </h1>
 
@@ -288,8 +288,8 @@ export const LandingPage: React.FC<Props> = ({
                 className="mt-6 text-base sm:text-lg text-slate-400 leading-relaxed max-w-2xl animate-rise"
                 style={{ animationDelay: '280ms' }}
               >
-                962 emiten, 45 indeks, dan arus dana asing harian — disaring tiap hari menjadi ide yang bisa
-                dieksekusi, lalu dimodelkan dengan DCF dan LBO tingkat institusional.
+                962 emiten, 45 indeks, arus dana asing, pengajuan ke bursa, register KSEI, plus 29 harga dari luar
+                negeri. Semua angkanya bisa dilacak ke sumbernya. Kalau datanya nggak ada, ditulis nggak ada.
               </p>
 
               <div className="mt-9 flex flex-wrap gap-3 animate-rise" style={{ animationDelay: '360ms' }}>
@@ -445,8 +445,9 @@ export const LandingPage: React.FC<Props> = ({
                     API resmi IDX
                   </div>
                   <p className="mt-1.5 text-slate-400 leading-relaxed">
-                    Universe emiten, profil perusahaan, OHLC harian, 45 indeks, dan volume beli/jual asing —
-                    langsung dari <code className="text-blue-400">idx.co.id</code>, tanpa perantara.
+                    Daftar emiten, profil perusahaan, OHLC harian, 45 indeks, arus asing, sama pengajuan
+                    keterbukaan informasi. Semua langsung dari <code className="text-blue-400">idx.co.id</code>,
+                    nggak lewat agregator.
                   </p>
                 </div>
                 <div>
@@ -455,16 +456,18 @@ export const LandingPage: React.FC<Props> = ({
                     Laporan keuangan &amp; harga live
                   </div>
                   <p className="mt-1.5 text-slate-400 leading-relaxed">
-                    Laporan tahunan 648 emiten dan rasio valuasi dari Yahoo Finance, karena IDX hanya menerbitkan
-                    XBRL mentah. Harga intraday juga dari sana — feed IDX bersifat end-of-day.
+                    Laporan tahunan 648 emiten dan rasio valuasi dari Yahoo, soalnya IDX cuma nerbitin XBRL mentah.
+                    Harga intraday juga dari sana, karena feed IDX itu end-of-day. Register kepemilikan dari KSEI,
+                    dan 29 harga dunia luar (kurs, komoditas, indeks global, bunga, kripto) buat ngukur mana yang
+                    beneran nyeret pasar kita.
                   </p>
                 </div>
               </div>
 
               <div className="mt-6 pt-5 border-t border-slate-800 text-[12px] text-slate-500 leading-relaxed">
-                Skor penyaring dihitung lintas-emiten dari harga, volume, nilai transaksi, dan arus dana asing —
-                bukan prediksi return.{' '}
-                <strong className="text-slate-400">Ini alat riset, bukan rekomendasi investasi.</strong>
+                Screener-nya baca harga, volume, nilai transaksi, dan arus asing. Itu bukan ramalan return, dan
+                nggak ada satu pun angka di sini yang bilang bakal naik.{' '}
+                <strong className="text-slate-400">Ini alat riset, bukan ajakan beli.</strong>
               </div>
             </div>
           </div>

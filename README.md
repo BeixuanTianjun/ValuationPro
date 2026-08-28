@@ -21,6 +21,12 @@ harian, alat analitik ala Bloomberg, dan model DCF/LBO institusional.
   per kategori atau per emiten. Pengajuan rutin disembunyikan secara bawaan dan
   jumlahnya selalu disebut. Tiap baris menautkan PDF asli di idx.co.id: bobot
   kategori mengatakan "ini layak dibaca", tidak pernah "ini kabar baik".
+- **Dunia Luar (MACRO)** — 29 instrumen di luar IDX dalam 6 kelas aset: kurs,
+  energi, logam, indeks global, suku bunga, dan kripto. Bukan dashboard kedua:
+  tiap instrumen diregresikan ke tiap sektor IDX supaya pertanyaan "harga batu
+  bara naik, emiten batu bara ikut nggak" dijawab korelasi berikut ukuran
+  sampelnya, termasuk ketika jawabannya tidak. Hasil terukurnya lemah dan itu
+  disebut terang-terangan di layar.
 - **Leaders & Laggards** — kontribusi poin indeks per emiten, dihitung dari
   bobot free-float resmi IDX. Rekonsiliasi dengan IHSG sampai 0,001 poin.
 - **Rotasi konglomerasi** — 31 grup pengendali, termasuk klaster BUMN, dengan

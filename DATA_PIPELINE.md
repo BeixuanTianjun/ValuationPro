@@ -16,6 +16,7 @@ npm run data:fundamentals  # laporan keuangan tahunan              -> ~3 menit
 npm run data:brokers       # aktivitas harian anggota bursa        -> ~2 menit
 npm run data:ownership     # register kepemilikan KSEI bulanan     -> ~40 detik
 npm run data:announcements # keterbukaan informasi IDX 45 hari     -> ~10 detik
+npm run data:macro         # 29 aset di luar IDX, 6 kelas           -> ~5 detik
 npm run chat:dossier -- PACK  # cetak dossier yang diterima chatbot (tanpa API)
 npm test                   # uji numerik guard rail mesin DCF
 npm run backtest -- 3      # sapu seluruh semesta lewat tiap mesin, 3 pass
@@ -40,6 +41,7 @@ tidak ada masalah CORS saat aplikasi berjalan.
 | `brokers.json` | Aktivitas harian 88 anggota bursa, 113 sesi | 0,2 MB |
 | `ownership.json` | Register kepemilikan KSEI: 962 emiten × 24 bulan × 9 jenis investor × lokal/asing | 1,6 MB |
 | `announcements.json` | Keterbukaan informasi IDX 45 hari terakhir: ~4.260 pengajuan dari ~940 emiten | 0,7 MB |
+| `macro.json` | 29 instrumen di luar IDX (kurs, energi, logam, indeks global, bunga, kripto) pada grid sesi IDX | 0,08 MB |
 
 ## Sumber
 
@@ -68,6 +70,29 @@ feed hariannya end-of-day):
 - `v7/finance/quote` — P/E, P/BV, `financialCurrency`, dan harga live seluruh emiten
 - `^JKSE` / `^JKLQ45` — IHSG dan LQ45 live
 - `IDR=X` — kurs USD/IDR harian, dirata-ratakan per tahun kalender
+
+**Yahoo Finance chart API (v8)** — lapisan makro. Endpoint `chart` tidak butuh
+crumb, tidak seperti `v7/finance/quote` yang dipakai ingest kuotasi dan
+intraday, jadi transportnya curl polos tanpa cookie jar.
+
+- `v8/finance/chart/<simbol>?range=2y&interval=1d` — penutupan harian tiap
+  instrumen, lalu diselaraskan ke tanggal sesi IDX.
+
+**Dua komoditas terpenting untuk bursa ini TIDAK tersedia.** Kontrak CPO
+(`FCPO=F`) dan nikel (`NI=F`) sama-sama dijawab "symbol may be delisted", padahal
+Indonesia produsen terbesar dunia untuk keduanya. Acuan batu bara yang ada hanya
+API2 Eropa, bukan Newcastle yang dipakai kontrak ekspor Indonesia. Tidak ada satu
+pun yang diganti dengan proksi: korelasi dari barang pengganti akan terbaca
+sebagai bukti padahal bukan. Ketiganya terdaftar di field `absent` dan dicetak
+di layar.
+
+**Penyelarasan waktu adalah keputusan yang menanggung beban.** Jakarta tutup
+09:00 UTC. Instrumen yang pasarnya tutup SETELAH itu — Amerika, futures, kripto,
+FX yang distempel pada penutupan New York — dibandingkan dengan penutupan
+kemarin, karena harga hari ini belum ada saat Jakarta pulang. Pasar Asia yang
+tutup sebelum atau bersamaan (Tokyo, Seoul, Shanghai, Hong Kong, Singapura,
+Kuala Lumpur) dibandingkan hari yang sama. Field `after` menyimpan keputusan itu
+per instrumen.
 
 **KSEI Balance Posisi Efek** — satu-satunya feed kepemilikan per saham yang
 publik di pasar Indonesia, dan dasar dari Mutual Fund Tracker:

@@ -40,6 +40,7 @@ import {
 import { answerQuestion, ChatContext, ChatTurn } from '../src/server/chatApi';
 import { AnnouncementsFile } from '../src/models/announcements';
 import { OwnershipFile } from '../src/models/ownershipFlow';
+import { MacroFile } from '../src/models/macroLinkage';
 
 interface Loaded {
   db: MarketDatabase;
@@ -94,7 +95,7 @@ async function load(req: ChatRequestLike): Promise<Loaded> {
   if (loaded && Date.now() - loaded.at < TTL_MS) return loaded;
 
   const base = originOf(req);
-  const [meta, universe, daily, history, indices, intraday, fundamentals, quotes, announcements, ownership] =
+  const [meta, universe, daily, history, indices, intraday, fundamentals, quotes, announcements, ownership, macro] =
     await Promise.all([
       getJson<MarketMeta>(base, 'meta.json'),
       getJson<UniverseFile>(base, 'universe.json'),
@@ -106,12 +107,13 @@ async function load(req: ChatRequestLike): Promise<Loaded> {
       tryJson<QuotesFile>(base, 'quotes.json'),
       tryJson<AnnouncementsFile>(base, 'announcements.json'),
       tryJson<OwnershipFile>(base, 'ownership.json'),
+      tryJson<MacroFile>(base, 'macro.json'),
     ]);
 
   loaded = {
     db: assembleMarketDatabase({ meta, universe, daily, history, indices, intraday }),
     fundamentals: { fundamentals, quotes },
-    chatContext: { announcements, ownership },
+    chatContext: { announcements, ownership, macro },
     at: Date.now(),
   };
   return loaded;

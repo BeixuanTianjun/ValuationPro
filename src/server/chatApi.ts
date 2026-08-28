@@ -50,6 +50,7 @@ import { AnnouncementsFile, buildNarrativeSignals } from '../models/announcement
 import { OwnershipFile, computeOwnershipProfile } from '../models/ownershipFlow';
 import { computeGroupRotation } from '../models/conglomerateRotation';
 import { THEMES_BY_CODE } from '../data/narratives';
+import { MacroFile, RECENT_WINDOW, buildMacroLinkage, linkagesForEmiten } from '../models/macroLinkage';
 
 /**
  * The two feeds the dossier needs that do not live in MarketDatabase.
@@ -63,6 +64,7 @@ import { THEMES_BY_CODE } from '../data/narratives';
 export interface ChatContext {
   announcements?: AnnouncementsFile | null;
   ownership?: OwnershipFile | null;
+  macro?: MacroFile | null;
 }
 
 export interface ChatTurn {
@@ -209,7 +211,7 @@ Kalau titiknya memang NGGAK nyambung, bilang begitu. "Nggak ada yang nyambung si
 const DOSSIER_TOOL = {
   name: 'kupas_emiten',
   description:
-    'Pull one IDX ticker apart into a single connected dossier: price, moving averages and the three hard screener rules; liquidity, foreign flow, momentum and RSI; annual financial statements and valuation ratios; detected corporate actions; every disclosure the emiten filed with the exchange in the last window, classified; curated policy themes it belongs to; its controlling group WITH the measured rotation and cohesion of that group; the KSEI ownership register with institutional/retail/foreign/mutual-fund movement; and its sub-industry peers with market caps for "what would it take to be worth what they are worth" questions. Call this whenever the user names a single ticker — it is the only way to answer why a stock is moving rather than merely that it moved.',
+    'Pull one IDX ticker apart into a single connected dossier: price, moving averages and the three hard screener rules; liquidity, foreign flow, momentum and RSI; annual financial statements and valuation ratios; detected corporate actions; every disclosure the emiten filed with the exchange in the last window, classified; curated policy themes it belongs to; its controlling group WITH the measured rotation and cohesion of that group; the KSEI ownership register with institutional/retail/foreign/mutual-fund movement; its sub-industry peers with market caps for "what would it take to be worth what they are worth" questions; and the measured correlation of this emiten against 29 instruments outside Indonesia (rupiah, coal, oil, metals, regional and US indices, US rates, crypto). Call this whenever the user names a single ticker — it is the only way to answer why a stock is moving rather than merely that it moved.',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -534,6 +536,45 @@ export function buildDossier(
   // would this have to become to be worth what its neighbour is worth. Handing
   // the model the neighbours with their caps makes that arithmetic checkable
   // instead of imagined.
+  // -------------------------------------------------------------- macro
+  //
+  // The only section that reaches outside Indonesia. It exists because half the
+  // questions asked about a coal miner are really questions about coal, and
+  // until now the dossier could not tell the model whether that link is real in
+  // the data or only in the story.
+  lines.push('PENGGERAK DARI LUAR (kurs, komoditas, indeks global, bunga)');
+  if (!ctx.macro) {
+    lines.push(
+      'Berkas makro belum dibangun di lingkungan ini (npm run data:macro). Jangan menebak hubungan emiten ini dengan harga komoditas atau kurs — belum ada yang diukur.'
+    );
+  } else {
+    const macroResult = buildMacroLinkage(ctx.macro, db);
+    const nameById = new Map(macroResult.instruments.map((i) => [i.id, i]));
+    const mine = linkagesForEmiten(macroResult, db, key, 6);
+    if (!mine.length) {
+      lines.push('Riwayat harga emiten ini belum cukup panjang untuk diukur terhadap instrumen luar mana pun.');
+    } else {
+      lines.push(
+        `Korelasi return harian atas ${ctx.macro.sessions} sesi (${ctx.macro.from} → ${ctx.macro.to}). Instrumen yang pasarnya tutup setelah Jakarta dibandingkan dengan penutupan SEHARI SEBELUMNYA, karena harga New York hari ini belum ada saat Jakarta tutup.`
+      );
+      for (const l of mine) {
+        const inst = nameById.get(l.instrumentId);
+        if (!inst) continue;
+        const recent = Number.isFinite(l.correlationRecent) ? l.correlationRecent.toFixed(2) : 'n/a';
+        lines.push(
+          `  ${inst.name} (${inst.klass}): r ${l.correlation.toFixed(2)}, ${RECENT_WINDOW} sesi terakhir ${recent}, R² ${(l.r2 * 100).toFixed(0)}%, beta ${l.beta.toFixed(2)}, n ${l.n}${l.expected ? ' — memang diharapkan nyambung' : ''}`
+        );
+      }
+      lines.push(
+        'BACA ANGKA INI DENGAN JUJUR. Di seluruh bursa ini tidak ada instrumen luar yang menerangkan lebih dari sekitar 13% gerakan harian satu sektor, jadi r di bawah 0,25 artinya TIDAK ADA hubungan yang terbaca — bukan hubungan lemah. Korelasi juga bukan sebab-akibat. Kalau angka jendela terakhir jauh lebih besar dari r keseluruhan, hubungan itu sedang menguat dan itu yang layak disebut.'
+      );
+      lines.push(
+        `Yang TIDAK ada datanya sama sekali: ${ctx.macro.absent.map((a) => a.name).join(', ')}. Kalau pertanyaannya menyangkut itu, katakan datanya tidak ada — jangan pakai instrumen lain sebagai pengganti.`
+      );
+    }
+  }
+  lines.push('');
+
   lines.push('PEMBANDING SEKTOR (untuk pertanyaan "kalau mau setara siapa")');
   const myCap = quote?.marketCap ?? 0;
   const peers = db.emiten

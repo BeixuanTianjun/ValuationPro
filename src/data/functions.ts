@@ -121,6 +121,15 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
     tone: 'text-cyan-300',
   },
   {
+    code: 'MACRO',
+    name: 'Dunia Luar',
+    hint: 'Kurs, komoditas, indeks global, bunga, kripto — dan seberapa nempel ke tiap sektor IDX.',
+    group: 'Analitik',
+    area: 'analytics',
+    sub: 'macro',
+    tone: 'text-cyan-300',
+  },
+  {
     code: 'BRK',
     name: 'Broker Summary',
     hint: 'Aktivitas 88 anggota bursa dan struktur transaksi per emiten.',

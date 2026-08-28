@@ -1,14 +1,15 @@
 import React from 'react';
-import { Calculator, Landmark, Network, Scale, ServerCrash, Users } from 'lucide-react';
+import { Calculator, Globe, Landmark, Network, Scale, ServerCrash, Users } from 'lucide-react';
 import { MarketDataState } from '../../hooks/useMarketData';
 import { LeadersLaggards } from './LeadersLaggards';
 import { ConglomerateRotation } from './ConglomerateRotation';
 import { BrokerFlow } from './BrokerFlow';
 import { AutoValuation } from './AutoValuation';
 import { MutualFundTracker } from './MutualFundTracker';
+import { MacroMonitor } from './MacroMonitor';
 import { EmptyState, Segmented, SegmentedOption, Spinner } from '../common/ui';
 
-export type AnalyticsSubTab = 'leaders' | 'conglo' | 'funds' | 'broker' | 'valuation';
+export type AnalyticsSubTab = 'leaders' | 'conglo' | 'funds' | 'broker' | 'valuation' | 'macro';
 
 interface Props {
   market: MarketDataState;
@@ -26,6 +27,7 @@ const TABS: SegmentedOption<AnalyticsSubTab>[] = [
   { id: 'funds', label: 'Mutual Fund Tracker', shortLabel: 'Fund', icon: Landmark },
   { id: 'valuation', label: 'Valuasi Otomatis', shortLabel: 'Valuasi', icon: Calculator },
   { id: 'broker', label: 'Broker Summary', shortLabel: 'Broker', icon: Users },
+  { id: 'macro', label: 'Dunia Luar', shortLabel: 'Makro', icon: Globe },
 ];
 
 /**
@@ -94,6 +96,7 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
         <MutualFundTracker db={db} onSelectEmiten={onSelectEmiten} focusEmiten={focusEmiten} />
       )}
       {subTab === 'broker' && <BrokerFlow db={db} onSelectEmiten={onSelectEmiten} />}
+      {subTab === 'macro' && <MacroMonitor db={db} />}
       {subTab === 'valuation' && (
         <AutoValuation
           db={db}

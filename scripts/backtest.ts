@@ -39,6 +39,12 @@ import { computeOwnershipProfile } from '../src/models/ownershipFlow';
 import { resolveStatements } from '../src/data/fundamentalsRepository';
 import { buildDossier } from '../src/server/chatApi';
 import {
+  MIN_SAMPLE,
+  buildMacroLinkage,
+  findSurprises,
+  linkagesForEmiten,
+} from '../src/models/macroLinkage';
+import {
   loadChatContextFromDisk,
   loadFundamentalsFromDisk,
   loadMarketDatabaseFromDisk,
@@ -79,7 +85,9 @@ async function main() {
   console.log(
     `feed: fundamentals=${fundamentals.fundamentals ? 'ada' : 'TIDAK ADA'} quotes=${
       fundamentals.quotes ? 'ada' : 'TIDAK ADA'
-    } announcements=${ctx.announcements ? 'ada' : 'TIDAK ADA'} ownership=${ctx.ownership ? 'ada' : 'TIDAK ADA'}\n`
+    } announcements=${ctx.announcements ? 'ada' : 'TIDAK ADA'} ownership=${
+      ctx.ownership ? 'ada' : 'TIDAK ADA'
+    } macro=${ctx.macro ? 'ada' : 'TIDAK ADA'}\n`
   );
 
   const signatures: string[] = [];
@@ -245,6 +253,74 @@ async function main() {
     }
     checks++;
     if (usdReporters === 0) fail('mata uang', 'tidak ada pelapor non-IDR terdeteksi — quotes.json mencurigakan');
+
+    // ---- macro layer -------------------------------------------------------
+    if (ctx.macro) {
+      const macro = buildMacroLinkage(ctx.macro, db);
+      checks++;
+      if (!macro.instruments.length) fail('makro', 'tidak ada instrumen yang terbaca dari macro.json');
+      for (const inst of macro.instruments) {
+        assertFinite('makro', inst.id, {
+          last: inst.last,
+          change1d: inst.change1d,
+          change1m: inst.change1m,
+          change3m: inst.change3m,
+          coverage: inst.coverage,
+        });
+        checks++;
+        if (inst.coverage <= 0 || inst.coverage > 1) fail('makro', `${inst.id} cakupan di luar 0-1: ${inst.coverage}`);
+        checks++;
+        // The whole point of the lag flag is that it is set deliberately; an
+        // instrument that lost it would be silently misaligned by one session.
+        if (typeof inst.after !== 'boolean') fail('makro', `${inst.id} tidak punya flag after`);
+      }
+      for (const [target, links] of macro.bySector) {
+        for (const l of links) {
+          assertFinite(`makro ${target}`, l.instrumentId, {
+            correlation: l.correlation,
+            beta: l.beta,
+            r2: l.r2,
+          });
+          checks++;
+          if (l.correlation < -1.001 || l.correlation > 1.001) {
+            fail('makro', `${target} x ${l.instrumentId} korelasi di luar -1..1: ${l.correlation}`);
+          }
+          checks++;
+          // R² is the square of r by construction; a drift between them means
+          // the two were computed over different samples.
+          if (Math.abs(l.r2 - l.correlation * l.correlation) > 1e-9) {
+            fail('makro', `${target} x ${l.instrumentId} R2 tidak sama dengan r kuadrat`);
+          }
+          checks++;
+          if (l.n < MIN_SAMPLE) fail('makro', `${target} x ${l.instrumentId} lolos gerbang dengan n=${l.n}`);
+          checks++;
+          // NaN is allowed here (too few observations in the recent window) but
+          // a number outside the correlation range never is.
+          if (Number.isFinite(l.correlationRecent) && (l.correlationRecent < -1.001 || l.correlationRecent > 1.001)) {
+            fail('makro', `${target} x ${l.instrumentId} korelasi terakhir di luar -1..1`);
+          }
+        }
+      }
+      checks++;
+      if (!macro.bySector.has('IHSG')) fail('makro', 'IHSG tidak ada di tabel target');
+      // Surprises must be internally consistent with the thresholds they claim.
+      for (const sp of findSurprises(macro)) {
+        checks++;
+        const abs = Math.abs(sp.link.correlation);
+        if (sp.kind === 'mati' && !sp.link.expected) fail('makro', `kejutan "mati" pada pasangan yang tidak diharapkan`);
+        if (sp.kind === 'hidup' && sp.link.expected) fail('makro', `kejutan "hidup" pada pasangan yang diharapkan`);
+        if (sp.kind === 'hidup' && abs < 0.45) fail('makro', `kejutan "hidup" dengan r hanya ${abs.toFixed(2)}`);
+      }
+      // Per-emiten linkage over a sample, since the dossier calls it per request.
+      for (const e of db.emiten.filter((_, i) => i % 37 === 0)) {
+        const ls = linkagesForEmiten(macro, db, e.code, 5);
+        checks++;
+        if (ls.length > 5) fail('makro', `${e.code} mengembalikan ${ls.length} tautan padahal batasnya 5`);
+        for (const l of ls) {
+          assertFinite(`makro emiten`, `${e.code}.${l.instrumentId}`, { correlation: l.correlation, beta: l.beta });
+        }
+      }
+    }
 
     // ---- the dossier, over a wide sample ----------------------------------
     const sample = db.emiten.filter((_, i) => i % 7 === 0);

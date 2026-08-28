@@ -22,6 +22,7 @@ import { ScreenerResult, runStockScreener } from '../models/stockScreener';
 import { WatchlistResult, buildWatchlist } from '../models/watchlist';
 import { AnnouncementsFile } from '../models/announcements';
 import { ChatContext } from './chatApi';
+import { MacroFile } from '../models/macroLinkage';
 import { OwnershipFile } from '../models/ownershipFlow';
 import {
   FundamentalsDatabase,
@@ -69,11 +70,12 @@ export async function loadFundamentalsFromDisk(dataDir: string): Promise<Fundame
  * and more useful answer than "this emiten filed nothing".
  */
 export async function loadChatContextFromDisk(dataDir: string): Promise<ChatContext> {
-  const [announcements, ownership] = await Promise.all([
+  const [announcements, ownership, macro] = await Promise.all([
     tryReadJson<AnnouncementsFile>(dataDir, 'announcements.json'),
     tryReadJson<OwnershipFile>(dataDir, 'ownership.json'),
+    tryReadJson<MacroFile>(dataDir, 'macro.json'),
   ]);
-  return { announcements, ownership };
+  return { announcements, ownership, macro };
 }
 
 export interface DailyDigestRun {
