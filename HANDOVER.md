@@ -12,36 +12,118 @@ Saya melanjutkan pengembangan ValuationPro. Berikut konteks lengkapnya.
 
 ## Apa ini
 
-Terminal pasar modal Indonesia: basis data seluruh emiten IDX, penyaring alpha
-harian, alat analitik ala Bloomberg, dan model DCF/LBO institusional. Tampilan
-sekarang memakai palet Bloomberg (hitam murni + amber) dan navigasi mnemonic
-ala Bloomberg — Ctrl+K membuka menu fungsi, mengetik kode (mis. `SCR`, `FUND`,
-`WL`) + Enter langsung berpindah layar.
+Terminal pasar modal Indonesia: basis data seluruh emiten IDX, screener aturan
+keras, watchlist bernarasi, alat analitik ala Bloomberg, model DCF/LBO, dan sejak
+sesi terakhir dua lapisan di luar Indonesia — 29 instrumen makro dan peta selat
+dunia. Palet Bloomberg (hitam murni + amber), navigasi mnemonic: Ctrl+K membuka
+menu fungsi, ketik kode (`SCR`, `MACRO`, `MAP`) + Enter langsung pindah layar.
 
 - **Lokal**: `C:\Users\MIchael ROG\.gemini\antigravity\scratch\financial-modeling-lbo-dcf`
 - **Repo**: https://github.com/BeixuanTianjun/ValuationPro (publik)
 - **Live**: https://valuation-pro-lake.vercel.app
 - **Stack**: Vite 6 + React 18 + TS 5 + Tailwind 3 + Recharts, layanan Node lokal
-- Seluruh UI berbahasa Indonesia; komentar kode berbahasa Inggris.
+- **Label MENU berbahasa Inggris, ISI layar berbahasa Indonesia.** Itu keputusan
+  eksplisit pemilik repo, bukan campur aduk yang belum dirapikan. Nav, tab, nama
+  fungsi di Ctrl+K, dan chrome panel = Inggris. Judul panel, tabel, angka,
+  catatan kaki, dan `hint` di registri fungsi = Indonesia.
+- **`hint` di `src/data/functions.ts` WAJIB tetap Indonesia.** Bukan soal gaya:
+  `searchFunctions` mencocokkan kata kunci ke sana, jadi menerjemahkannya membuat
+  mengetik `konglomerasi` di command bar berhenti menemukan CNG.
+- Layar baru ditulis dengan bahasa tongkrongan (lihat MACRO dan MAP). Layar lama
+  masih Indonesia formal dan sengaja dibiarkan.
+- Komentar kode berbahasa Inggris.
 
 ## Kondisi data saat serah terima
 
-962 emiten · 282 sesi (2025-06-23 → 2026-08-24) · 45 indeks · 24 hari libur
-4.258 pengajuan keterbukaan informasi (45 hari) · 648 emiten berlaporan keuangan · 962 kuotasi (100 pelapor
-non-IDR) · 88 anggota bursa × 113 sesi · 962 emiten × 24 bulan register
-kepemilikan KSEI (2024-08 → 2026-07) · total 10,5 MB di `public/data/idx/`
+962 emiten · 283 sesi (2025-06-23 → 2026-08-28) · 45 indeks · 24 hari libur
+4.258 pengajuan keterbukaan informasi (45 hari) · 648 emiten berlaporan keuangan
+962 kuotasi (100 pelapor non-IDR) · 88 anggota bursa × 113 sesi
+962 emiten × 24 bulan register KSEI (2024-08 → 2026-07)
+29 instrumen makro × 282 sesi · 28 selat dunia × 120 hari + 41 kejadian disrupsi
+total ~11 MB di `public/data/idx/`
 
 ## Arsitektur tiga tempat
 
 | Tempat | Menjalankan | Kenapa di situ |
 |---|---|---|
-| **Vercel** | Terminal statis + `api/live.ts` | CDN cepat; serverless sanggup jadi proxy stateless |
+| **Vercel** | Terminal statis + `api/live.ts` + `api/chat.ts` | CDN cepat; serverless sanggup jadi proxy stateless |
 | **GitHub Actions** | Ingest terjadwal + alert email | Punya `curl`, cron, dan waktu jalan panjang |
 | **Komputer lokal** | `npm run auto` — login, refresh manual, lapisan Claude | Butuh proses hidup + disk permanen |
 
 Aliran: Actions tarik data → commit → Vercel redeploy otomatis.
 
 ## Yang mahal ditemukan — JANGAN diulang
+
+**BACA INI DULU: pola yang berulang lima kali di repo ini.** Hampir tiap bug
+serius di sini bukan crash — ia mengembalikan angka yang terlihat wajar. Ingest
+yang memotong diam-diam, jendela yang namanya 20 tapi isinya 21, dolar berlabel
+rupiah, gerbang yang mematikan fitur tanpa error, penyelarasan berbasis posisi
+yang bergeser saat satu berkas tumbuh. Semua lolos typecheck dan tes. Yang
+menangkapnya bukan review, tapi `npm run backtest` yang menyapu 962 emiten dan
+membandingkan angka terhadap invariannya. **Kalau menambah mesin baru, tambahkan
+invariannya ke backtest di commit yang sama.**
+
+**Angka baris yang bulat pantas dicurigai.** ArcGIS memotong tiap respons di
+`maxRecordCount` tanpa error: minta 32.000, dijawab tepat 1.000, dan
+`exceededTransferLimit` diset. Tren "7 hari vs 30 hari" di peta selat sempat
+dihitung dari jendela yang diam-diam sepertiga panjangnya. Sekarang dipaginasi
+lewat `resultOffset` plus penjaga jumlah baris.
+
+**`indexFrom` pada GetAnnouncement berbasis NOL.** Memulai dari 1 bukan menggeser
+satu baris, melainkan membuang `pageSize` pengajuan TERBARU — 1.000 pengajuan,
+17 hari, hilang tanpa error sementara log dan field `to` tetap mengaku sampai
+hari ini. Lapisan narasi Watchlist meluruh 7 hari, jadi ia menilai pasar yang
+pengajuan tersegarnya sudah 17 hari.
+
+**Field bernama `20` dulu memakai 21 sesi.** `W.m1 = 21` dipakai untuk
+`tradedSessions20`, `medianValue20IdrBn`, `foreignNet20IdrBn`, `sma20`, `z20`,
+`volumeSurge`. Gejalanya tercetak di dossier: "bertransaksi 21 dari 20 sesi
+terakhir". Sekarang ada `W.d20 = 20` yang terpisah.
+
+**Pelapor USD bisa keluar berlabel rupiah tanpa penanda.** `resolveStatements`
+mencap `currency = 'Rp '` tanpa syarat tapi hanya mentranslasi kalau tabel kurs
+ADA. `scripts/` dan `src/` tidak pernah saling impor — kontraknya cuma nama field
+di JSON, tidak diperiksa kompiler mana pun. Sekarang mengembalikan `untranslated`
+dan `idxCompanyBridge` mengangkatnya jadi WARNING.
+
+**Satu flag dipakai untuk dua pertanyaan berbeda mematikan chat di deployment.**
+`serviceAvailable` menjawab "layanan Node lokal hidup?" (diprobe lewat
+`/api/status`) tapi juga dipakai sebagai gerbang `askEmitenChat`. Di Vercel tidak
+ada `/api/status`, jadi probe 404 dan `/api/chat` **tidak pernah dicoba** padahal
+berfungsi. Situs live menjawab semua pertanyaan dengan parser browser tanpa
+mengirim satu request pun, dan catatan kakinya menyalahkan API key yang tidak
+ada hubungannya. Gerbang chat sekarang punya flag sendiri, dan hanya 404 dari
+`/api/chat` sendiri yang boleh menyetelnya.
+
+**Penyelarasan berbasis posisi antar dua berkas patah dalam sehari.**
+`macro.json` diselaraskan ke grid sesi saat ditarik; `history.json` tumbuh tiap
+refresh. Begitu beda panjang, tiap nilai bergeser dan slot terbaru jadi NaN.
+Sekarang berkasnya menyimpan `dates` sendiri dan penyelarasannya per tanggal.
+
+**`maxDuration` Vercel 60 detik, bukan bawaan.** `/api/chat` memuat dua belas
+berkas lewat HTTP di dalam fungsi (`history.json` sendiri 6,3 MB) lalu 2-3
+putaran tool Claude. Di batas 20 detik pertanyaan pendek lolos sementara "kupas
+ADRO" habis waktu, dan gejalanya bukan error melainkan **balasan kosong** —
+HTTP 504 tanpa satu byte pun. Live backtest sekarang mengukur waktunya dan
+memperingatkan kalau mendekati batas.
+
+**Env var Vercel hanya berlaku setelah REDEPLOY.** Mengganti nilainya di Settings
+tidak menyentuh fungsi yang sudah ter-deploy; ia tetap memakai nilai lama sampai
+ada build baru. Ini memakan satu putaran penuh debugging yang mengira key-nya
+salah.
+
+**Penyelarasan waktu antar pasar menanggung beban.** Jakarta tutup 09:00 UTC.
+Membandingkan sesi Selasa Jakarta dengan penutupan Selasa New York berarti
+meregresikan Jakarta terhadap harga yang baru ada setelah Jakarta pulang. 22
+instrumen digeser satu sesi (field `after`), 7 pasar Asia tidak. Setelah digeser,
+VIX baru muncul dengan korelasi negatif ke IHSG.
+
+**Hasil terukur lapisan makro LEMAH, dan itu jawabannya.** Tidak ada instrumen
+luar yang menerangkan lebih dari ~13% gerakan harian satu sektor, dan yang
+paling nempel indeks Asia, bukan komoditas. PTBA terhadap Brent r=0,12. Jangan
+"memperbaiki" ini dengan mengganti metode sampai angkanya besar — layarnya
+sengaja menyatakan kelemahannya.
+
 
 **IDX memblokir `fetch` bawaan Node lewat sidik jari TLS.** Selalu 403, apa pun
 header-nya. `curl` lolos. Semua permintaan IDX di `scripts/idx-lib.mjs` lewat
@@ -274,6 +356,14 @@ api/chat.ts       pembungkus tipis; logika sebenarnya di api/_chat-impl.ts,
                   dibundel esbuild jadi api/_chat-bundle.mjs saat build
 scripts/gfinance-lib.mjs   fallback kutipan Google Finance, dipakai
                   scripts/ingest-intraday.mjs saat Yahoo gagal
+scripts/ingest-macro.mjs      29 instrumen luar IDX -> macro.json
+scripts/ingest-worldmap.mjs   28 selat + disrupsi + garis pantai -> worldmap.json
+scripts/backtest.ts           sapuan invariant seluruh semesta, lokal
+scripts/backtest-live.ts      sapuan invariant terhadap deployment
+scripts/preview-dossier.ts    cetak dossier chatbot tanpa memanggil API
+src/models/macroLinkage.ts    korelasi/beta tiap instrumen luar ke tiap sektor
+src/components/analytics/MacroMonitor.tsx   layar MACRO
+src/components/analytics/WorldMap.tsx       layar MAP, globe SVG tanpa pustaka 3D
 ```
 
 ## Perintah
@@ -281,24 +371,30 @@ scripts/gfinance-lib.mjs   fallback kutipan Google Finance, dipakai
 ```bash
 npm run auto            # layanan lokal + aplikasi di :8787
 npm run dev             # Vite dev, proxy /api ke :8787
-npm test                # 32 uji: guard rail DCF + rekonsiliasi atribusi indeks
+
+npm test                # 34 uji: guard rail DCF, rekonsiliasi atribusi, kurasi konglomerasi
+npm run backtest -- 5   # sapu 962 emiten lewat TIAP mesin, 5 pass  (~108k pemeriksaan)
+npm run backtest:live   # invariant yang sama tapi terhadap DEPLOYMENT, bukan disk
+npm run chat:dossier -- PTBA   # cetak persis apa yang diterima model, tanpa API
+
 npm run data:all        # bangun ulang seluruh database (~15 menit)
 npm run data:intraday   # harga live semua emiten (~3 detik)
 npm run data:ownership  # register kepemilikan KSEI 24 bulan (~40 detik)
 npm run data:announcements # keterbukaan informasi IDX 45 hari (~10 detik)
+npm run data:macro      # 29 aset di luar IDX, 6 kelas (~5 detik)
+npm run data:worldmap   # 28 selat + alert disrupsi + garis pantai (~15 detik)
 npm run alert:preview   # hitung pick tanpa mengirim email
 ```
 
 ## Yang masih terbuka
 
-- **BELUM SELESAI, sedang dikerjakan user: ANTHROPIC_API_KEY.** `.env` baris 15
-  masih dikomentari dengan placeholder (`# ANTHROPIC_API_KEY=sk-ant-...`), dan
-  environment variable Vercel-nya juga belum diisi. Tanpa keduanya chatbot
-  (baik lokal maupun live) diam-diam jatuh ke parser lokal — baris di bawah
-  tiap jawaban chat sekarang bilang jujur mesin mana yang menjawab. Setelah
-  user dapat kuncinya dari console.anthropic.com: isi `.env` baris 15 (hapus
-  `#`, ganti nilai), lalu tambah env var yang sama di Vercel → Settings →
-  Environment Variables → redeploy.
+- **ANTHROPIC_API_KEY sudah terpasang di dua tempat dan chatbot hidup**, lokal
+  maupun live. Kalau suatu saat mati lagi, urutan pemeriksaannya: baris kecil di
+  bawah tiap jawaban chat menyebut mesin mana yang menjawab, dan `note`-nya
+  memuat pesan error aslinya. Dua jebakan yang sudah pernah kena — `.env` dibaca
+  sekali saat start (wajib restart), dan **env var Vercel hanya berlaku setelah
+  REDEPLOY**, mengubah nilainya di Settings tidak menyentuh fungsi yang sudah
+  ter-deploy.
 
 - **Keanggotaan grup konglomerasi dikurasi manual** di `src/data/conglomerates.ts`.
   IDX tidak menerbitkan peta pengendali. Angka *kohesi* di UI adalah bukti
@@ -325,6 +421,26 @@ npm run alert:preview   # hitung pick tanpa mengirim email
 - **Harga tidak bisa real-time.** Yahoo delay ~15 menit untuk IDX. Polling lebih
   cepat dari itu tidak menghasilkan harga baru. Auto-refresh 45 detik ada di
   `hooks/useMarketData.ts` dan hanya jalan saat fase pasar aktif dan tab terlihat.
+- **CPO dan nikel tidak ada di lapisan makro, dan itu lubang yang nyata.**
+  Kontrak `FCPO=F` dan `NI=F` sama-sama dijawab "symbol may be delisted" oleh
+  Yahoo, padahal Indonesia produsen terbesar dunia untuk keduanya. Acuan batu
+  bara yang ada cuma API2 Eropa, bukan Newcastle yang dipakai kontrak ekspor
+  kita. Tidak ada satu pun yang diganti proksi — korelasi dari barang pengganti
+  akan terbaca sebagai bukti padahal bukan. Kalau ketemu sumber harian yang
+  gratis dan sah untuk ketiganya, itu penambahan paling berharga berikutnya.
+- **Tidak ada data konflik/geopolitik.** Alert di layar MAP adalah bencana alam
+  dan penutupan pelabuhan dari IMF PortWatch. GDELT tidak bisa dijangkau dari
+  host ingest — setiap permintaan menjawab HTTP 000. Jangan menamai ulang alert
+  bencana jadi "geopolitik"; layarnya sengaja menyatakan bedanya.
+- **Peta menampilkan jumlah transit, bukan posisi kapal.** Data AIS per unit
+  berbayar dan tidak punya endpoint publik.
+- **Hubungan selat ke satu emiten belum diukur statistik.** Lapisan makro punya
+  korelasi/beta/R², lapisan selat belum. Dossier menyebutnya sebagai konteks
+  rantai pasok dan melarang model mengklaim itu menggerakkan harga. Mengukurnya
+  butuh menyusun seri transit harian per emiten eksportir, dan itu belum ada.
+- **Copy layar lama masih Indonesia formal.** Screener, Watchlist, Leaders, KSEI,
+  DCF/LBO. Pemilik repo sudah bilang biarkan; yang diubah ke Inggris hanya LABEL
+  MENU.
 - **Valuasi otomatis adalah penyaring, bukan valuasi.** Properti dan komoditas
   sering keluar dengan upside ekstrem karena laba bergelombang.
 
@@ -337,8 +453,37 @@ npm run alert:preview   # hitung pick tanpa mengirim email
 
 Setiap angka bisa ditelusuri ke endpoint sumbernya. Ketika data tidak memadai —
 bank yang tidak melaporkan EBITDA, emiten pelapor USD, arus asing yang belum
-terbit — aplikasi mengatakannya di layar, bukan menutupinya. Ini alat riset,
-bukan rekomendasi investasi.
+terbit, CPO dan nikel yang tidak punya seri publik — aplikasi mengatakannya di
+layar, bukan menutupinya, dan tidak pernah menambalnya dengan proksi. Hubungan
+yang lemah disebut lemah. Ini alat riset, bukan rekomendasi investasi.
+
+Konsekuensi praktisnya untuk sesi berikutnya: **jangan menambah sumber data yang
+butuh kunci berbayar atau yang tidak bisa dilacak**, dan jangan mengganti metode
+sampai angka korelasi kelihatan bagus. Kalau sebuah fitur hanya bisa dibuat
+dengan menebak, lebih baik tidak dibuat dan alasannya ditulis di layar.
+
+## Cara memverifikasi bahwa semuanya masih benar
+
+Jalankan berurutan sebelum menyentuh apa pun. Kalau salah satu gagal, itu yang
+dikerjakan duluan.
+
+```bash
+npx tsc --noEmit         # harus bersih
+npm test                 # 34/34
+npm run backtest -- 5    # ~108k pemeriksaan, nol temuan
+npm run backtest:live    # 50 pemeriksaan terhadap deployment, nol temuan
+```
+
+`backtest:live` yang paling sering menangkap masalah nyata, karena ia satu-satunya
+yang tahu apa yang benar-benar disajikan ke pengunjung: berkas data yang tidak
+ikut ter-deploy, data yang basi karena ingest terjadwal berhenti, fungsi chat yang
+mendekati batas waktu, dan chatbot yang diam-diam jatuh ke parser browser.
+
+## Kondisi saat serah terima ini ditulis
+
+Commit `e44926b` di `main`, working tree bersih, sinkron dengan remote. Live
+menyajikan bundel yang identik dengan build lokal. Semua verifikasi di atas hijau.
+Layanan lokal `npm run auto` jalan di `:8787` dengan Claude aktif.
 
 ---
 

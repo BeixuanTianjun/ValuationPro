@@ -21,6 +21,7 @@ npm run data:worldmap      # lalu lintas 28 selat + alert disrupsi   -> ~15 deti
 npm run chat:dossier -- PACK  # cetak dossier yang diterima chatbot (tanpa API)
 npm test                   # uji numerik guard rail mesin DCF
 npm run backtest -- 3      # sapu seluruh semesta lewat tiap mesin, 3 pass
+npm run backtest:live      # invariant yang sama, tapi terhadap deployment live
 ```
 
 Untuk penjadwalan, alert email, dan chatbot lihat [SETUP.md](SETUP.md).

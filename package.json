@@ -23,6 +23,7 @@
     "data:announcements": "node scripts/ingest-announcements.mjs --days 45",
     "alert:send": "esbuild src/server/alertCli.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/alert.mjs --log-level=warning && node .cache/alert.mjs",
     "backtest": "esbuild scripts/backtest.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/backtest.mjs --log-level=warning && node .cache/backtest.mjs",
+    "backtest:live": "esbuild scripts/backtest-live.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/backtest-live.mjs --log-level=warning && node .cache/backtest-live.mjs",
     "chat:dossier": "esbuild scripts/preview-dossier.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/dossier.mjs --log-level=warning && node .cache/dossier.mjs",
     "alert:preview": "esbuild src/server/alertCli.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/alert.mjs --log-level=warning && node .cache/alert.mjs --dry-run"
   },
