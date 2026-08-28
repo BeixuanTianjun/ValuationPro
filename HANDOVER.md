@@ -214,8 +214,19 @@ dua kali.
 `{ accountsExist, locked }`. Menyentuh `status.now.phase` mematikan seluruh
 halaman. Semua field detail bertipe opsional; biarkan begitu.
 
-**IDX TIDAK memblokir runner GitHub Actions.** Sudah terbukti — crawl penuh 430
-hari berhasil dari IP datacenter Azure.
+**IDX SEKARANG MEMBLOKIR runner GitHub Actions — klaim sebaliknya sudah kedaluwarsa.**
+Pada 2026-08-26 crawl penuh 430 hari berhasil dari IP datacenter Azure, dan itu
+ditulis di sini sebagai fakta. Dua hari kemudian setiap permintaan IDX dari
+runner dijawab HTML setelah menunggu 40 detik — bentuk tantangan Cloudflare —
+dan `ingest-idx.mjs` maupun `ingest-announcements.mjs` mati dengan
+`Non-JSON (HTML/blocked) response`. Yang membuatnya mahal: kedua langkah itu
+`continue-on-error`, jadi job-nya **hijau** sambil tetap meng-commit satu berkas
+harga; dari daftar run tidak ada apa pun yang terlihat salah selama seri resmi
+diam-diam berhenti bertambah. Sekarang ada langkah pelapor di akhir job yang
+memerahkan run kalau salah satu crawl IDX gagal, setelah harga ter-commit dan
+digest terkirim. Sampai IDX melonggar, seri resmi hanya bisa ditarik dari mesin
+lokal (`npm run data:refresh`) — dan status bar aplikasi akan berkata "Seri resmi
+tertinggal N sesi" selama itu belum dilakukan.
 
 **`indexFrom` pada GetAnnouncement adalah nomor HALAMAN BERBASIS NOL.**
 Mengirim offset baris (1001, 2001, …) menjawab `ResultCount: 0` dan `Replies: []`
