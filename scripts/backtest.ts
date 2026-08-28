@@ -28,6 +28,7 @@
  * answers look reasonable, so pass N is compared against pass 1.
  */
 import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { computeAllFactors } from '../src/models/factorEngine';
 import { runStockScreener } from '../src/models/stockScreener';
 import { buildWatchlist } from '../src/models/watchlist';
@@ -418,6 +419,45 @@ async function main() {
     );
 
     console.log(`pass ${pass}/${PASSES} — ${checks} pemeriksaan, ${findings.length} temuan, ${Date.now() - t0} ms`);
+  }
+
+  // ---- calendar integrity --------------------------------------------------
+  //
+  // The failure mode nothing else here can see. A trading session dropped out
+  // of the calendar — cached empty before IDX had published it — so IDX's
+  // `Previous` on the following session quoted a close that was never stored,
+  // and the ingest read that gap as a corporate action for 701 of 962 emiten,
+  // back-adjusting 283 sessions of history by an event that never happened.
+  // Nothing threw, no field went NaN, every price still looked like a price;
+  // what moved was index attribution, 95 points out on every window longer than
+  // a day. Real corporate actions arrive one emiten at a time, so a date
+  // carrying factors across a large share of the market is a hole in the
+  // calendar, not a wave of splits.
+  {
+    const history = JSON.parse(await readFile(join(DATA_DIR, 'history.json'), 'utf8')) as {
+      dates: string[];
+      series: Record<string, { c?: string; adj?: string }>;
+    };
+    const n = history.dates.length;
+    const factorsOn = new Array<number>(n).fill(0);
+    const pricedOn = new Array<number>(n).fill(0);
+    for (const raw of Object.values(history.series)) {
+      const closes = (raw.c || '').split(',');
+      const adj = (raw.adj || '').split(',');
+      for (let i = 0; i < n; i++) {
+        if (closes[i]) pricedOn[i]++;
+        if (adj[i]) factorsOn[i]++;
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      checks++;
+      if (pricedOn[i] >= 100 && factorsOn[i] / pricedOn[i] > 0.05) {
+        fail(
+          'kalender',
+          `${history.dates[i]}: faktor aksi korporasi pada ${factorsOn[i]} dari ${pricedOn[i]} emiten — tanda sesi bursa hilang, bukan split serentak`
+        );
+      }
+    }
   }
 
   // ---- determinism ---------------------------------------------------------

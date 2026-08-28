@@ -47,24 +47,50 @@ const USE_CACHE = !argv.includes('--no-cache');
 // `--days 20` catch-up appends recent sessions instead of throwing away the
 // year that came before it. `--replace` forces a clean rebuild.
 const REPLACE = argv.includes('--replace');
+// Escape hatch for the missing-session guard below. It does NOT write the
+// suspect factors — it writes none for that session — so a session IDX never
+// publishes cannot lock the pipeline for good.
+const ALLOW_GAP = argv.includes('--allow-gap');
 
 setRequestGap(GAP_MS);
 
 const log = (...a) => console.log(`[ingest ${new Date().toISOString().slice(11, 19)}]`, ...a);
 
-async function cached(key, fn) {
+/**
+ * Disk-memoised fetch. `durable` decides whether an answer is worth remembering.
+ *
+ * A day that came back with no rows is NOT durable. "This was an exchange
+ * holiday" and "IDX has not published this session yet" are the same response,
+ * and only the first one stays true tomorrow — the EOD feed runs 1-2 calendar
+ * days behind, so any run asks for weekdays IDX has not got to yet. Storing
+ * that answer turns a publication lag into a permanent hole in the calendar:
+ * 2026-08-26 was cached empty at 12:00 WIB on the 26th, every later run read
+ * the cache instead of asking again, and the session was written up as a market
+ * holiday. Nothing errored. What broke was two steps downstream — `Previous` on
+ * 2026-08-27 quoted a close that was never stored, the ratio between them was
+ * read as a corporate action for 701 of 962 emiten, and the whole 283-session
+ * history was back-adjusted by a factor that does not exist.
+ *
+ * An unstored answer costs one request per genuine holiday per run.
+ */
+async function cached(key, fn, durable = () => true) {
   const file = join(CACHE_DIR, `${key}.json`);
   if (USE_CACHE) {
     try {
       await stat(file);
-      return JSON.parse(await readFile(file, 'utf8'));
+      const stored = JSON.parse(await readFile(file, 'utf8'));
+      // A stored non-durable answer is treated as a miss, so a cache already
+      // poisoned by an earlier run heals itself on the next one.
+      if (durable(stored)) return stored;
     } catch {
       /* cache miss */
     }
   }
   const data = await fn();
-  await mkdir(dirname(file), { recursive: true });
-  await writeFile(file, JSON.stringify(data));
+  if (durable(data)) {
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, JSON.stringify(data));
+  }
   return data;
 }
 
@@ -120,54 +146,72 @@ async function fetchUniverse() {
 
 async function fetchDay(date) {
   const key = ymd(date);
-  return cached(`day-${key}`, async () => {
-    const [stocks, indices] = await Promise.all([
-      getJson(`${IDX_BASE}/TradingSummary/GetStockSummary?length=3000&start=0&date=${key}`),
-      getJson(`${IDX_BASE}/TradingSummary/GetIndexSummary?length=100&start=0&date=${key}`),
-    ]);
-    const sRows = stocks.data || [];
-    const iRows = indices.data || [];
-    // IDX serves the most recent trading day when asked for a holiday; keep the
-    // date the API actually reports so we never duplicate a session.
-    const actual = sRows.length ? isoDay(sRows[0].Date) : iRows.length ? isoDay(iRows[0].Date) : null;
-    return {
-      requested: `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`,
-      actual,
-      stocks: sRows.map((r) => ({
-        c: r.StockCode,
-        o: Number(r.OpenPrice) || 0,
-        h: Number(r.High) || 0,
-        l: Number(r.Low) || 0,
-        cl: Number(r.Close) || 0,
-        pv: Number(r.Previous) || 0,
-        v: Number(r.Volume) || 0,
-        t: Number(r.Value) || 0,
-        f: Number(r.Frequency) || 0,
-        fb: Number(r.ForeignBuy) || 0,
-        fs: Number(r.ForeignSell) || 0,
-        ls: Number(r.ListedShares) || 0,
-        // Free-float adjusted share count IDX uses to weight its indices.
-        // This is what makes exact index-point attribution possible.
-        wi: Number(r.WeightForIndex) || 0,
-      })),
-      indices: iRows.map((r) => ({
-        c: r.IndexCode,
-        cl: Number(r.Close) || 0,
-        pv: Number(r.Previous) || 0,
-        h: Number(r.Highest) || 0,
-        l: Number(r.Lowest) || 0,
-        v: Number(r.Volume) || 0,
-        t: Number(r.Value) || 0,
-        n: Number(r.NumberOfStock) || 0,
-        mc: Number(r.MarketCapital) || 0,
-      })),
-    };
-  });
+  return cached(
+    `day-${key}`,
+    async () => {
+      const [stocks, indices] = await Promise.all([
+        getJson(`${IDX_BASE}/TradingSummary/GetStockSummary?length=3000&start=0&date=${key}`),
+        getJson(`${IDX_BASE}/TradingSummary/GetIndexSummary?length=100&start=0&date=${key}`),
+      ]);
+      const sRows = stocks.data || [];
+      const iRows = indices.data || [];
+      // IDX serves the most recent trading day when asked for a holiday; keep the
+      // date the API actually reports so we never duplicate a session.
+      const actual = sRows.length ? isoDay(sRows[0].Date) : iRows.length ? isoDay(iRows[0].Date) : null;
+      return {
+        requested: `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`,
+        actual,
+        stocks: sRows.map((r) => ({
+          c: r.StockCode,
+          o: Number(r.OpenPrice) || 0,
+          h: Number(r.High) || 0,
+          l: Number(r.Low) || 0,
+          cl: Number(r.Close) || 0,
+          pv: Number(r.Previous) || 0,
+          v: Number(r.Volume) || 0,
+          t: Number(r.Value) || 0,
+          f: Number(r.Frequency) || 0,
+          fb: Number(r.ForeignBuy) || 0,
+          fs: Number(r.ForeignSell) || 0,
+          ls: Number(r.ListedShares) || 0,
+          // Free-float adjusted share count IDX uses to weight its indices.
+          // This is what makes exact index-point attribution possible.
+          wi: Number(r.WeightForIndex) || 0,
+        })),
+        indices: iRows.map((r) => ({
+          c: r.IndexCode,
+          cl: Number(r.Close) || 0,
+          pv: Number(r.Previous) || 0,
+          h: Number(r.Highest) || 0,
+          l: Number(r.Lowest) || 0,
+          v: Number(r.Volume) || 0,
+          t: Number(r.Value) || 0,
+          n: Number(r.NumberOfStock) || 0,
+          mc: Number(r.MarketCapital) || 0,
+        })),
+      };
+    },
+    // A day with rows is a fact that never changes. A day without them is only
+    // "not yet", so it is re-asked on every run instead of being remembered.
+    (day) => !!day?.actual
+  );
 }
 
 // ------------------------------------------------------------------- build
 
 const csv = (arr) => arr.map((x) => (x === null || x === undefined ? '' : x)).join(',');
+
+/** Weekday ISO dates strictly between two sessions — the candidates for a hole. */
+function weekdaysBetween(fromIso, toIso) {
+  const out = [];
+  const d = new Date(`${fromIso}T00:00:00Z`);
+  const end = new Date(`${toIso}T00:00:00Z`);
+  for (d.setUTCDate(d.getUTCDate() + 1); d < end; d.setUTCDate(d.getUTCDate() + 1)) {
+    const dow = d.getUTCDay();
+    if (dow !== 0 && dow !== 6) out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
 
 /** "9800,,9725" -> ['9800', '', '9725'] padded/truncated to `length`. */
 function splitSeries(text, length) {
@@ -269,7 +313,12 @@ async function main() {
   const lastClose = {};
   const ADJ_THRESHOLD = 0.005;
 
-  for (const s of sessions) {
+  // One entry per crawled session: how many emiten produced a factor, out of
+  // how many could have. Read after the loop by the missing-session guard.
+  const adjTally = sessions.map((s) => ({ date: s.actual, comparable: 0, factors: 0 }));
+
+  for (const [sessionIdx, s] of sessions.entries()) {
+    const tally = adjTally[sessionIdx];
     const seen = new Set();
     for (const row of s.stocks) {
       if (!codeSet.has(row.c)) continue;
@@ -280,8 +329,12 @@ async function main() {
       const prior = lastClose[row.c];
       let factor = '';
       if (prior > 0 && row.pv > 0) {
+        tally.comparable++;
         const ratio = row.pv / prior;
-        if (Math.abs(ratio - 1) > ADJ_THRESHOLD) factor = Number(ratio.toFixed(6));
+        if (Math.abs(ratio - 1) > ADJ_THRESHOLD) {
+          factor = Number(ratio.toFixed(6));
+          tally.factors++;
+        }
       }
       S.adj.push(factor);
       if (close > 0) lastClose[row.c] = close;
@@ -303,6 +356,45 @@ async function main() {
         S.fn.push('');
         S.adj.push('');
       }
+    }
+  }
+
+  // A corporate action happens to ONE emiten at a time. A factor that fires for
+  // a large share of the market on the same session is not a wave of splits — it
+  // means `Previous` quotes a close this run never stored, which is what a
+  // MISSING TRADING SESSION looks like from here. Writing those factors would
+  // back-adjust the whole stored history by an event that never happened, and
+  // every number downstream (momentum, beta, index attribution, the 20-session
+  // windows) would stay entirely plausible while being wrong. It has happened
+  // once already: 701 of 962 emiten "split" on 2026-08-27 because 2026-08-26
+  // was cached empty and dropped out of the calendar.
+  const GAP_SHARE = 0.05;
+  const gaps = adjTally.filter((t) => t.comparable >= 100 && t.factors / t.comparable > GAP_SHARE);
+  if (gaps.length) {
+    const detail = gaps
+      .map((g) => {
+        const prior = adjTally[adjTally.indexOf(g) - 1];
+        const missing = prior ? weekdaysBetween(prior.date, g.date) : [];
+        const pct = ((g.factors / g.comparable) * 100).toFixed(0);
+        return `${g.date}: ${g.factors}/${g.comparable} emiten (${pct}%)${
+          missing.length ? `, hari kerja yang hilang di antaranya: ${missing.join(', ')}` : ''
+        }`;
+      })
+      .join(' · ');
+    if (!ALLOW_GAP) {
+      throw new Error(
+        `Sesi bursa hilang dari crawl — ${detail}. Aksi korporasi tidak pernah serentak sepasar, ` +
+          `jadi rasio Previous/close sebesar ini berarti ada sesi yang tidak ikut tertarik. ` +
+          `Hapus .cache/idx/day-<YYYYMMDD>.json untuk tanggal itu lalu jalankan ulang. ` +
+          `Kalau IDX memang tidak pernah menerbitkannya, pakai --allow-gap: run akan lanjut ` +
+          `TANPA faktor apa pun pada sesi tersebut.`
+      );
+    }
+    log(`!! sesi hilang dilanjutkan atas permintaan --allow-gap — ${detail}`);
+    log('!! faktor pada sesi itu TIDAK ditulis; aksi korporasi asli pada tanggal tersebut akan terlewat');
+    for (const g of gaps) {
+      const i = adjTally.indexOf(g);
+      for (const c of codes) series[c].adj[i] = '';
     }
   }
 
@@ -453,6 +545,9 @@ async function main() {
     emitenListed: emiten.length,
     emitenWithHistory: withData,
     corporateActions,
+    // Non-empty only when --allow-gap was used: sessions written without any
+    // corporate-action factor because a trading day is missing before them.
+    gapSessions: gaps.map((g) => g.date),
     indexCount: Object.keys(indexOut).length,
     calendarDaysRequested: DAYS,
     sources: [
