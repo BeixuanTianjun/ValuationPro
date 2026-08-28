@@ -24,14 +24,6 @@ export const formatMultiple = (val: number, decimals: number = 1): string => {
   })}x`;
 };
 
-export const formatNumber = (val: number, decimals: number = 1): string => {
-  if (isNaN(val) || !isFinite(val)) return '-';
-  return val.toLocaleString('en-US', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
-};
-
 /** Short suffix for a statement scale, e.g. 'billions' -> 'bn'. */
 export const unitSuffix = (units: string): string =>
   ({ billions: 'bn', millions: 'm', thousands: 'k', exact: '' } as Record<string, string>)[units] ?? '';

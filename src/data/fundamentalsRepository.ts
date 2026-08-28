@@ -113,6 +113,14 @@ export interface ResolvedStatements {
   quality: StatementQuality;
   /** Set when the emiten reports in a currency other than IDR. */
   translatedFrom?: { currency: string; ratesUsed: Record<string, number> };
+  /**
+   * Set when the emiten reports in a foreign currency and the translation could
+   * NOT be done — no fx table, or no rate for a given year.
+   *
+   * Callers must surface this. The numbers in `report` are then raw foreign
+   * currency while `report.currency` still says rupiah.
+   */
+  untranslated?: { currency: string; reason: string; years: string[] };
 }
 
 /**
@@ -139,15 +147,46 @@ export function resolveStatements(
 
   let historicalData = base.historicalData;
   let translatedFrom: ResolvedStatements['translatedFrom'];
+  let untranslated: ResolvedStatements['untranslated'];
 
-  if (reportingCurrency !== 'IDR' && fxTable) {
-    const ratesUsed: Record<string, number> = {};
-    historicalData = base.historicalData.map((row) => {
-      const rate = fxTable.yearly[row.year] || fxTable.spot || 0;
-      ratesUsed[row.year] = rate;
-      return rate > 0 ? scaleRow(row, rate) : row;
-    });
-    translatedFrom = { currency: reportingCurrency, ratesUsed };
+  // THE FAILURE THIS GUARDS IS SILENT AND ENORMOUS. `report.currency` is stamped
+  // 'Rp ' unconditionally a few lines below. If the fx table is missing — the
+  // quotes ingest never ran, or `fxUsdIdr` gets renamed on the other side of a
+  // contract nothing type-checks, since scripts/ and src/ never import each
+  // other — the old code skipped this block entirely and handed back raw dollars
+  // labelled as rupiah. One hundred emiten report in USD; at ~16,000 IDR/USD
+  // every one of them would read plausible and be wrong by four orders of
+  // magnitude, with `translatedFrom` unset so the UI printed no caveat either.
+  // Failing loudly is not an option here (the app must still show the emiten),
+  // so it fails VISIBLY: the numbers still come through, flagged.
+  if (reportingCurrency !== 'IDR') {
+    if (!fxTable) {
+      untranslated = {
+        currency: reportingCurrency,
+        reason: 'Tabel kurs USD/IDR tidak ada di quotes.json — jalankan npm run data:quotes.',
+        years: base.historicalData.map((r) => r.year),
+      };
+    } else {
+      const ratesUsed: Record<string, number> = {};
+      const missing: string[] = [];
+      historicalData = base.historicalData.map((row) => {
+        const rate = fxTable.yearly[row.year] || fxTable.spot || 0;
+        if (rate > 0) {
+          ratesUsed[row.year] = rate;
+          return scaleRow(row, rate);
+        }
+        missing.push(row.year);
+        return row;
+      });
+      if (Object.keys(ratesUsed).length) translatedFrom = { currency: reportingCurrency, ratesUsed };
+      if (missing.length) {
+        untranslated = {
+          currency: reportingCurrency,
+          reason: 'Tidak ada kurs untuk tahun tersebut, angkanya masih dalam mata uang asli.',
+          years: missing,
+        };
+      }
+    }
   }
 
   const report: EmitenStatements = {
@@ -159,5 +198,5 @@ export function resolveStatements(
     sharesOutstanding: liveSharesOutstandingMn || base.sharesOutstanding,
   };
 
-  return { report, quality: base.quality, translatedFrom };
+  return { report, quality: base.quality, translatedFrom, untranslated };
 }

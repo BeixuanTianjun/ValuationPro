@@ -281,9 +281,4 @@ export function runStockScreener(db: MarketDatabase, partial: Partial<ScreenerSe
   };
 }
 
-/** Rupiah turnover implied by close x volume, for showing the rule literally. */
-export function impliedTurnover(row: ScreenerRow): number {
-  return row.close * row.volumeShares;
-}
-
 export { IDR_BN, IDR_MN, SHARES_PER_LOT };

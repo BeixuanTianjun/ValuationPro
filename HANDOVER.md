@@ -139,6 +139,30 @@ juga punya bawaannya sendiri: garis sumbu keluar `#666` kalau `axisLine` dan
 mengira perubahannya gagal. Verifikasi lewat `npm run build` + `vite preview`,
 atau restart dev server.
 
+**`npm run backtest` menangkap yang tidak bisa dilihat unit test.** `npm test`
+memeriksa segelintir angka pilihan tangan; backtest menyapu 962 emiten lewat
+SETIAP mesin dan menuntut invarian yang harus berlaku untuk semuanya: tidak ada
+yang melempar, tidak ada NaN/Infinity sampai ke field yang dicetak UI, aturan
+screener cocok dengan angka mentah yang diklaimnya dibaca, dan pelapor mata uang
+asing selalu ditranslasi ATAU ditandai. Sekali jalan pertama ia menemukan tiga
+bug nyata sekaligus — termasuk `tradedSessions20` yang mengembalikan 21. Jalankan
+dengan beberapa pass (`-- 3`) untuk menangkap ketergantungan urutan: pass ke-N
+dibandingkan dengan pass pertama.
+
+**Field bernama `20` sekarang benar-benar 20 sesi.** `W.m1` bernilai 21 dan
+dipakai untuk semua yang berlabel 20 — `tradedSessions20`, `medianValue20IdrBn`
+("Likuiditas 20H"), `foreignNet20IdrBn` ("Asing 20H"), `sma20`, `z20`,
+`volumeSurge`. Akibatnya dossier mencetak "bertransaksi 21 dari 20 sesi terakhir"
+dan itu sudah tayang. Sekarang ada `W.d20 = 20` terpisah; `W.m1` hanya untuk yang
+benar-benar berarti "sekitar sebulan" (return 1 bulan, momentum 12-1).
+
+**Pelapor USD yang gagal ditranslasi sekarang BERTERIAK.** `report.currency`
+dicap `'Rp '` tanpa syarat, jadi kalau tabel kurs hilang, laporan 100 emiten
+pelapor USD keluar mentah dalam dolar berlabel rupiah — meleset ~16.000x dan
+`translatedFrom` tidak terisi sehingga UI pun tidak mencetak catatan apa pun.
+`resolveStatements` sekarang mengembalikan `untranslated`, dan
+`idxCompanyBridge` mengangkatnya jadi WARNING, bukan note.
+
 **Dossier chatbot menyatukan enam feed, dan itu inti fiturnya.** `buildDossier`
 di `src/server/chatApi.ts` menggabungkan harga + aturan screener, laporan
 keuangan, aksi korporasi terdeteksi, pengajuan ke bursa, tema kebijakan, grup

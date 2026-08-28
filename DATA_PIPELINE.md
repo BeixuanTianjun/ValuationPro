@@ -18,6 +18,7 @@ npm run data:ownership     # register kepemilikan KSEI bulanan     -> ~40 detik
 npm run data:announcements # keterbukaan informasi IDX 45 hari     -> ~10 detik
 npm run chat:dossier -- PACK  # cetak dossier yang diterima chatbot (tanpa API)
 npm test                   # uji numerik guard rail mesin DCF
+npm run backtest -- 3      # sapu seluruh semesta lewat tiap mesin, 3 pass
 ```
 
 Untuk penjadwalan, alert email, dan chatbot lihat [SETUP.md](SETUP.md).

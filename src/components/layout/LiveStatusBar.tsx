@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, Clock, Lock, Mail, RefreshCw, Radio, Send, WifiOff } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
-import { ServiceStatus, fetchServiceStatus, triggerRefresh } from '../../data/chatClient';
+import { ServiceStatus, fetchServiceStatus, isStatusEndpointAbsent, triggerRefresh } from '../../data/chatClient';
 import { sendTestAlert } from '../../data/authClient';
 
 interface Props {
@@ -84,17 +84,25 @@ export const LiveStatusBar: React.FC<Props> = ({
 
   useEffect(() => {
     let alive = true;
+    // The interval stops itself once the route turns out not to exist. On a
+    // static deploy /api/status is never coming, and re-asking every minute only
+    // produced a console error a minute — noise that hides real failures.
+    let timer: ReturnType<typeof setInterval> | undefined;
     const poll = async () => {
       const s = await fetchServiceStatus();
       if (!alive) return;
       setStatus(s);
       setChecked(true);
+      if (isStatusEndpointAbsent() && timer) {
+        clearInterval(timer);
+        timer = undefined;
+      }
     };
     void poll();
-    const timer = setInterval(poll, 60_000);
+    timer = setInterval(poll, 60_000);
     return () => {
       alive = false;
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
     };
   }, []);
 

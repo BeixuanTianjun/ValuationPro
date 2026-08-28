@@ -225,6 +225,19 @@ const pctText = (v: number | undefined, d = 1) =>
   Number.isFinite(v as number) ? `${((v as number) * 100).toFixed(d)}%` : 'tidak tersedia';
 
 /**
+ * Signed percentage-point change, or an honest gap.
+ *
+ * An emiten listed inside the window has no three-month-ago reading, so these
+ * arrive NaN. Formatting them straight through printed "institusi NaN pp" into
+ * the dossier — and a model handed NaN will either repeat it or, worse, round it
+ * to something that looks like a number.
+ */
+const ppText = (v: number | undefined, d = 2) =>
+  Number.isFinite(v as number)
+    ? `${(v as number) >= 0 ? '+' : ''}${((v as number) * 100).toFixed(d)} pp`
+    : 'tidak tersedia (riwayatnya belum cukup panjang)';
+
+/**
  * The last three reported years, plus whatever the statements can and cannot
  * support.
  *
@@ -496,7 +509,13 @@ export function buildDossier(
         `Per ${L.month}: institusi ${pctText(L.institusi)}, ritel ${pctText(L.ritel)}, asing ${pctText(L.asing)}, reksa dana ${pctText(L.reksadana)}.`
       );
       lines.push(
-        `Perubahan 3 bulan: institusi ${own.institusiChange3m >= 0 ? '+' : ''}${(own.institusiChange3m * 100).toFixed(2)} pp, reksa dana ${own.reksadanaChange3m >= 0 ? '+' : ''}${(own.reksadanaChange3m * 100).toFixed(2)} pp, asing ${own.asingChange3m >= 0 ? '+' : ''}${(own.asingChange3m * 100).toFixed(2)} pp, jarak institusi−ritel ${own.spreadChange3m >= 0 ? 'melebar ' : 'menyempit '}${Math.abs(own.spreadChange3m * 100).toFixed(2)} pp.`
+        `Perubahan 3 bulan: institusi ${ppText(own.institusiChange3m)}, reksa dana ${ppText(
+          own.reksadanaChange3m
+        )}, asing ${ppText(own.asingChange3m)}, jarak institusi−ritel ${
+          Number.isFinite(own.spreadChange3m)
+            ? `${own.spreadChange3m >= 0 ? 'melebar' : 'menyempit'} ${Math.abs(own.spreadChange3m * 100).toFixed(2)} pp`
+            : 'tidak tersedia (riwayatnya belum cukup panjang)'
+        }.`
       );
       lines.push(`Vonis: ${own.verdict.level} — ${own.verdict.headline}. ${own.verdict.reason}`);
       lines.push(

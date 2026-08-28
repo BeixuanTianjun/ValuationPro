@@ -1,13 +1,4 @@
 ﻿/**
- * Calculates Net Present Value given discount rate and cash flows (t=1,2,...)
- */
-export function calculateNPV(rate: number, cashFlows: number[]): number {
-  return cashFlows.reduce((acc, cf, index) => {
-    return acc + cf / Math.pow(1 + rate, index + 1);
-  }, 0);
-}
-
-/**
  * Calculates Internal Rate of Return (IRR) for a series of cash flows (t=0,1,2,...)
  * Uses Newton-Raphson with fallback to Secant / Bisection method.
  * @param cashFlows Array where cashFlows[0] is typically negative (outflow) and subsequent are inflows

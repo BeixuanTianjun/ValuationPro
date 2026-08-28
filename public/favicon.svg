@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="ValuationPro">
+  <!--
+    Amber on pure black, the same two colours tailwind.config.js gives the
+    terminal: slate-950 #000000 ground, amber-400 #ffa733 signature. Drawn as a
+    rising tape rather than a letterform so it reads at 16px in a tab strip.
+  -->
+  <rect width="32" height="32" rx="3" fill="#000000"/>
+  <rect x="4" y="4" width="24" height="24" rx="2" fill="none" stroke="#26262c" stroke-width="1"/>
+  <path d="M6 22 L12 16 L17 19 L26 9" fill="none" stroke="#ffa733" stroke-width="2.5"
+        stroke-linecap="square" stroke-linejoin="miter"/>
+  <rect x="24" y="7" width="4" height="4" fill="#ffa733"/>
+</svg>

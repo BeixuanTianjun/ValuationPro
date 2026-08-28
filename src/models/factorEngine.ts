@@ -8,7 +8,14 @@ import { FactorSnapshot, PriceSeries } from '../types/market';
 import { MarketDatabase } from '../data/marketRepository';
 import { SECTOR_TO_INDEX } from '../data/idxIndexCatalog';
 
-export const W = { w1: 5, m1: 21, m3: 63, m6: 126, m12: 252 } as const;
+// `d20` is a literal twenty sessions and `m1` is "about a month" — they are
+// separated because every field, label and rule in this app that says 20 means
+// twenty. They were the same constant (21) until a sweep over all 962 emiten
+// printed "bertransaksi 21 dari 20 sesi terakhir" in the chatbot dossier: the
+// field is named tradedSessions20, the UI says 20, and the window was 21. The
+// same off-by-one sat under medianValue20IdrBn ("Likuiditas 20H"),
+// foreignNet20IdrBn ("Asing 20H"), sma20 and the z20 dispersion.
+export const W = { w1: 5, d20: 20, m1: 21, m3: 63, m6: 126, m12: 252 } as const;
 
 // ------------------------------------------------------------- array helpers
 
@@ -274,7 +281,7 @@ export function computeFactors(
   const ffHigh = forwardFill(series.high);
   const ffLow = forwardFill(series.low);
 
-  const sma20 = tailMean(ff, W.m1);
+  const sma20 = tailMean(ff, W.d20);
   const sma50 = tailMean(ff, 50);
   const sma200 = tailMean(ff, 200);
 
@@ -283,17 +290,17 @@ export function computeFactors(
 
   // 20-session dispersion for the pullback z-score.
   let z20 = NaN;
-  if (Number.isFinite(sma20) && ff.length >= W.m1) {
+  if (Number.isFinite(sma20) && ff.length >= W.d20) {
     let sq = 0;
-    for (let i = ff.length - W.m1; i < ff.length; i++) sq += (ff[i] - sma20) ** 2;
-    const sd = Math.sqrt(sq / W.m1);
+    for (let i = ff.length - W.d20; i < ff.length; i++) sq += (ff[i] - sma20) ** 2;
+    const sd = Math.sqrt(sq / W.d20);
     z20 = sd > 0 ? (close - sma20) / sd : 0;
   }
 
-  const medianValue20IdrBn = tailMedianZero(series.value, W.m1) / 1e3; // stored in IDR million
+  const medianValue20IdrBn = tailMedianZero(series.value, W.d20) / 1e3; // stored in IDR million
   const marketCapIdrBn = (listedShares * close) / 1e9;
-  const value20Total = tailSumZero(series.value, W.m1); // IDR million
-  const foreign20 = tailSumZero(series.foreignNet, W.m1); // IDR million
+  const value20Total = tailSumZero(series.value, W.d20); // IDR million
+  const foreign20 = tailSumZero(series.foreignNet, W.d20); // IDR million
 
   const return3m = pctReturn(ff, W.m3);
   const sectorRef = indexReturns.sectorReturn3m.get(sector);
@@ -330,7 +337,7 @@ export function computeFactors(
     maxDrawdown6m: maxDrawdown(ff, W.m6),
 
     medianValue20IdrBn,
-    tradedSessions20: countTraded(series.volume, W.m1),
+    tradedSessions20: countTraded(series.volume, W.d20),
     turnoverRatio: marketCapIdrBn > 0 ? medianValue20IdrBn / marketCapIdrBn : 0,
 
     foreignNet5IdrBn: tailSumZero(series.foreignNet, W.w1) / 1e3,
@@ -340,7 +347,7 @@ export function computeFactors(
     foreignStreak: foreignStreak(series.foreignNet),
 
     volumeSurge: (() => {
-      const v20 = tailMeanZero(series.volume, W.m1);
+      const v20 = tailMeanZero(series.volume, W.d20);
       const v60 = tailMeanZero(series.volume, W.m3);
       return v60 > 0 ? v20 / v60 : NaN;
     })(),

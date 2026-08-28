@@ -22,6 +22,7 @@ import {
 } from '../../types/market';
 import { loadMarketDatabaseFromDisk } from '../../server/marketFromDisk';
 import { computeAttribution } from '../indexAttribution';
+import { CONGLOMERATE_GROUPS, findDuplicateMembers } from '../../data/conglomerates';
 
 const DATA_DIR = join(process.cwd(), 'public', 'data', 'idx');
 
@@ -120,6 +121,34 @@ async function main() {
   } else {
     check('live overlay absent — skipped', true, 'tidak ada intraday.json aktif');
   }
+
+  // ---------------------------------------------------------------- curation
+  //
+  // The conglomerate table is hand-edited — DATA_PIPELINE.md says so, because
+  // IDX publishes no machine-readable controlling-owner map. Its one silent
+  // failure mode is listing the same ticker under two groups: GROUP_BY_CODE
+  // resolves to whichever was declared last and the member vanishes from the
+  // other group's rotation, cohesion and dispersion without any error. The
+  // guard for that already existed in conglomerates.ts and had never been
+  // called by anything, which made it decoration rather than a guard.
+  const dupes = findDuplicateMembers();
+  check(
+    'no emiten is listed in two conglomerate groups',
+    dupes.length === 0,
+    dupes.length
+      ? dupes.map((d) => `${d.code} in ${d.groups.join(' + ')}`).join(', ')
+      : `${CONGLOMERATE_GROUPS.length} grup, ${CONGLOMERATE_GROUPS.reduce((n, g) => n + g.members.length, 0)} anggota`
+  );
+
+  // A group of one cannot have a cohesion or a dispersion — computeGroupRotation
+  // returns null below two present members, so a single-member row is a curation
+  // slip that quietly drops out of the whole rotation screen.
+  const tooSmall = CONGLOMERATE_GROUPS.filter((g) => g.members.length < 2);
+  check(
+    'every conglomerate group has at least two members',
+    tooSmall.length === 0,
+    tooSmall.length ? tooSmall.map((g) => g.id).join(', ') : 'semua grup punya >= 2 anggota'
+  );
 }
 
 main()

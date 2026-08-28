@@ -45,6 +45,22 @@ const API = '/api/chat';
  */
 let chatEndpointAvailable: boolean | null = null;
 
+/**
+ * Set once /api/status answers 404 — the route is not deployed at all.
+ *
+ * A static deploy has no status endpoint (only `api/live.ts` and `api/chat.ts`
+ * ship), and no amount of waiting will conjure one: a deployment that adds it
+ * also reloads the page. Without this the poller re-asked every 60 seconds
+ * forever, logging a console error each time — fourteen of them in one short
+ * session on the live site — and burying any real error in the noise.
+ *
+ * A network failure or a 5xx is deliberately NOT enough: that is a service that
+ * is merely down, and it is expected to come back mid-session.
+ */
+let statusEndpointAbsent = false;
+
+export const isStatusEndpointAbsent = () => statusEndpointAbsent;
+
 function answerInBrowser(
   message: string,
   db: MarketDatabase,
@@ -139,6 +155,7 @@ export async function fetchServiceStatus(): Promise<ServiceStatus | null> {
     // it. Nothing here may touch `chatEndpointAvailable` — /api/status being
     // absent says nothing about whether /api/chat exists, and on Vercel the
     // answer to those two questions is genuinely different.
+    if (res.status === 404) statusEndpointAbsent = true;
     if (!res.ok) return null;
     return (await res.json()) as ServiceStatus;
   } catch {

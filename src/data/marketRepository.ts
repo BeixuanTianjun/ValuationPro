@@ -363,33 +363,6 @@ async function buildDatabase(): Promise<MarketDatabase> {
 
 // ------------------------------------------------------------------ queries
 
-export interface EmitenFilter {
-  query?: string;
-  sectors?: string[];
-  boards?: string[];
-  minMarketCapIdrBn?: number;
-}
-
-export function filterEmiten(db: MarketDatabase, f: EmitenFilter): Emiten[] {
-  const q = (f.query || '').trim().toUpperCase();
-  const sectorSet = f.sectors?.length ? new Set(f.sectors) : null;
-  const boardSet = f.boards?.length ? new Set(f.boards) : null;
-
-  return db.emiten.filter((e) => {
-    if (sectorSet && !sectorSet.has(e.sector)) return false;
-    if (boardSet && !boardSet.has(e.board)) return false;
-    if (f.minMarketCapIdrBn) {
-      const d = db.daily.get(e.code);
-      if (!d || d.marketCap / 1e9 < f.minMarketCapIdrBn) return false;
-    }
-    if (q) {
-      const haystack = `${e.code} ${e.name} ${e.fullName} ${e.subIndustry} ${e.industry}`.toUpperCase();
-      if (!haystack.includes(q)) return false;
-    }
-    return true;
-  });
-}
-
 /** Latest non-NaN value at or before `offsetFromEnd` sessions back. */
 export function lastValid(arr: Float64Array, offsetFromEnd = 0): number {
   for (let i = arr.length - 1 - offsetFromEnd; i >= 0; i--) {

@@ -58,7 +58,7 @@ export function buildEmitenModel(
   const resolved = resolveStatements(emiten.code, fundamentals, livePrice, liveSharesBn);
   if (!resolved) return null;
 
-  const { report, quality, translatedFrom } = resolved;
+  const { report, quality, translatedFrom, untranslated } = resolved;
   const calibrated = calibrateFinancialReport(report);
 
   const betaResult = computeBeta(market, emiten.code);
@@ -131,6 +131,16 @@ export function buildEmitenModel(
       .join(', ');
     notes.push(
       `Emiten melapor dalam ${translatedFrom.currency}. Angka ditranslasikan ke IDR pada kurs rata-rata tahunan (${years}).`
+    );
+  }
+
+  // A translation that could not be performed is a WARNING, not a note: the
+  // numbers on screen are stamped rupiah while still being foreign currency, so
+  // every derived figure — target price, EV/EBITDA, market cap comparison — is
+  // out by the exchange rate. Silence here is what makes it dangerous.
+  if (untranslated) {
+    warnings.push(
+      `Emiten melapor dalam ${untranslated.currency} dan angkanya BELUM ditranslasikan ke rupiah untuk tahun ${untranslated.years.join(', ')}. ${untranslated.reason} Sampai itu diperbaiki, seluruh angka turunan di layar ini salah sebesar kursnya — jangan dipakai.`
     );
   }
 
