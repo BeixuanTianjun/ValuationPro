@@ -616,10 +616,20 @@ menggantinya dengan angka lain.
   kita. Tidak ada satu pun yang diganti proksi — korelasi dari barang pengganti
   akan terbaca sebagai bukti padahal bukan. Kalau ketemu sumber harian yang
   gratis dan sah untuk ketiganya, itu penambahan paling berharga berikutnya.
-- **Tidak ada data konflik/geopolitik.** Alert di layar MAP adalah bencana alam
-  dan penutupan pelabuhan dari IMF PortWatch. GDELT tidak bisa dijangkau dari
-  host ingest — setiap permintaan menjawab HTTP 000. Jangan menamai ulang alert
-  bencana jadi "geopolitik"; layarnya sengaja menyatakan bedanya.
+- **Tidak ada data konflik/geopolitik DI LAYAR, tapi sumbernya ternyata ada.**
+  Alert di layar MAP adalah bencana alam dan penutupan pelabuhan dari IMF
+  PortWatch — jangan menamai ulang itu jadi "geopolitik"; layarnya sengaja
+  menyatakan bedanya. Catatan lama di sini bilang GDELT tidak bisa dijangkau dan
+  itu SETENGAH benar: yang buntu host API-nya (`api.gdeltproject.org` menjawab
+  HTTP 000, diuji ulang dari mesin rumah 2026-08-29 dan masih 000). Host
+  BERKAS-nya hidup — `data.gdeltproject.org/gdeltv2/` menjawab 200, dengan
+  `lastupdate.txt` plus berkas export/mentions/gkg tiap 15 menit, ~1.000 event
+  per slot dan 61 kolom skema Events 2.0. Sampel 12 slot sepanjang 24 jam
+  memuat cerita korporasi Indonesia yang relevan (mis. Eagle High Plantations
+  vs FELDA lewat tempo.co). Jadi lapisan berita/geopolitik BISA dibangun sendiri
+  dan gratis, lewat berkas mentah bukan lewat API. Penyaring per-negara harus
+  baca kolom (`Actor1CountryCode`, `Actor2CountryCode`, `ActionGeo_CountryCode`) —
+  grep `IDN` saja menghasilkan positif palsu.
 - **Peta menampilkan jumlah transit, bukan posisi kapal.** Data AIS per unit
   berbayar dan tidak punya endpoint publik.
 - **Hubungan selat ke satu emiten belum diukur statistik.** Lapisan makro punya

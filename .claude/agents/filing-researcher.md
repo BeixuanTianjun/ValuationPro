@@ -102,8 +102,15 @@ for one annual report it is far more setup than the job needs.
   change that. If a post matters, the human screenshots it and hands it over.
 - **Nothing behind a login, paywall or CAPTCHA.** Do not authenticate, do not
   work around a bot check, do not use credentials.
-- **Respect the site.** Honour robots.txt, keep the request rate polite, and stop
-  on 403/429 rather than retrying harder.
+- **Respect the site, and know what robots.txt actually governs.** It is a
+  directive to automated crawlers, so it decides whether you may *sweep* a site —
+  and `Disallow: /` (idnfinancials.com, for one) means no crawling, no bulk
+  collection, no scheduled ingest, whatever tool would make that easy. It does
+  not turn the site into a place nobody may read: opening one specific page the
+  user named, once, and reading what it shows is ordinary assisted browsing and
+  stays allowed. The line is sweeping versus reading, and it is the same line on
+  every site including the social ones — there, a human hands you the screenshot.
+- Keep the request rate polite, and stop on 403/429 rather than retrying harder.
 - **Downloads are for reading, not for redistribution.** PDFs land in the
   scratchpad and are quoted, not republished.
 
