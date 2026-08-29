@@ -1,21 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  ArrowRight,
-  Bell,
-  Building2,
-  Calculator,
-  Globe,
-  Globe2,
-  LineChart,
-  Ship,
-  LogIn,
-  MessageSquare,
-  Network,
-  Scale,
-  ShieldCheck,
-  Target,
-  Zap,
-} from 'lucide-react';
+import { ArrowRight, Bell, Building2, Calculator, Globe, Globe2, LineChart, LogIn, MessageSquare, Network, Scale, ShieldAlert, ShieldCheck, Ship, Target, Zap } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
 import { IndexQuote } from '../../types/market';
 import { AccountUser } from '../../data/authClient';
@@ -159,6 +143,14 @@ const FEATURES: {
     body: '28 selat kunci, 5 di antaranya perairan kita, lengkap sama tanker per hari dan alert yang bikin pelabuhan tutup. Konteks rantai pasok — bukan klaim bahwa Hormuz menggerakkan harga saham Anda.',
     accent: 'text-cyan-400',
     ring: 'group-hover:border-cyan-500/40',
+  },
+  {
+    icon: ShieldAlert,
+    code: 'RISK',
+    title: 'Bacaan tekanan negara',
+    body: 'Konflik dan nada berita GDELT, gempa, sanksi — komponennya ditaruh mentah di sebelah skornya, lengkap sama daftar input yang gagal ditarik. Belum pernah diuji ke harga saham mana pun, dan layarnya bilang begitu.',
+    accent: 'text-rose-400',
+    ring: 'group-hover:border-rose-500/40',
   },
   {
     icon: Calculator,

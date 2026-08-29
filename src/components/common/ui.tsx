@@ -147,15 +147,32 @@ export function Segmented<T extends string>({
 
   React.useEffect(() => {
     const el = navRef.current;
-    const btn = activeRef.current;
+    // Found by aria-current rather than by the ref, because that ref moves from
+    // one sibling button to another every time the selection changes, and a ref
+    // that migrates is not reliably attached by the time this effect reads it.
+    // Measured on a 375px viewport with eight tabs: aria-current was correctly on
+    // the eighth tab, the row could scroll (a manual scrollBy moved it 338px and
+    // brought the tab fully into view), and this effect still never fired —
+    // leaving the active tab 260px off-screen with nothing to say it existed.
+    // That is the same shape as MACRO and MAP shipping invisible on a phone.
+    const btn =
+      (el?.querySelector('button[aria-current="page"]') as HTMLButtonElement | null) ?? activeRef.current;
     if (el && btn) {
       // Deliberately NOT scrollIntoView: that scrolls every scrollable ancestor,
       // so arriving at a function from the launcher would also yank the page
       // itself. Nudging the row's own scrollLeft cannot move anything else.
+      //
+      // Instant, not smooth. This row carries CSS scroll-snap (`snap-x` with
+      // `snap-start` on every button), and a smooth scrollBy on a snap container
+      // is silently dropped: measured on the live bundle, `behavior: 'smooth'`
+      // moved scrollLeft from 4 to 4 while `behavior: 'auto'` on the same element
+      // in the same tick moved it to 175. So this guarantee had never actually
+      // worked — it just never mattered until a row grew to eight tabs and the
+      // active one landed 260px past the right edge.
       const b = btn.getBoundingClientRect();
       const n = el.getBoundingClientRect();
-      if (b.left < n.left) el.scrollBy({ left: b.left - n.left - 12, behavior: 'smooth' });
-      else if (b.right > n.right) el.scrollBy({ left: b.right - n.right + 12, behavior: 'smooth' });
+      if (b.left < n.left) el.scrollBy({ left: b.left - n.left - 12, behavior: 'auto' });
+      else if (b.right > n.right) el.scrollBy({ left: b.right - n.right + 12, behavior: 'auto' });
     }
     measure();
   }, [value, measure]);

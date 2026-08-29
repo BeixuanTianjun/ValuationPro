@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator, Globe, Globe2, Landmark, Network, Scale, ServerCrash, Users } from 'lucide-react';
+import { Calculator, Globe, Globe2, Landmark, Network, Scale, ServerCrash, ShieldAlert, Users } from 'lucide-react';
 import { MarketDataState } from '../../hooks/useMarketData';
 import { LeadersLaggards } from './LeadersLaggards';
 import { ConglomerateRotation } from './ConglomerateRotation';
@@ -8,10 +8,19 @@ import { AutoValuation } from './AutoValuation';
 import { MutualFundTracker } from './MutualFundTracker';
 import { MacroMonitor } from './MacroMonitor';
 import { WorldMap } from './WorldMap';
+import { CountryRisk } from './CountryRisk';
 import { recentSubs } from '../../data/functions';
 import { EmptyState, Segmented, SegmentedOption, Spinner } from '../common/ui';
 
-export type AnalyticsSubTab = 'leaders' | 'conglo' | 'funds' | 'broker' | 'valuation' | 'macro' | 'map';
+export type AnalyticsSubTab =
+  | 'leaders'
+  | 'conglo'
+  | 'funds'
+  | 'broker'
+  | 'valuation'
+  | 'macro'
+  | 'map'
+  | 'risk';
 
 interface Props {
   market: MarketDataState;
@@ -31,11 +40,13 @@ const TABS: SegmentedOption<AnalyticsSubTab>[] = [
   { id: 'broker', label: 'Broker Summary', shortLabel: 'Broker', icon: Users },
   { id: 'macro', label: 'Global Drivers', shortLabel: 'Macro', icon: Globe },
   { id: 'map', label: 'Chokepoint Map', shortLabel: 'Map', icon: Globe2 },
+  { id: 'risk', label: 'Country Risk', shortLabel: 'Risk', icon: ShieldAlert },
 ];
 
 /*
- * Three of these tools read their own data file — the ownership register, the
- * broker tape and the chokepoint map — and none needs the price database. They
+ * Four of these tools read their own data file — the ownership register, the
+ * broker tape, the chokepoint map and the risk layer — and none needs the
+ * price database. They
  * stay usable while the rest of the terminal is still parsing 280 sessions of
  * history, so the loading branch below renders them rather than a spinner.
  *
@@ -84,6 +95,8 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
           <MutualFundTracker db={db} onSelectEmiten={onSelectEmiten} focusEmiten={focusEmiten} />
         ) : subTab === 'map' ? (
           <WorldMap />
+        ) : subTab === 'risk' ? (
+          <CountryRisk />
         ) : (
           <Spinner label="Memuat basis data pasar…" />
         )}
@@ -120,6 +133,7 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
       {subTab === 'broker' && <BrokerFlow db={db} onSelectEmiten={onSelectEmiten} />}
       {subTab === 'macro' && <MacroMonitor db={db} />}
       {subTab === 'map' && <WorldMap />}
+      {subTab === 'risk' && <CountryRisk />}
       {subTab === 'valuation' && (
         <AutoValuation
           db={db}

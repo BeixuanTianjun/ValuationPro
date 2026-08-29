@@ -148,6 +148,18 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
     added: '2026-08-28',
   },
   {
+    code: 'RISK',
+    name: 'Country Risk',
+    // The hint is what `searchFunctions` matches keywords against, so it has to
+    // carry the words somebody would actually type to find this screen.
+    hint: 'Risiko dan tekanan Indonesia: konflik dan nada berita GDELT, gempa, sanksi — komponennya mentah, skornya boleh dibuang.',
+    group: 'Analytics',
+    area: 'analytics',
+    sub: 'risk',
+    tone: 'text-cyan-300',
+    added: '2026-08-29',
+  },
+  {
     code: 'BRK',
     name: 'Broker Summary',
     hint: 'Aktivitas 88 anggota bursa dan struktur transaksi per emiten.',

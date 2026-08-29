@@ -645,6 +645,33 @@ komposit ini mendahului, mengikuti, atau menerangkan variabel pasar Indonesia.
 Kedua berkas menyatakan itu di field `note`-nya sendiri, dan backtest menjaga
 supaya komposit tidak pernah terbit saat nol komponen punya z-score.
 
+**Layar RISK sekarang ada** (`src/components/analytics/CountryRisk.tsx`, kode
+mnemonic `RISK`). Aturannya bukan gaya: skalanya dicetak di ubinnya sendiri —
+40,2 di skala berkas itu artinya 0,98 simpangan baku di bawah rata-rata jendela,
+bukan "40 dari 100" — metode dan daftar `unavailable` duduk satu panel dengan
+angkanya, tiap komponen ditampilkan mentah beserta ukuran sampelnya, OFAC tampil
+sebagai "di luar komposit" bukan dihilangkan, dan `note` serta `method` dirender
+VERBATIM dari JSON supaya tidak bisa melenceng dari skrip ingest-nya. Hari yang
+di bawah lantai 30 peristiwa ditandai "belum penuh" dan angka turunannya
+diredupkan, karena komposit di atasnya juga tidak memakainya.
+
+**Dua bug lama ketahuan saat menguji layar itu di 375px, dan keduanya di luar
+layar barunya:**
+
+1. `hint` RISK tidak memuat kata "risiko" — kata paling jelas yang akan diketik
+   orang Indonesia untuk mencarinya. `searchFunctions` mencocokkan ke `hint`,
+   jadi mengetik `risiko` mengembalikan kosong. Diuji satu per satu terhadap
+   sembilan kata sekarang.
+2. **Jaminan "tab aktif digeser ke dalam pandangan" di `Segmented` belum pernah
+   benar-benar bekerja.** Baris tab memakai `snap-x`, dan `scrollBy` dengan
+   `behavior: 'smooth'` pada wadah scroll-snap DIABAIKAN diam-diam: diukur di
+   bundel yang benar-benar dijalankan, smooth memindahkan `scrollLeft` dari 4 ke
+   4 sementara `auto` pada elemen yang sama di tik yang sama memindahkannya ke
+   175. Tidak pernah kelihatan sampai barisnya tumbuh jadi delapan tab dan yang
+   aktif mendarat 260px di luar tepi kanan. Sekarang instan. Ini menyentuh SEMUA
+   layar bertab, bukan cuma RISK. Pencarian tombol aktifnya juga tidak lagi
+   lewat ref yang berpindah antar-sibling, melainkan lewat `aria-current`.
+
 **Docker tidak terpasang di mesin ini**, jadi self-host worldmonitor belum bisa
 dicoba. `SELF_HOSTING.md` mereka juga menyebut route premium tetap butuh API key
 walau di-host sendiri, jadi nilainya lebih kecil dari kelihatannya.
