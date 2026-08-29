@@ -10,6 +10,7 @@
 import { execFile } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { inflateRawSync } from 'node:zlib';
 
 export const IDX_BASE = 'https://www.idx.co.id/primary';
 
@@ -147,6 +148,44 @@ export function tradingCalendar(end, calendarDaysBack) {
     days.push(d);
   }
   return days;
+}
+
+/**
+ * Inflate a zip that holds exactly one file, in-process.
+ *
+ * A Node process launched from PowerShell or a CI runner cannot assume `unzip`
+ * is on PATH — Git Bash has it, outside that it is a coin toss. GDELT's 15-minute
+ * slices and KSEI's monthly registers are both single-entry zips, so the central
+ * directory's first record is the only one worth reading.
+ */
+export function unzipSingle(buf) {
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0 && i > buf.length - 22 - 65536; i--) {
+    if (buf.readUInt32LE(i) === 0x06054b50) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) throw new Error('Bukan berkas zip yang sah (EOCD tidak ditemukan)');
+
+  const centralOffset = buf.readUInt32LE(eocd + 16);
+  if (buf.readUInt32LE(centralOffset) !== 0x02014b50) throw new Error('Central directory rusak');
+
+  const method = buf.readUInt16LE(centralOffset + 10);
+  const compSize = buf.readUInt32LE(centralOffset + 20);
+  const nameLen = buf.readUInt16LE(centralOffset + 28);
+  const localOffset = buf.readUInt32LE(centralOffset + 42);
+  const name = buf.toString('latin1', centralOffset + 46, centralOffset + 46 + nameLen);
+
+  if (buf.readUInt32LE(localOffset) !== 0x04034b50) throw new Error('Local header rusak');
+  const lNameLen = buf.readUInt16LE(localOffset + 26);
+  const lExtraLen = buf.readUInt16LE(localOffset + 28);
+  const start = localOffset + 30 + lNameLen + lExtraLen;
+  const data = buf.subarray(start, start + compSize);
+
+  if (method === 0) return { name, text: data.toString('utf8') };
+  if (method === 8) return { name, text: inflateRawSync(data).toString('utf8') };
+  throw new Error(`Metode kompresi zip ${method} tidak didukung`);
 }
 
 export { sleep };

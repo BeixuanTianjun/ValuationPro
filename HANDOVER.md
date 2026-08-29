@@ -481,6 +481,10 @@ scripts/gfinance-lib.mjs   fallback kutipan Google Finance, dipakai
                   scripts/ingest-intraday.mjs saat Yahoo gagal
 scripts/ingest-macro.mjs      29 instrumen luar IDX -> macro.json
 scripts/ingest-worldmap.mjs   28 selat + disrupsi + garis pantai -> worldmap.json
+scripts/ingest-gdelt.mjs      irisan Indonesia dari berkas mentah GDELT 2.0
+                              (15 menit/slice) -> gdelt.json, retensi 45 hari
+scripts/ingest-risk.mjs       komponen tekanan bersumber publik + komposit
+                              yang metodenya dicetak di dalam berkasnya -> risk.json
 scripts/backtest.ts           sapuan invariant seluruh semesta, lokal
 scripts/backtest-live.ts      sapuan invariant terhadap deployment
 scripts/preview-dossier.ts    cetak dossier chatbot tanpa memanggil API
@@ -508,6 +512,8 @@ npm run data:ownership  # register kepemilikan KSEI 24 bulan (~40 detik)
 npm run data:announcements # keterbukaan informasi IDX 45 hari (~10 detik)
 npm run data:macro      # 29 aset di luar IDX, 6 kelas (~5 detik)
 npm run data:worldmap   # 28 selat + alert disrupsi + garis pantai (~15 detik)
+npm run data:gdelt      # 12 hari peristiwa GDELT irisan Indonesia (~4 menit)
+npm run data:risk       # komponen tekanan + komposit (~10 detik)
 npm run alert:preview   # hitung pick tanpa mengirim email
 ```
 
@@ -569,6 +575,50 @@ Pro lewat OAuth atau kunci `wm_…`. Saya tidak membuat akun dan tidak memasukka
 data pembayaran. Sampai itu dilakukan, tiap `tools/call` selain `get_sources`
 menjawab 401 — dan agen diinstruksikan menyebut lapisannya tidak tersedia, bukan
 menggantinya dengan angka lain.
+
+## Lapisan risiko yang dibangun sendiri
+
+Setelah ketahuan `data.gdeltproject.org` hidup, dua feed baru dibangun dari
+sumber primer gratis — bukan menyewa skor pihak lain.
+
+**`gdelt.json`** — irisan Indonesia dari GDELT 2.0 Events. Penyaringnya baca
+kolom, bukan grep: `Actor1CountryCode=IDN OR Actor2CountryCode=IDN OR
+ActionGeo_CountryCode=ID`. Dua kosakata negara dalam satu baris (aktor CAMEO 3
+huruf, geografi FIPS 2 huruf) dan grep `ID` saja sempat menarik berita kebakaran
+hutan Amerika sebagai peristiwa Indonesia. ~500-760 peristiwa Indonesia per hari,
+lengkap dengan Goldstein scale, tone, quad class, dan URL artikel aslinya.
+Retensi 45 hari supaya berkasnya tidak tumbuh tanpa batas — `history.json` yang
+6 MB sudah membuat riwayat git naik ~130 MB/bulan sebelum ini ditambahkan.
+
+Pelajaran cache hari ini ikut dipakai: slice yang terbit tidak pernah berubah
+jadi aman di-cache selamanya, tapi slice yang KOSONG tidak pernah ditulis ke
+disk — persis kesalahan yang menghapus sesi 2026-08-26 dari kalender.
+
+**`risk.json`** — komponen tekanan plus komposit. Aturan repo bukan "jangan
+pernah bikin komposit", melainkan jangan menambal dengan proksi dan jangan
+menerbitkan angka yang metodenya disembunyikan. Jadi: tiap input endpoint publik
+bernama, aritmetikanya dicetak di dalam berkas (`method`), dan komponen
+mentahnya diterbitkan di sebelah skornya supaya skornya bisa dibuang dan
+komponennya tetap terpakai.
+
+Yang MASUK: pangsa konflik GDELT (quad 3-4), nada pemberitaan (tandanya dibalik
+supaya semua komponen searah), gempa M4.5+ USGS di kotak Indonesia. OFAC SDN
+ikut sebagai hitungan mentah tapi TIDAK masuk komposit — belum punya riwayat
+untuk z-score, dan itu ditulis di berkasnya.
+
+Yang TIDAK BISA, tiap satu dengan alasannya di `unavailable`: UCDP mewajibkan
+token yang harus didaftarkan pemilik repo, IMF datamapper menjawab 403, World
+Bank menjawab 400 berisi HTML, ReliefWeb butuh appname yang disetujui, UNHCR
+menjawab 200 tapi nol baris untuk `coo=IDN` maupun `coa=IDN`.
+
+**Belum divalidasi terhadap apa pun.** Tidak ada satu uji pun yang menunjukkan
+komposit ini mendahului, mengikuti, atau menerangkan variabel pasar Indonesia.
+Kedua berkas menyatakan itu di field `note`-nya sendiri, dan backtest menjaga
+supaya komposit tidak pernah terbit saat nol komponen punya z-score.
+
+**Docker tidak terpasang di mesin ini**, jadi self-host worldmonitor belum bisa
+dicoba. `SELF_HOSTING.md` mereka juga menyebut route premium tetap butuh API key
+walau di-host sendiri, jadi nilainya lebih kecil dari kelihatannya.
 
 ## Yang masih terbuka
 

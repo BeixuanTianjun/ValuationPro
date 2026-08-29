@@ -11,7 +11,7 @@
     "data:refresh": "node scripts/ingest-idx.mjs --days 430",
     "data:quotes": "node scripts/ingest-quotes.mjs",
     "data:fundamentals": "node scripts/ingest-fundamentals.mjs --concurrency 3",
-    "data:all": "npm run data:refresh && npm run data:quotes && npm run data:fundamentals && npm run data:brokers && npm run data:ownership && npm run data:announcements && npm run data:macro && npm run data:worldmap",
+    "data:all": "npm run data:refresh && npm run data:quotes && npm run data:fundamentals && npm run data:brokers && npm run data:ownership && npm run data:announcements && npm run data:macro && npm run data:worldmap && npm run data:gdelt && npm run data:risk",
     "data:intraday": "node scripts/ingest-intraday.mjs",
     "build:server": "esbuild src/server/index.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/server.mjs --log-level=warning",
     "auto": "npm run build:server && node .cache/server.mjs",
@@ -26,7 +26,9 @@
     "backtest:live": "esbuild scripts/backtest-live.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/backtest-live.mjs --log-level=warning && node .cache/backtest-live.mjs",
     "chat:dossier": "esbuild scripts/preview-dossier.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/dossier.mjs --log-level=warning && node .cache/dossier.mjs",
     "alert:preview": "esbuild src/server/alertCli.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/alert.mjs --log-level=warning && node .cache/alert.mjs --dry-run",
-    "agents:sync": "node scripts/sync-agents.mjs"
+    "agents:sync": "node scripts/sync-agents.mjs",
+    "data:gdelt": "node scripts/ingest-gdelt.mjs --hours 288",
+    "data:risk": "node scripts/ingest-risk.mjs --days 90"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.121.0",

@@ -510,6 +510,135 @@ async function main() {
     }
   }
 
+  // ---- GDELT + risk: the two feeds added without a screen to look at ------
+  //
+  // Both are built from raw public files with no UI in front of them yet, which
+  // is exactly the condition under which a feed rots unnoticed. The invariants
+  // here are the ones that would have caught every silent failure this repo has
+  // already produced: a rollup that stops matching its own rows, a column filter
+  // that drifts onto the wrong field, and a composite that keeps publishing a
+  // number after its inputs went away.
+  {
+    const gdelt = await readFile(join(DATA_DIR, 'gdelt.json'), 'utf8')
+      .then((t) => JSON.parse(t) as {
+        filter?: string;
+        eventCount?: number;
+        days?: { date: string; events: number; conflict: number; cooperation: number }[];
+        events?: { id: string; date: string; quad: number | null; tone: number | null; goldstein: number | null; url: string }[];
+      })
+      .catch(() => null);
+
+    checks++;
+    if (!gdelt) {
+      fail('gdelt', 'gdelt.json tidak ada atau tidak terbaca');
+    } else {
+      const events = gdelt.events ?? [];
+      const days = gdelt.days ?? [];
+
+      checks++;
+      if (events.length !== gdelt.eventCount) {
+        fail('gdelt', `eventCount ${gdelt.eventCount} != jumlah baris ${events.length}`);
+      }
+
+      // The filter is the whole feed. If it stops being recorded, nobody can
+      // tell later which country the rows are actually about.
+      checks++;
+      if (!gdelt.filter || !gdelt.filter.includes('IDN')) {
+        fail('gdelt', `filter negara tidak tercatat di berkas: ${gdelt.filter ?? 'tidak ada'}`);
+      }
+
+      // Ids are GDELT's own global event ids and are what the merge dedupes on.
+      checks++;
+      if (new Set(events.map((e) => e.id)).size !== events.length) {
+        fail('gdelt', 'ada id event ganda — merge berhenti mendeduplikasi');
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      let future = 0;
+      let noUrl = 0;
+      let badQuad = 0;
+      for (const e of events) {
+        if (e.date > today) future++;
+        if (!e.url) noUrl++;
+        if (e.quad !== null && ![1, 2, 3, 4].includes(e.quad)) badQuad++;
+        assertFinite('gdelt', e.id, {
+          ...(e.tone !== null ? { tone: e.tone } : {}),
+          ...(e.goldstein !== null ? { goldstein: e.goldstein } : {}),
+        });
+      }
+      checks += 3;
+      if (future) fail('gdelt', `${future} event bertanggal di masa depan`);
+      // Every row must keep the article it came from, or the claim it supports
+      // stops being citable — which is the only reason this feed exists.
+      if (noUrl) fail('gdelt', `${noUrl} event tanpa URL sumber`);
+      if (badQuad) fail('gdelt', `${badQuad} event dengan quad class di luar 1-4`);
+
+      // The rollup must still describe the rows it was built from.
+      const counted = new Map<string, number>();
+      for (const e of events) counted.set(e.date, (counted.get(e.date) ?? 0) + 1);
+      for (const d of days) {
+        checks += 2;
+        if (counted.get(d.date) !== d.events) {
+          fail('gdelt', `${d.date}: rollup ${d.events} != baris sebenarnya ${counted.get(d.date) ?? 0}`);
+        }
+        if (d.conflict + d.cooperation > d.events) {
+          fail('gdelt', `${d.date}: konflik+kerjasama ${d.conflict + d.cooperation} > total ${d.events}`);
+        }
+      }
+    }
+
+    const risk = await readFile(join(DATA_DIR, 'risk.json'), 'utf8')
+      .then((t) => JSON.parse(t) as {
+        composite: number | null;
+        componentsUsed: number;
+        componentsTotal: number;
+        method?: string;
+        components?: { id: string; z: number | null }[];
+        unavailable?: { id: string; reason?: string }[];
+      })
+      .catch(() => null);
+
+    checks++;
+    if (!risk) {
+      fail('risk', 'risk.json tidak ada atau tidak terbaca');
+    } else {
+      const comps = risk.components ?? [];
+      const scored = comps.filter((c) => c.z !== null);
+
+      checks += 3;
+      if (risk.composite !== null && !Number.isFinite(risk.composite)) {
+        fail('risk', `komposit bukan angka berhingga: ${risk.composite}`);
+      }
+      // A composite with nothing under it is the exact failure this file was
+      // written to avoid: a score that keeps printing after its inputs vanish.
+      if (risk.composite !== null && scored.length === 0) {
+        fail('risk', 'komposit diterbitkan padahal nol komponen punya z-score');
+      }
+      if (risk.componentsUsed !== scored.length) {
+        fail('risk', `componentsUsed ${risk.componentsUsed} != komponen ber-z ${scored.length}`);
+      }
+
+      checks += 2;
+      if (comps.length !== risk.componentsTotal) {
+        fail('risk', `componentsTotal ${risk.componentsTotal} != ${comps.length} komponen`);
+      }
+      // The method has to travel with the number, or the score becomes exactly
+      // the unexplained black box this project refuses to ship.
+      if (!risk.method) fail('risk', 'risk.json tidak memuat penjelasan metodenya');
+
+      for (const c of scored) {
+        checks++;
+        if (!Number.isFinite(c.z as number)) fail('risk', `${c.id}: z bukan angka berhingga`);
+      }
+      // An input that could not be fetched must say why. "Missing" with no
+      // reason is indistinguishable from "we forgot".
+      for (const u of risk.unavailable ?? []) {
+        checks++;
+        if (!u.reason) fail('risk', `${u.id}: masuk daftar tidak tersedia tanpa alasan`);
+      }
+    }
+  }
+
   // ---- determinism ---------------------------------------------------------
   for (let i = 1; i < signatures.length; i++) {
     checks++;
