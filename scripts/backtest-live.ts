@@ -81,7 +81,16 @@ async function main() {
   const fav = await fetch(`${BASE}/favicon.svg`, { method: 'HEAD' });
   check('aset', fav.ok, `favicon.svg -> HTTP ${fav.status}`);
 
-  // ---- every data file the app fetches ------------------------------------
+  // ---- every data file that ships ------------------------------------------
+  //
+  // This list is hand-maintained, and that is its own failure mode: a file added
+  // to `public/data/idx/` and never added here can fail to deploy while this
+  // check still prints "LULUS, nol temuan" — the pass then means "the files I
+  // know about are fine", not "the deploy is complete". `brokers.json` sat in
+  // that blind spot while `BrokerFlow.tsx` fetched it in production; a 404 there
+  // would have taken out a screen with nothing to catch it. The guard below
+  // compares this list against what the repo actually holds, so the next file
+  // to go missing from here fails the run instead of hiding in it.
   const FILES = [
     'meta.json',
     'universe.json',
@@ -93,8 +102,11 @@ async function main() {
     'quotes.json',
     'announcements.json',
     'ownership.json',
+    'brokers.json',
     'macro.json',
     'worldmap.json',
+    'gdelt.json',
+    'risk.json',
   ];
   const data: Record<string, unknown> = {};
   for (const f of FILES) {
@@ -103,6 +115,23 @@ async function main() {
     check('data', r.body !== null, `${f} bukan JSON yang sah`);
     if (r.body) data[f] = r.body;
     console.log(`  ${f.padEnd(20)} HTTP ${r.status}  ${(r.bytes / 1024).toFixed(0).padStart(5)} KB  ${r.ms} ms`);
+  }
+
+  // The list above is hand-maintained, so it is checked against reality rather
+  // than trusted. A file that ships but is not listed gets no HTTP check at all,
+  // and this run would still report zero findings while it 404'd for visitors.
+  try {
+    const { readdir } = await import('node:fs/promises');
+    const onDisk = (await readdir('public/data/idx')).filter((f) => f.endsWith('.json'));
+    const unchecked = onDisk.filter((f) => !FILES.includes(f));
+    check(
+      'cakupan',
+      unchecked.length === 0,
+      `${unchecked.length} berkas dikirim tapi tidak pernah diperiksa di sini: ${unchecked.join(', ')} — tambahkan ke FILES`
+    );
+  } catch {
+    // Running from somewhere without the repo checked out is fine; the HTTP
+    // checks above still stand on their own.
   }
 
   // ---- the invariants, on what the deployment actually serves --------------
@@ -122,6 +151,39 @@ async function main() {
     console.log(`\n  sesi terakhir: ${meta.latestSession} (${age} hari lalu)`);
     check('kesegaran', age <= 7, `data harga berumur ${age} hari — ingest terjadwal berhenti?`);
   }
+
+  // gdelt.json and risk.json have no frontend consumer yet, which is exactly when
+  // a feed rots unnoticed: every invariant in `npm run backtest` is internal
+  // consistency and would still pass on a file frozen six months ago. Age is the
+  // one thing only a live check can see.
+  for (const [name, field] of [
+    ['gdelt.json', 'generatedAt'],
+    ['risk.json', 'generatedAt'],
+  ] as const) {
+    const f = data[name] as Record<string, string> | undefined;
+    const stamp = f?.[field];
+    if (!stamp) {
+      check('kesegaran', false, `${name} tidak membawa ${field}`);
+      continue;
+    }
+    const age = ageDays(stamp.slice(0, 10));
+    console.log(`  ${name.padEnd(20)} dibuat ${stamp.slice(0, 10)} (${age} hari lalu)`);
+    check('kesegaran', age <= 14, `${name} berumur ${age} hari — ingest-nya berhenti?`);
+  }
+
+  const risk = data['risk.json'] as
+    | { composite?: number | null; componentsUsed?: number; method?: string; unavailable?: unknown[] }
+    | undefined;
+  // The composite must never reach a visitor without the method that produced it
+  // and the list of inputs that could not be fetched. Those two fields are the
+  // difference between a documented reading and an unexplained score.
+  check('risk', typeof risk?.method === 'string' && risk.method.length > 40, 'risk.json tayang tanpa penjelasan metode');
+  check('risk', Array.isArray(risk?.unavailable), 'risk.json tayang tanpa daftar input yang tidak tersedia');
+  check(
+    'risk',
+    risk?.composite === null || (risk?.componentsUsed ?? 0) > 0,
+    'komposit tayang padahal nol komponen punya z-score'
+  );
 
   const macro = data['macro.json'] as
     | { instruments?: { id: string; after?: boolean }[]; dates?: string[]; to?: string }

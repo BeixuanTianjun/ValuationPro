@@ -697,7 +697,17 @@ walau di-host sendiri, jadi nilainya lebih kecil dari kelihatannya.
   dihilangkan, dan `refresh-data.yml` akan MERAH tiap kali slot EOD jalan — itu
   disengaja, bukan workflow yang rusak. Empat sesi (25–28 Agu) masih menunggu
   ditarik dari rumah.
-- **Kenapa cron Actions berhenti total belum terjawab.** Tujuh slot berturut-turut
+- **Cron Actions ternyata tidak berhenti — ia MELESET JAUH dari slotnya.**
+  Diperiksa 2026-08-29 lewat REST API: 11 run sejak repo dibuat, dan run
+  terjadwal 28 Agu menyala pukul 17:20, 20:56, 20:58, dan 21:28 UTC — 5,5 sampai
+  10 jam setelah slot mana pun yang mungkin cocok, dengan dua run mendarat
+  berjarak 2 menit padahal cron-nya berjarak 30 menit. Itu terbaca seperti
+  GitHub menguras antrean yang menumpuk, bukan menghormati slot. Datanya tetap
+  benar (run #8 mengejar seri resmi ke 2026-08-28, `pendingSessions` nol), jadi
+  yang rusak jadwalnya, bukan hasilnya. Menambah slot cron tidak akan menolong
+  gejala seperti ini; kalau polanya berlanjut, jawabannya memindahkan penjadwalan
+  keluar dari GitHub.
+- **Catatan lama "cron berhenti total" di bawah ini ditulis sebelum bukti itu ada.** Tujuh slot berturut-turut
   tidak menghasilkan run apa pun antara 26 dan 28 Agu, `state` workflow tetap
   `active`, tidak ada run gagal. Saya tidak punya bukti penyebabnya, jadi tidak
   saya tebak — yang dikerjakan justru membuat akibatnya kelihatan di layar
