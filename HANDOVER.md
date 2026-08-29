@@ -611,6 +611,35 @@ token yang harus didaftarkan pemilik repo, IMF datamapper menjawab 403, World
 Bank menjawab 400 berisi HTML, ReliefWeb butuh appname yang disetujui, UNHCR
 menjawab 200 tapi nol baris untuk `coo=IDN` maupun `coa=IDN`.
 
+Audit agen menemukan dua kerusakan kritis di kedua skrip pada hari yang sama
+mereka ditulis, dan MEMBUKTIKANNYA, bukan menduga:
+
+**`gdelt.json` bisa menyusut dari 8.166 event jadi 68 dengan exit 0, dan backtest
+tetap LULUS.** `readExisting` menelan berkas rusak jadi `null`, lalu run enam jam
+menimpa 45 hari riwayat. Lebih parah daripada padanannya di `ingest-idx.mjs`:
+slice GDELT dialamati lewat stempel TERBIT, bukan tanggal peristiwa, jadi hari
+yang hilang tidak bisa ditarik ulang dengan meminta hari itu. Sekarang berkas
+tak terbaca ditolak (bukan dianggap kosong), dan hasil merge wajib superset dari
+yang tersimpan di dalam retensi.
+
+**`seismic_m45` bernama 7 hari tapi isinya 6.** FDSN membaca `endtime` tanpa jam
+sebagai `T00:00:00`, jadi hari ini tidak pernah ikut — ember terakhir selalu nol
+secara struktural, dibandingkan terhadap rata-rata 7 hari yang sesungguhnya.
+Terbit 27 padahal 36, meleset 25%, dan tidak pernah error karena nol itu hitungan
+yang sah. Memperbaiki `endtime` saja hanya menukar nol dengan hari yang baru
+berjalan dua jam; serinya sekarang berakhir di hari UTC terakhir yang UTUH.
+Komposit 39,3 -> 40,2.
+
+Ditambah: `--hours --no-cache` dulu membuat `HOURS` jadi NaN, nol slice ditarik,
+berkas tetap ditulis dengan stempel segar dan `slicesMissing: 0` — terbaca persis
+seperti run sehat. Jendela 6 jam dulu menarik 25 slice (6,25 jam), `W.m1 = 21`
+lagi di tempat baru. Hari yang cuma diwakili ekor backfill (0-2% peristiwanya)
+dulu masuk `days[]` tanpa penanda dan membuat tebing 175x di tepi jendela ingest.
+`windowMean` yang diterbitkan bukan mean yang dipakai z-nya. `windowDays: 90`
+menggambarkan satu dari tiga komponen. `totalListed` OFAC kelebihan satu karena
+byte 0x1A di ujung `sdn.csv`. Semuanya diperbaiki, dan tiap satu punya invariant
+di backtest — yang sudah diuji memerahkan run, bukan sekadar ditulis.
+
 **Belum divalidasi terhadap apa pun.** Tidak ada satu uji pun yang menunjukkan
 komposit ini mendahului, mengikuti, atau menerangkan variabel pasar Indonesia.
 Kedua berkas menyatakan itu di field `note`-nya sendiri, dan backtest menjaga

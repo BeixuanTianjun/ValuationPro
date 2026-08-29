@@ -573,6 +573,44 @@ async function main() {
       if (noUrl) fail('gdelt', `${noUrl} event tanpa URL sumber`);
       if (badQuad) fail('gdelt', `${badQuad} event dengan quad class di luar 1-4`);
 
+      // The slice walk must add up. `slicesMissing: 0` next to `slicesRead: 0` once
+      // read exactly like a healthy run — it meant "none missing out of the none
+      // we asked for" after a mistyped flag made the window NaN.
+      const g2 = gdelt as unknown as {
+        slicesAttempted?: number;
+        slicesRead?: number;
+        slicesMissing?: number;
+        windowHours?: number;
+        coveredDates?: string[];
+        timezone?: string;
+      };
+      checks += 4;
+      if ((g2.slicesRead ?? 0) + (g2.slicesMissing ?? 0) !== (g2.slicesAttempted ?? -1)) {
+        fail('gdelt', `slicesRead+slicesMissing != slicesAttempted (${g2.slicesRead}+${g2.slicesMissing} vs ${g2.slicesAttempted})`);
+      }
+      if (!(g2.slicesRead ?? 0)) fail('gdelt', 'nol slice terbaca tapi berkasnya tetap ditulis');
+      // A window named N must hold N. GDELT publishes four slices an hour, so the
+      // attempted count is the one field that proves the fencepost is right.
+      if ((g2.slicesAttempted ?? 0) !== Math.round((g2.windowHours ?? 0) * 4)) {
+        fail('gdelt', `windowHours ${g2.windowHours} seharusnya ${Math.round((g2.windowHours ?? 0) * 4)} slice, tapi mencoba ${g2.slicesAttempted}`);
+      }
+      // Dates here are UTC while IDX sessions are WIB, and a Jakarta day spans two
+      // UTC dates. The file has to say so or a future join gets it silently wrong.
+      if (!g2.timezone) fail('gdelt', 'gdelt.json tidak menyatakan zona waktu tanggalnya');
+
+      // A day marked covered must be one we actually pulled slices for. Without
+      // this, the backfill tail — days holding a fraction of a percent of their
+      // real events — passes as coverage and draws a cliff at the window edge.
+      const covered = new Set(g2.coveredDates ?? []);
+      checks++;
+      if (!covered.size) fail('gdelt', 'tidak ada coveredDates — mustahil membedakan hari terliput dari ekor backfill');
+      for (const d of days as unknown as { date: string; covered?: boolean }[]) {
+        checks++;
+        if (d.covered && !covered.has(d.date)) {
+          fail('gdelt', `${d.date} ditandai terliput tapi tidak ada di coveredDates`);
+        }
+      }
+
       // The rollup must still describe the rows it was built from.
       const counted = new Map<string, number>();
       for (const e of events) counted.set(e.date, (counted.get(e.date) ?? 0) + 1);
@@ -626,9 +664,45 @@ async function main() {
       // the unexplained black box this project refuses to ship.
       if (!risk.method) fail('risk', 'risk.json tidak memuat penjelasan metodenya');
 
-      for (const c of scored) {
-        checks++;
+      const r2 = risk as unknown as {
+        dominantSourceShare?: number | null;
+        sourceConcentration?: Record<string, number>;
+      };
+      const scored2 = scored as unknown as {
+        id: string;
+        z: number | null;
+        n?: number;
+        latestDate?: string;
+        baselineMean?: number | null;
+      }[];
+      for (const c of scored2) {
+        checks += 3;
         if (!Number.isFinite(c.z as number)) fail('risk', `${c.id}: z bukan angka berhingga`);
+        // A reading with no date drifts with the hour the job runs: the same field
+        // means "a complete yesterday" at 02:00 UTC and "half of today" at noon.
+        if (!c.latestDate) fail('risk', `${c.id}: nilai terakhir tanpa tanggal`);
+        // zLatest needs eight points. A component that slipped below it should have
+        // gone to `unavailable`, not shipped a z computed from too little.
+        if ((c.n ?? 0) < 8) fail('risk', `${c.id}: z diterbitkan dari n=${c.n}, di bawah minimum 8`);
+      }
+      // The published baseline must be the mean the z was divided against — the
+      // history EXCLUDING the latest point. Shipping the all-inclusive mean means
+      // anyone recomputing (latest - mean)/sd gets a different number than the one
+      // on screen, which is the quietest way to be wrong.
+      for (const c of scored2) {
+        checks++;
+        if (c.baselineMean === undefined) fail('risk', `${c.id}: tidak menerbitkan baselineMean yang dipakai z-nya`);
+      }
+      checks += 2;
+      // If one upstream supplies the whole score, the composite changes meaning the
+      // day that upstream dies — and the zero-components guard never fires, because
+      // the survivors keep their z.
+      if (typeof r2.dominantSourceShare !== 'number' || r2.dominantSourceShare > 1) {
+        fail('risk', `dominantSourceShare tidak masuk akal: ${r2.dominantSourceShare}`);
+      }
+      const concSum = Object.values(r2.sourceConcentration ?? {}).reduce((a, b) => a + b, 0);
+      if (concSum !== scored.length) {
+        fail('risk', `sourceConcentration menjumlah ${concSum}, komponen ber-z ${scored.length}`);
       }
       // An input that could not be fetched must say why. "Missing" with no
       // reason is indistinguishable from "we forgot".

@@ -68,44 +68,75 @@ async function main() {
   // ---- 1. GDELT conflict share, from the file ingest-gdelt.mjs already wrote
   try {
     const g = JSON.parse(await readFile(join(OUT_DIR, 'gdelt.json'), 'utf8'));
-    // Only days with enough events to make a share meaningful. A day with four
-    // events can read 100% conflict and mean nothing.
-    const days = (g.days || []).filter((d) => d.events >= 30);
-    const shares = days.map((d) => d.conflict / Math.max(1, d.conflict + d.cooperation));
-    const tones = days.map((d) => d.avgTone).filter((x) => x !== null);
+    // Two filters, both load-bearing. `covered` drops days represented only by
+    // backfill arriving in later slices — they hold a fraction of a percent of
+    // their real events and would draw a cliff at the edge of the ingest window.
+    // The event floor drops days too thin for a share to mean anything: four
+    // events can read 100% conflict and say nothing at all.
+    const days = (g.days || []).filter((d) => d.covered !== false && d.events >= 30);
+
+    // Built as one array so share, tone and date can never drift apart. Filtering
+    // nulls out of a mapped tone list separately is how `tones[len-1]` quietly
+    // becomes a different day from `shares[len-1]` the first time a tone is null.
+    const rows = days
+      .map((d) => {
+        const denom = d.conflict + d.cooperation;
+        return {
+          date: d.date,
+          // A day where every quad class failed to parse would divide by zero.
+          // Clamping the denominator to 1 turns that into a 0.0000 conflict share
+          // — a record-calm reading — where the honest answer is "no data".
+          share: denom > 0 ? d.conflict / denom : null,
+          tone: d.avgTone,
+        };
+      })
+      .filter((r) => r.share !== null);
+
+    const shares = rows.map((r) => r.share);
+    const toneRows = rows.filter((r) => r.tone !== null);
+
     if (shares.length >= 8) {
       components.push({
         id: 'gdelt_conflict_share',
         label: 'Pangsa peristiwa konflik (GDELT quad 3-4)',
         source: 'GDELT 2.0 Events via data.gdeltproject.org',
         latest: Number(shares[shares.length - 1].toFixed(4)),
-        windowMean: Number(mean(shares).toFixed(4)),
+        latestDate: rows[rows.length - 1].date,
+        // The mean the z was actually divided against — the history EXCLUDING the
+        // latest point. Publishing the all-inclusive mean instead means anyone
+        // recomputing (latest - mean)/sd gets a different number than the one
+        // shipped: 0.2160 published against 0.2182 used. Small, and exactly the
+        // "looks reasonable, is not what you think" shape this repo keeps paying for.
+        baselineMean: Number(mean(shares.slice(0, -1)).toFixed(4)),
+        windowDays: shares.length,
         n: shares.length,
         z: zLatest(shares),
       });
     } else {
       unavailable.push({
         id: 'gdelt_conflict_share',
-        reason: `hanya ${shares.length} hari dengan >=30 peristiwa; butuh 8 untuk z-score`,
+        reason: `hanya ${shares.length} hari terliput dengan >=30 peristiwa; butuh 8 untuk z-score`,
       });
     }
-    if (tones.length >= 8) {
+
+    if (toneRows.length >= 8) {
+      const tones = toneRows.map((r) => r.tone);
+      const z = zLatest(tones);
       components.push({
         id: 'gdelt_tone',
         label: 'Nada rata-rata pemberitaan (negatif = memburuk)',
         source: 'GDELT 2.0 Events via data.gdeltproject.org',
         latest: tones[tones.length - 1],
-        windowMean: Number(mean(tones).toFixed(3)),
+        latestDate: toneRows[toneRows.length - 1].date,
+        baselineMean: Number(mean(tones.slice(0, -1)).toFixed(3)),
+        windowDays: tones.length,
         n: tones.length,
         // Tone is negative-is-worse, so the sign is flipped to keep every
         // component pointing the same way: higher z = more stress.
-        z: (() => {
-          const z = zLatest(tones);
-          return z === null ? null : Number((-z).toFixed(3));
-        })(),
+        z: z === null ? null : Number((-z).toFixed(3)),
       });
     } else {
-      unavailable.push({ id: 'gdelt_tone', reason: `hanya ${tones.length} hari bernada terukur` });
+      unavailable.push({ id: 'gdelt_tone', reason: `hanya ${toneRows.length} hari terliput bernada terukur` });
     }
   } catch (err) {
     unavailable.push({
@@ -116,11 +147,24 @@ async function main() {
 
   // ---- 2. Seismicity, USGS
   try {
-    const end = new Date();
+    // The series ends at the last COMPLETE UTC day, not at "now". Ending it at now
+    // makes the newest bucket a partial day — a few hours of a 24-hour count —
+    // which is then compared against a baseline of whole days and reads as a fall
+    // in activity that is really just the clock. Fixing only the `endtime` bug
+    // below would have swapped a guaranteed zero for a partial day and left the
+    // same false calm; both halves have to move together.
+    const todayStart = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    const end = new Date(todayStart.getTime() - 86400000);
     const start = new Date(end.getTime() - DAYS * 86400000);
+    // FDSN reads a date-only `endtime` as T00:00:00, so `endtime=<today>` excludes
+    // today entirely. The day grid below is built from `new Date()` — now — so the
+    // newest bucket was structurally always zero, and the 7-day sum was six real
+    // days plus a guaranteed 0 compared against a true 7-day mean. Measured: 27
+    // published where 36 was correct, a 25% understatement that never errored
+    // because zero is a legal count. A window named 7 that held 6.
     const url =
       `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=4.5` +
-      `&starttime=${iso(start)}&endtime=${iso(end)}` +
+      `&starttime=${iso(start)}&endtime=${iso(end)}T23:59:59` +
       `&minlatitude=${BBOX.minlat}&maxlatitude=${BBOX.maxlat}` +
       `&minlongitude=${BBOX.minlon}&maxlongitude=${BBOX.maxlon}`;
     const geo = await get(url);
@@ -134,22 +178,30 @@ async function main() {
     for (let i = DAYS - 1; i >= 0; i--) {
       series.push(byDay.get(iso(new Date(end.getTime() - i * 86400000))) || 0);
     }
+    // Every bucket is now a finished UTC day, so a 7-day sum means the same thing
+    // at the end of the series as it does anywhere in its history.
+
     const strongest = feats.reduce((m, f) => Math.max(m, f.properties.mag || 0), 0);
+    // Rolling 7-day sums, so the latest reading is comparable to its own history.
+    const sums = [];
+    for (let i = 6; i < series.length; i++) sums.push(series.slice(i - 6, i + 1).reduce((s, x) => s + x, 0));
     components.push({
       id: 'seismic_m45',
-      label: `Gempa M4.5+ di kotak Indonesia, ${DAYS} hari`,
+      label: `Gempa M4.5+ di kotak Indonesia, 7 hari terakhir`,
       source: 'USGS FDSN event query',
-      latest: series.slice(-7).reduce((s, x) => s + x, 0),
-      windowMean: Number((mean(series) * 7).toFixed(2)),
-      n: series.length,
+      latest: sums[sums.length - 1] ?? null,
+      latestDate: iso(end),
+      // The sample the z was actually computed from. Publishing the 90 raw days
+      // here instead would overstate the evidence by about sevenfold, because
+      // these windows overlap: 84 rolling sums are roughly 13 independent ones.
+      n: sums.length,
+      nIndependent: Math.floor(series.length / 7),
+      rawDays: series.length,
+      windowDays: DAYS,
       total: feats.length,
       strongestMag: strongest || null,
-      z: (() => {
-        // Rolling 7-day sums, so the latest reading is comparable to its history.
-        const sums = [];
-        for (let i = 6; i < series.length; i++) sums.push(series.slice(i - 6, i + 1).reduce((s, x) => s + x, 0));
-        return zLatest(sums);
-      })(),
+      baselineMean: sums.length > 1 ? Number(mean(sums.slice(0, -1)).toFixed(3)) : null,
+      z: zLatest(sums),
     });
     log(`USGS: ${feats.length} gempa M4.5+ dalam ${DAYS} hari`);
   } catch (err) {
@@ -159,7 +211,10 @@ async function main() {
   // ---- 3. Sanctions nexus, OFAC SDN
   try {
     const csv = await get('https://www.treasury.gov/ofac/downloads/sdn.csv', 'text');
-    const lines = csv.split('\n').filter((l) => l.trim());
+    // sdn.csv ends with a lone 0x1A (EOF marker) that survives `.trim()` and would
+    // be counted as a record. Harmless while `totalListed` is only descriptive,
+    // wrong the moment anybody turns it into a denominator.
+    const lines = csv.split('\n').filter((l) => l.replace(/\x1a/g, '').trim());
     const hits = lines.filter((l) => /indonesia/i.test(l));
     components.push({
       id: 'ofac_indonesia_nexus',
@@ -189,10 +244,26 @@ async function main() {
   const scored = components.filter((c) => c.z !== null);
   const composite = scored.length ? Number((mean(scored.map((c) => c.z)) * 10 + 50).toFixed(1)) : null;
 
+  // How much of the score rides on one upstream. Two of three scored components
+  // are GDELT-derived, so if that ingest dies the composite quietly becomes
+  // seismic-only — and the `scored.length === 0` guard never fires, because the
+  // survivor keeps its z. A number that changed meaning without changing shape is
+  // this repo's whole failure catalogue, so the concentration is published rather
+  // than left for a reader to work out.
+  const bySource = {};
+  for (const c of scored) bySource[c.source] = (bySource[c.source] || 0) + 1;
+  const dominant = Object.entries(bySource).sort((a, b) => b[1] - a[1])[0] || null;
+
   const payload = {
     generatedAt: new Date().toISOString(),
     country: 'IDN',
-    windowDays: DAYS,
+    timezone: 'UTC — komponen GDELT memakai tanggal UTC, komponen seismik memakai hari UTC. Bukan WIB.',
+    // Was a single top-level `windowDays: 90`, which described only the seismic
+    // component: the two GDELT components carry twelve days, capped by what
+    // gdelt.json has accumulated. One field answering two different questions is
+    // exactly the shape that once killed chat in production, so the window now
+    // lives per component and this field says what it actually governs.
+    seismicWindowDays: DAYS,
     note:
       'Bacaan tekanan, BUKAN sinyal. Belum ada satu pun uji yang menunjukkan angka ' +
       'ini mendahului, mengikuti, atau menerangkan variabel pasar Indonesia mana pun. ' +
@@ -206,6 +277,9 @@ async function main() {
       'riwayat tidak ikut dihitung dan disebutkan sebagai tidak ikut.',
     componentsUsed: scored.length,
     componentsTotal: components.length,
+    sourceConcentration: bySource,
+    dominantSource: dominant ? dominant[0] : null,
+    dominantSourceShare: dominant && scored.length ? Number((dominant[1] / scored.length).toFixed(2)) : null,
     composite,
     components,
     unavailable,

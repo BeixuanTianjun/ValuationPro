@@ -86,16 +86,23 @@ crumb fails — which does happen.
 
 ## What NOT to build an ingest for
 
-Some feeds were tried here and could not be sourced honestly: GDELT answers HTTP
-000 from this ingest host, and CPO (`FCPO=F`) and nickel (`NI=F`) both come back
-"symbol may be delisted" from Yahoo. Nothing was substituted, because a
-correlation borrowed from a stand-in reads as evidence and is not.
+Some feeds were tried here and could not be sourced honestly: CPO (`FCPO=F`) and
+nickel (`NI=F`) both come back "symbol may be delisted" from Yahoo. Nothing was
+substituted, because a correlation borrowed from a stand-in reads as evidence
+and is not.
 
-Those now arrive through the `worldmonitor` MCP server instead
-(`get_news_intelligence`, `get_mineral_production`, `get_country_risk`,
-`get_signal_convergence`) — consumed as an external, cited source rather than
-rebuilt. Do not write a new ingest script for anything that server already
-serves, and do not copy its numbers into `public/data/` as if we measured them.
+**GDELT was on that list and should not have been.** The note said it answers
+HTTP 000 from this host, and that was true of exactly one host:
+`api.gdeltproject.org` is dead from here, `data.gdeltproject.org` is not. The
+raw bulk files answer 200 and carry more than the API would have — Goldstein
+scale, tone, quad class and a source URL per row — so `scripts/ingest-gdelt.mjs`
+now builds that layer from the primary source. When a source is written off,
+check whether the whole source was tested or only one of its hosts.
+
+What genuinely cannot be built here still arrives through the `worldmonitor` MCP
+server (`get_country_risk`, `get_signal_convergence`, `get_mineral_production`)
+— consumed as an external, cited source. Do not copy its numbers into
+`public/data/` as if we measured them.
 
 ## After any pull
 

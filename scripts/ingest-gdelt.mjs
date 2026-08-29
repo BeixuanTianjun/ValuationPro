@@ -20,7 +20,7 @@
  *
  * Writes public/data/idx/gdelt.json
  */
-import { mkdir, writeFile, readFile, stat } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, readdir, stat } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unzipSingle } from './idx-lib.mjs';
@@ -36,6 +36,14 @@ const argVal = (flag, dflt) => {
   return i >= 0 && argv[i + 1] ? argv[i + 1] : dflt;
 };
 const HOURS = Number(argVal('--hours', 72));
+// `--hours --no-cache` makes argVal swallow the next flag as its value, so HOURS
+// becomes NaN, the slice loop never runs, and the script still writes a file with
+// a fresh timestamp and `slicesMissing: 0` — which reads exactly like a healthy
+// run. Refuse the argument instead of producing a confident empty answer.
+if (!Number.isFinite(HOURS) || HOURS <= 0) {
+  console.error(`--hours harus angka positif, dapat "${argVal('--hours', '')}"`);
+  process.exit(1);
+}
 const USE_CACHE = !argv.includes('--no-cache');
 // Retention. The merge below keeps every event it has ever seen, which on a
 // 15-minute feed is unbounded growth — and `history.json` alone already rewrites
@@ -160,11 +168,21 @@ async function cachedSlice(stamp) {
   return payload;
 }
 
-/** 15-minute slice stamps covering the last `hours`, oldest first. */
+/**
+ * 15-minute slice stamps covering the last `hours`, oldest first.
+ *
+ * The loop is half-open on purpose. Written inclusive at both ends it returns
+ * hours*4 + 1 stamps — `--hours 6` fetching 6.25 hours — and then the file
+ * publishes `windowHours: 6` beside `slicesRead: 25`, two fields that contradict
+ * each other. That is this repo's `W.m1 = 21` bug exactly: a window named N that
+ * holds N+1, printed on screen as if it were N. It also matters mechanically,
+ * because `windowHours` is the only field a future coverage guard could derive
+ * an expected slice count from.
+ */
 function sliceStamps(latest, hours) {
   const out = [];
   const slices = Math.round((hours * 60) / 15);
-  for (let i = slices; i >= 0; i--) {
+  for (let i = slices - 1; i >= 0; i--) {
     const d = new Date(latest.getTime() - i * 15 * 60000);
     const p = (n) => String(n).padStart(2, '0');
     out.push(
@@ -195,11 +213,31 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+/**
+ * Read the stored file, distinguishing "not there yet" from "there and broken".
+ *
+ * Collapsing those two into `null` is how a truncated file becomes an empty
+ * store, and an empty store plus a six-hour window silently replaces 45 days of
+ * history with 68 events — exit 0, no error, and every backtest invariant still
+ * passing because they all describe the file rather than defend it. This is the
+ * same shape as the scheduled job that once cut 282 sessions down to 14.
+ */
 async function readExisting(name) {
+  let text;
   try {
-    return JSON.parse(await readFile(join(OUT_DIR, name), 'utf8'));
-  } catch {
-    return null;
+    text = await readFile(join(OUT_DIR, name), 'utf8');
+  } catch (err) {
+    if (err.code === 'ENOENT') return null; // genuinely first run
+    throw new Error(`${name} ada tapi tidak terbaca (${err.code}) — menolak menimpanya`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    throw new Error(
+      `${name} ada tapi bukan JSON yang sah (${String(err.message).slice(0, 60)}). ` +
+        `Menulis sekarang akan mengganti seluruh riwayat dengan jendela run ini. ` +
+        `Perbaiki atau hapus berkasnya, lalu jalankan dengan --replace kalau memang ingin membangun ulang.`
+    );
   }
 }
 
@@ -214,6 +252,10 @@ async function main() {
   let missing = 0;
   let totalRows = 0;
   const events = [];
+  // Publication dates actually pulled. An event dated D almost always arrives in
+  // a slice published on D (98-100% measured), so this is what separates a day
+  // we really covered from a day represented only by the 0-2% backfill tail.
+  const pulledDates = new Set();
 
   for (const [i, stamp] of stamps.entries()) {
     const { rows } = await cachedSlice(stamp);
@@ -221,6 +263,7 @@ async function main() {
       missing++;
     } else {
       scanned++;
+      pulledDates.add(`${stamp.slice(0, 4)}-${stamp.slice(4, 6)}-${stamp.slice(6, 8)}`);
       totalRows += rows.length;
       for (const line of rows) {
         const c = line.split('\t');
@@ -275,6 +318,44 @@ async function main() {
   const cutoff = new Date(Date.now() - KEEP_DAYS * 86400000).toISOString().slice(0, 10);
   const merged = all.filter((e) => e.date >= cutoff);
   const dropped = all.length - merged.length;
+
+  // The merge is prior ∪ fresh, then a retention trim — so the result must be a
+  // superset of everything stored that retention still allows. Anything less
+  // means data was lost, and it is unrecoverable here in a way it is not for the
+  // IDX ingest: GDELT slices are addressed by PUBLICATION stamp, never by event
+  // date, so a day that falls out of the file cannot be re-crawled by asking for
+  // that day. `data:gdelt` only ever pulls 12 days while retention keeps 45;
+  // days 13-45 exist nowhere else.
+  if (!REPLACE && prior) {
+    const priorKept = (prior.events || []).filter((e) => e.date >= cutoff);
+    if (merged.length < priorKept.length) {
+      throw new Error(
+        `Run ini akan MENGHILANGKAN data: ${priorKept.length} event tersimpan masih di dalam ` +
+          `retensi ${KEEP_DAYS} hari, tapi hasil merge cuma ${merged.length}. ` +
+          `Slice GDELT dialamati lewat stempel TERBIT, bukan tanggal peristiwa, jadi hari yang ` +
+          `hilang di sini tidak bisa ditarik ulang. Pakai --replace kalau memang sengaja membangun ulang.`
+      );
+    }
+  }
+
+  // Which days this file can honestly claim to cover, from three records of what
+  // was actually pulled: this run, whatever the stored file already claimed, and
+  // the slice cache — which is the ground truth, because a cached slice is proof
+  // we fetched it. Without the cache seed, adding this field would have marked
+  // every day from before the field existed as uncovered and silently dropped
+  // the whole GDELT contribution to risk.json.
+  const cachedDates = new Set();
+  try {
+    for (const f of await readdir(CACHE_DIR)) {
+      const m = f.match(/^(\d{4})(\d{2})(\d{2})\d{6}\.json$/);
+      if (m) cachedDates.add(`${m[1]}-${m[2]}-${m[3]}`);
+    }
+  } catch {
+    /* no cache dir yet */
+  }
+  const coveredDates = new Set(
+    [...pulledDates, ...(prior?.coveredDates || []), ...cachedDates].filter((d) => d >= cutoff)
+  );
   log(
     `${events.length} event Indonesia di jendela ini, ${fresh} baru, ${merged.length} tersimpan` +
       (dropped ? `, ${dropped} dibuang di luar ${KEEP_DAYS} hari` : '')
@@ -319,7 +400,13 @@ async function main() {
       avgTone: d.toneN ? Number((d.toneSum / d.toneN).toFixed(3)) : null,
       avgGoldstein: d.goldsteinN ? Number((d.goldsteinSum / d.goldsteinN).toFixed(3)) : null,
       byRoot: d.byRoot,
+      // False for a day represented only by backfill arriving in later slices.
+      // Those days hold a fraction of a percent of their real events, and
+      // plotting them beside covered days draws a 175x cliff at the edge of the
+      // ingest window that reads as an explosion in activity.
+      covered: coveredDates.has(d.date),
     }));
+  const coveredDays = days.filter((d) => d.covered);
 
   const payload = {
     generatedAt: new Date().toISOString(),
@@ -332,13 +419,23 @@ async function main() {
     filter: `Actor1CountryCode=${ACTOR_CODE} OR Actor2CountryCode=${ACTOR_CODE} OR ActionGeo_CountryCode=${GEO_CODE}`,
     quadClasses: QUAD_LABEL,
     rootCodes: ROOT_LABEL,
+    timezone: 'UTC — tanggal peristiwa memakai SQLDATE GDELT (UTC), bukan WIB. Satu hari Jakarta membentang UTC 17:00 (D-1) sampai 17:00 (D), jadi berita 00:00-07:00 WIB membawa tanggal UTC sebelumnya. Jangan menyambungkannya ke tanggal sesi IDX tanpa konversi.',
     windowHours: HOURS,
     keepDays: KEEP_DAYS,
+    slicesAttempted: stamps.length,
     slicesRead: scanned,
     slicesMissing: missing,
     globalEventsScanned: totalRows,
-    from: days[0]?.date ?? null,
-    to: days[days.length - 1]?.date ?? null,
+    // `from`/`to` describe the range this file can actually stand behind. The raw
+    // span is published separately so the backfill tail is visible rather than
+    // being mistaken for coverage.
+    from: coveredDays[0]?.date ?? null,
+    to: coveredDays[coveredDays.length - 1]?.date ?? null,
+    firstEventDate: days[0]?.date ?? null,
+    lastEventDate: days[days.length - 1]?.date ?? null,
+    coveredDayCount: coveredDays.length,
+    uncoveredDayCount: days.length - coveredDays.length,
+    coveredDates: [...coveredDates].sort(),
     eventCount: merged.length,
     days,
     events: merged,
