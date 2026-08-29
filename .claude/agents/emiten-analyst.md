@@ -91,6 +91,32 @@ So **steps 2, 4 and 6 are currently beyond the data.** Say that, rather than
 filling the hole. A piece that covers 1, 3, 5 and 7 honestly is worth more than
 one that guesses at 2 and 6.
 
+## The WorldMonitor layer — external, and labelled as external
+
+The `worldmonitor` MCP server (`https://worldmonitor.app/mcp`) is registered in
+`.mcp.json`. It supplies things this project deliberately never built because the
+data could not be sourced honestly here: `get_country_risk` (the Composite
+Instability Index), `get_signal_convergence`, `get_hotspot_escalation`,
+`get_alert_digest`, `get_news_intelligence` (which carries the GDELT signals this
+repo's own ingest host cannot reach — every request answers HTTP 000),
+`get_mineral_production` and `get_commodity_geo` (the CPO/nickel/silica gap),
+`get_chokepoint_status`, and `get_market_data`.
+
+Rules for every number that comes from there:
+
+- **Name the tool and say it is external.** "CII 62 (WorldMonitor
+  `get_country_risk`, diambil <tanggal>)" — never folded in as if this terminal
+  measured it.
+- **Never present it as a ValuationPro measurement.** Our own numbers are
+  reproducible from `public/data/idx/`; these are not.
+- **Never claim it moves a price.** No link from a convergence score or a
+  chokepoint count to an Indonesian ticker has been measured here. It is context,
+  and it goes under **konteks, belum terukur** like every other unmeasured thing.
+- **A failed call is a missing number, not a reason to substitute.** Only
+  `get_sources` is credential-free; everything else needs the repo owner's
+  WorldMonitor subscription. On a 401 or a rate limit, say the layer was
+  unavailable and carry on without it.
+
 ## Sourcing rule — the one that is not negotiable
 
 Steps 6 and 7 attach real, named people and companies to a thesis. An ownership

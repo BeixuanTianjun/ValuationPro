@@ -84,6 +84,19 @@ always shown.
 ticker. It is a fallback capped at the 120 most liquid names, for when the Yahoo
 crumb fails — which does happen.
 
+## What NOT to build an ingest for
+
+Some feeds were tried here and could not be sourced honestly: GDELT answers HTTP
+000 from this ingest host, and CPO (`FCPO=F`) and nickel (`NI=F`) both come back
+"symbol may be delisted" from Yahoo. Nothing was substituted, because a
+correlation borrowed from a stand-in reads as evidence and is not.
+
+Those now arrive through the `worldmonitor` MCP server instead
+(`get_news_intelligence`, `get_mineral_production`, `get_country_risk`,
+`get_signal_convergence`) — consumed as an external, cited source rather than
+rebuilt. Do not write a new ingest script for anything that server already
+serves, and do not copy its numbers into `public/data/` as if we measured them.
+
 ## After any pull
 
 Run `npm test` and `npm run backtest` before committing. Data changes are exactly
