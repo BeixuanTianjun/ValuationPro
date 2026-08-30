@@ -99,10 +99,16 @@ scale, tone, quad class and a source URL per row — so `scripts/ingest-gdelt.mj
 now builds that layer from the primary source. When a source is written off,
 check whether the whole source was tested or only one of its hosts.
 
-What genuinely cannot be built here still arrives through the `worldmonitor` MCP
-server (`get_country_risk`, `get_signal_convergence`, `get_mineral_production`)
-— consumed as an external, cited source. Do not copy its numbers into
-`public/data/` as if we measured them.
+**A third-party MCP (`worldmonitor.app`) was tried for what genuinely cannot be
+built here — signal convergence, mineral-production HHI, a hosted CII — and was
+removed.** Its data tools needed a paid subscription the repo owner declined, so
+`.mcp.json` and every reference to it were pulled rather than left half-wired.
+Do not re-add it, and do not route around the decision by scraping the same
+numbers from its website — the choice was about the dependency, not the format.
+Those three gaps stay open and undocumented-as-solved until a genuinely free
+public source is found; note it in `unavailable` the way `ingest-risk.mjs`
+already does for UCDP, IMF WEO, World Bank and ReliefWeb, not by inventing a
+proxy.
 
 ## After any pull
 

@@ -91,31 +91,24 @@ So **steps 2, 4 and 6 are currently beyond the data.** Say that, rather than
 filling the hole. A piece that covers 1, 3, 5 and 7 honestly is worth more than
 one that guesses at 2 and 6.
 
-## The WorldMonitor layer — external, and labelled as external
+## RISK — self-built, and the gap it does not close
 
-The `worldmonitor` MCP server (`https://worldmonitor.app/mcp`) is registered in
-`.mcp.json`. It supplies things this project deliberately never built because the
-data could not be sourced honestly here: `get_country_risk` (the Composite
-Instability Index), `get_signal_convergence`, `get_hotspot_escalation`,
-`get_alert_digest`, `get_news_intelligence` (which carries the GDELT signals this
-repo's own ingest host cannot reach — every request answers HTTP 000),
-`get_mineral_production` and `get_commodity_geo` (the CPO/nickel/silica gap),
-`get_chokepoint_status`, and `get_market_data`.
+`public/data/idx/risk.json` and `gdelt.json` (screen: `RISK`) replace the
+externally-hosted composite this repo used to lean on. Every input is a named
+public endpoint fetched by `scripts/ingest-risk.mjs` and `ingest-gdelt.mjs`, the
+arithmetic is printed inside the file (`method`), and the score is never worth
+more than the components sitting beside it. Cite it the same way as any other
+feed: name the component, its date, its z-score — never the composite alone.
 
-Rules for every number that comes from there:
-
-- **Name the tool and say it is external.** "CII 62 (WorldMonitor
-  `get_country_risk`, diambil <tanggal>)" — never folded in as if this terminal
-  measured it.
-- **Never present it as a ValuationPro measurement.** Our own numbers are
-  reproducible from `public/data/idx/`; these are not.
-- **Never claim it moves a price.** No link from a convergence score or a
-  chokepoint count to an Indonesian ticker has been measured here. It is context,
-  and it goes under **konteks, belum terukur** like every other unmeasured thing.
-- **A failed call is a missing number, not a reason to substitute.** Only
-  `get_sources` is credential-free; everything else needs the repo owner's
-  WorldMonitor subscription. On a 401 or a rate limit, say the layer was
-  unavailable and carry on without it.
+What it does NOT cover, and has no substitute for: cross-domain signal
+convergence (protests + military movement + shipping in the same place at the
+same time), mineral-production shares/HHI for CPO, nickel and silica, and any
+market data beyond the 29 instruments in `macro.json`. These were the reasons a
+third-party MCP was tried; the subscription it needed was declined, the server
+registration was removed, and nothing here replaced it. Say the gap is open
+rather than filling it with WorldMonitor's numbers, a scraped substitute, or an
+invented proxy — the last one is exactly what `MacroMonitor`'s own note refuses
+to do for CPO and nickel.
 
 ## Sourcing rule — the one that is not negotiable
 

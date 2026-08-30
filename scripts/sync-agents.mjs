@@ -1,6 +1,5 @@
 /**
- * sync-agents.mjs — copy the project's subagent definitions and MCP config
- * one level up.
+ * sync-agents.mjs — copy the project's subagent definitions one level up.
  *
  * The agents live in this repo so they are version-controlled with the code they
  * describe. But Claude Code discovers agents under the directory it was opened
@@ -9,10 +8,8 @@
  * exist and are simply never offered — the same shape of failure as a screen
  * that ships and cannot be reached.
  *
- * The same applies to .mcp.json, which registers the WorldMonitor MCP server.
- *
- * Run after editing anything in .claude/agents/ or .mcp.json. Opening Claude Code
- * directly in this repo needs no copy.
+ * Run after editing anything in .claude/agents/. Opening Claude Code directly in
+ * this repo needs no copy.
  */
 import { readdir, mkdir, copyFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
@@ -29,8 +26,3 @@ for (const f of files) {
   console.log(`  ${f}`);
 }
 console.log(`${files.length} agen disalin ke ${DST}`);
-
-// The MCP registration has the same discovery problem as the agents: Claude Code
-// reads .mcp.json from the folder the session opened in, not from this repo.
-await copyFile(join(ROOT, '.mcp.json'), join(ROOT, '..', '.mcp.json'));
-console.log(`  .mcp.json disalin ke ${join(ROOT, '..')}`);

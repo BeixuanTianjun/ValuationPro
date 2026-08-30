@@ -547,34 +547,26 @@ yang sama persis dengan layar yang ter-deploy tapi tidak bisa dijangkau.
 `npm run agents:sync` menyalinnya; jalankan tiap kali isi `.claude/agents/`
 berubah. Membuka Claude Code langsung di folder repo ini tidak butuh salinan.
 
-## Lapisan luar: WorldMonitor MCP
+## Lapisan luar: dicoba lewat MCP, dibatalkan
 
-`.mcp.json` mendaftarkan satu server MCP: `https://worldmonitor.app/mcp`
-(streamable-http, katalog 69 tool). Ia memberi hal-hal yang proyek ini SENGAJA
-tidak pernah bangun karena datanya tidak bisa didapat dengan jujur dari sini:
+Sempat dipasang satu server MCP eksternal (`worldmonitor.app`, katalog 69 tool)
+untuk menutup tiga lubang yang tidak bisa dibangun jujur dari sini: konvergensi
+lintas-aliran (protes + aktivitas militer + pergerakan laut di tempat dan waktu
+yang sama), pangsa produksi mineral/HHI untuk CPO-nikel-silika, dan indeks
+instabilitas yang dihitung di server mereka. **Dibatalkan** — hampir semua
+tool-nya butuh langganan Pro berbayar, dan itu ditolak. `.mcp.json` dan seluruh
+rujukan ke MCP itu di kode/agen sudah dicabut, bukan dibiarkan setengah
+terpasang.
 
-| Tool | Menutup lubang |
-|---|---|
-| `get_country_risk` | Composite Instability Index — skor dihitung di server mereka, jadi bisa dikutip, bukan ditebak |
-| `get_news_intelligence` | sinyal GDELT, yang host ingest kita jawab HTTP 000 setiap kali |
-| `get_signal_convergence`, `get_hotspot_escalation`, `get_alert_digest` | konvergensi lintas-aliran (protes, aktivitas militer, pergerakan laut) |
-| `get_mineral_production`, `get_commodity_geo` | siapa menambang dan siapa memurnikan satu komoditas, beserta pangsa negara dan HHI |
-| `get_chokepoint_status` | transit selat cadence 10 menit — layar MAP kita PortWatch harian |
-| `get_market_data` | kuotasi ekuitas, komoditas, kripto, komposit fear-greed |
-
-**Aturannya: konsumsi, jangan salin.** Angka dari sana tidak pernah ditulis ke
-`public/data/` seolah kita yang mengukurnya, selalu disebut nama tool-nya dan
-ditandai eksternal, dan tidak pernah diklaim menggerakkan harga emiten mana pun —
-kaitan itu belum pernah diukur di sini. Justru inilah yang memenuhi aturan repo:
-angka yang bisa ditelusuri ke endpoint dan versinya, bukan proksi yang dikarang
-sendiri.
-
-**Autentikasi belum dilakukan dan harus dari kamu.** Hanya `get_sources` yang
-bebas kredensial (10 panggilan/menit/IP). Sisanya butuh langganan WorldMonitor
-Pro lewat OAuth atau kunci `wm_…`. Saya tidak membuat akun dan tidak memasukkan
-data pembayaran. Sampai itu dilakukan, tiap `tools/call` selain `get_sources`
-menjawab 401 — dan agen diinstruksikan menyebut lapisannya tidak tersedia, bukan
-menggantinya dengan angka lain.
+Sebagian besar alasan MCP itu dipasang sudah tidak berlaku lagi: `get_country_risk`
+dan `get_news_intelligence` (GDELT) tergantikan oleh `risk.json`/`gdelt.json` di
+bawah — dibangun sendiri dari sumber publik gratis. `get_chokepoint_status`
+tidak pernah lebih baik dari `worldmap.json` (IMF PortWatch) yang sudah kita
+punya. Yang benar-benar tersisa tanpa pengganti: **konvergensi lintas-aliran**,
+**HHI produksi mineral**, dan **data pasar di luar 29 instrumen `macro.json`**.
+Ketiganya tetap dinyatakan tidak ada — jangan ditambal proksi, jangan
+di-scrape dari situs yang sama sebagai jalan memutar keputusan ini, dan jangan
+dipasang ulang tanpa keputusan baru dari pemilik repo.
 
 ## Lapisan risiko yang dibangun sendiri
 
@@ -672,10 +664,6 @@ layar barunya:**
    layar bertab, bukan cuma RISK. Pencarian tombol aktifnya juga tidak lagi
    lewat ref yang berpindah antar-sibling, melainkan lewat `aria-current`.
 
-**Docker tidak terpasang di mesin ini**, jadi self-host worldmonitor belum bisa
-dicoba. `SELF_HOSTING.md` mereka juga menyebut route premium tetap butuh API key
-walau di-host sendiri, jadi nilainya lebih kecil dari kelihatannya.
-
 ## Yang masih terbuka
 
 - **ANTHROPIC_API_KEY sudah terpasang di dua tempat dan chatbot hidup**, lokal
@@ -711,10 +699,11 @@ walau di-host sendiri, jadi nilainya lebih kecil dari kelihatannya.
 - **Harga tidak bisa real-time.** Yahoo delay ~15 menit untuk IDX. Polling lebih
   cepat dari itu tidak menghasilkan harga baru. Auto-refresh 45 detik ada di
   `hooks/useMarketData.ts` dan hanya jalan saat fase pasar aktif dan tab terlihat.
-- **CPO dan nikel masih tidak punya SERI HARGA HARIAN, walau strukturnya sudah
-  terjawab.** `get_mineral_production` di WorldMonitor memberi siapa menambang dan
-  siapa memurnikan berikut pangsa negara dan HHI — itu struktur pasar, bukan harga
-  harian, jadi lubang korelasinya tetap terbuka.
+- **Pangsa produksi/HHI untuk CPO, nikel, dan silika belum punya sumber gratis
+  yang ditemukan.** Sempat tersedia lewat MCP WorldMonitor (`get_mineral_production`)
+  sebelum langganan itu dibatalkan; belum ada gantinya. Ini struktur pasar
+  (siapa menambang, siapa memurnikan, pangsa negara), bukan seri harga harian —
+  dua lubang yang berbeda, dan keduanya masih terbuka.
 - **CPO dan nikel tidak ada di lapisan makro, dan itu lubang yang nyata.**
   Kontrak `FCPO=F` dan `NI=F` sama-sama dijawab "symbol may be delisted" oleh
   Yahoo, padahal Indonesia produsen terbesar dunia untuk keduanya. Acuan batu
