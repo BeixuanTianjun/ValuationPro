@@ -41,21 +41,21 @@ peluncur yang sama — itu satu-satunya jalan ke daftar lengkap fungsi dari HP.
 
 ## Kondisi data saat serah terima
 
-962 emiten · 285 sesi (2025-06-23 → 2026-08-28) · 45 indeks · 25 hari libur
-4.258 pengajuan keterbukaan informasi (45 hari) · 648 emiten berlaporan keuangan
-962 kuotasi (100 pelapor non-IDR) · 88 anggota bursa × 113 sesi
-962 emiten × 24 bulan register KSEI (2024-08 → 2026-07)
-29 instrumen makro × 282 sesi · 28 selat dunia × 120 hari + 41 kejadian disrupsi
-total ~11 MB di `public/data/idx/`
+962 emiten · **714 sesi (2023-08-28 → 2026-08-31)** · 45 indeks · 72 hari libur
+4.002 pengajuan keterbukaan informasi dari 940 emiten (2026-07-18 → 2026-09-01)
+962 kuotasi (100 pelapor non-IDR) · 88 anggota bursa
+962 emiten × 24 bulan register KSEI (2024-09 → **2026-08**)
+29 instrumen makro · 28 selat dunia + kejadian disrupsi
+110 berita 5 kantor + 113 agenda kalender ekonomi · 6 proksi tanker + 12 emiten pelayaran
+21.312 rule set di-backtest, 101 lolos gerbang out-of-sample
+total ~27 MB di `public/data/idx/`
 
-**Sesi ke-283 itu overlay intraday, bukan sesi resmi.** Seri resmi IDX berhenti
-di **2026-08-24** dan belum bertambah sejak — empat sesi tertinggal saat catatan
-ini ditulis — karena ingest resmi tidak bisa lagi jalan dari CI (lihat entri IDX
-memblokir runner di bawah). Harga di layar tetap hari ini karena dikutip langsung
-dari Yahoo, tapi arus asing, atribusi indeks, dan tiap faktor yang dihitung dari
-sesi resmi masih menjawab dari 2026-08-24. Status bar menyatakannya sendiri:
-"Seri resmi tertinggal N sesi". Pekerjaan pertama sesi berikutnya kemungkinan
-besar menjalankan `npm run data:refresh` dari mesin lokal.
+**Seri resmi IDX sudah TIDAK tertinggal lagi.** Handover sebelumnya mencatat
+seri berhenti di 2026-08-24; sekarang `meta.latestSession` = **2026-08-31**, dan
+riwayatnya diperdalam dari 285 → **714 sesi** supaya split train/test papan
+strategi punya makna. Yang membuatnya bertahan segar bukan CI melainkan
+penjadwal lokal — lihat entri "IDX memblokir runner" dan "run mingguan
+dibatalkan" di bawah.
 
 ## Arsitektur tiga tempat
 
@@ -77,6 +77,51 @@ yang bergeser saat satu berkas tumbuh. Semua lolos typecheck dan tes. Yang
 menangkapnya bukan review, tapi `npm run backtest` yang menyapu 962 emiten dan
 membandingkan angka terhadap invariannya. **Kalau menambah mesin baru, tambahkan
 invariannya ke backtest di commit yang sama.**
+
+**Run Actions yang DIBATALKAN membunuh commit-nya, dan tidak terlihat gagal.**
+Run 33241417759 (Sabtu 2026-08-29, satu-satunya slot mingguan) menggantung di
+tarikan KSEI lalu dibatalkan. Karena langkah "Commit data fundamental" berada
+SETELAH itu, tidak satu pun hasil yang sudah selesai ikut tersimpan — quotes dan
+ownership lalu basi 125 jam tanpa tanda apa pun. Run yang dibatalkan terbaca
+seperti gangguan penjadwalan, bukan seperti empat feed mati. Sekarang tiap
+langkah mingguan yang lambat punya `timeout-minutes`, jadi yang menggantung
+menjadi skip biasa dan commit tetap jalan membawa yang berhasil.
+
+**IDX memblokir runner GitHub, jadi announcements membeku 114 jam.** "Laporkan
+crawl IDX yang diblokir" gagal di empat dari lima run terjadwal terakhir:
+Cloudflare menjawab IP datacenter, bukan koneksi rumah. Ingest yang sama selesai
+**54 detik** dari mesin lokal. Karena itu `data:announcements` dipindah ke tier
+eod penjadwal lokal, dan job mingguan lokal kini juga menarik ownership, macro
+dan tanker — sebelumnya feed-feed itu tidak ada di tier lokal mana pun, CI
+satu-satunya yang menjalankannya, dan CI-lah yang dibatalkan.
+
+**Winrate tinggi itu gampang dipalsukan, dan gerbang "expectancy > 0" tidak
+cukup.** Pencarian pertama papan strategi meloloskan 3.933 rule set; juaranya
+menang 94% dengan stop 3×ATR mengejar target 0,5×ATR — expectancy cuma +0,10R,
+dan turun sembilan poin winrate saja sudah rugi. Sekarang tiap kandidat dihitung
+ulang dengan winrate dipotong 10 poin memakai rata-rata menang/kalahnya sendiri;
+yang jadi rugi dibuang berapa pun winrate aslinya. Itu memangkas 3.933 → **101**.
+Peringkatnya pun memakai angka setelah potongan, bukan winrate mentah.
+
+**Tiga kegagalan SENYAP berturut-turut di hook suara — semuanya `exit 0`.**
+Tidak satu pun terdeteksi tes otomatis; ketiganya akhirnya ketahuan dari telinga
+pengguna. (1) `process.exit(0)` di dalam callback async membuat libuv crash di
+Windows (`UV_HANDLE_CLOSING`, exit 127) — pakai `process.exitCode` dan biarkan
+event loop selesai. (2) PowerShell menyisipkan **BOM UTF-8** saat pipe ke stdin
+sehingga `JSON.parse` gagal dan payload jadi `{}`. (3) Fish Audio mengirim WAV
+dengan `data` chunk size palsu `0xFFFFFF00` karena responsnya di-stream; Windows
+menolak file itu lalu **memutar bunyi default sistem** dan melapor sukses.
+Pelajarannya melampaui suara: **jangan pernah menyimpulkan berhasil dari exit
+code** di repo ini.
+
+**`System.Media.SoundPlayer` tidak memutar apa pun di sesi non-interaktif** —
+balik dalam 0,01 detik tanpa exception. Pakai `winmm.dll` `PlaySound` dengan
+`SND_FILENAME|SND_NODEFAULT` (0x00020002). Tanpa `SND_NODEFAULT`, file yang
+ditolak akan diganti bunyi sistem dan dilaporkan sukses.
+
+**402 bukan berarti API key rusak.** Fish Audio membalas 402 Payment Required
+untuk key yang sah di akun tanpa kredit; key rusak menjawab 401. Model gratis
+`s2.1-pro-free` menjawab 200 pada request yang sama, dan itulah default sekarang.
 
 **Satu sesi bursa yang hilang dari kalender terbaca sebagai 701 aksi korporasi.**
 Ini gabungan dua kesalahan yang masing-masing tidak berbahaya. Pertama, `cached()`
@@ -432,7 +477,7 @@ pembungkus sembilan baris yang mengimpor bundel itu. `_chat-bundle.mjs` masuk
 
 **Menu fungsi & command bar membaca satu registri.** `src/data/functions.ts`
 adalah satu-satunya sumber kebenaran untuk kode mnemonic (MKT, SCR, WL, CN,
-DES, CHAT, MOST, CNG, FUND, BRK, AVAL, DCF, LBO). Menambah layar baru = menambah satu
+DES, CHAT, MOST, CNG, FUND, PORT, TNKR, NEWS, AVAL, DCF, LBO). Menambah layar baru = menambah satu
 baris di sana; `MenuPanel.tsx` dan `FunctionBar.tsx` keduanya membaca dari situ,
 jadi sebuah layar tidak mungkin ada di satu tempat tapi hilang di tempat lain.
 
@@ -514,8 +559,23 @@ npm run data:macro      # 29 aset di luar IDX, 6 kelas (~5 detik)
 npm run data:worldmap   # 28 selat + alert disrupsi + garis pantai (~15 detik)
 npm run data:gdelt      # 12 hari peristiwa GDELT irisan Indonesia (~4 menit)
 npm run data:risk       # komponen tekanan + komposit (~10 detik)
+npm run data:news       # 5 kantor berita + kalender ekonomi (~3 detik)
+npm run data:tanker     # 6 proksi tarif charter tanker (~3 detik)
+npm run strategy:lab    # cari ulang papan strategi, out-of-sample (~1 detik)
 npm run alert:preview   # hitung pick tanpa mengirim email
+
+node scripts/wake-report.mjs --since <ISO>   # apa yang terjadi selagi pergi
 ```
+
+**Suara & sleep mode** (di luar repo, `~/.claude/hooks/`):
+
+```bash
+node ~/.claude/hooks/sleepctl.mjs on|off|status   # bisukan suara, catat jamnya
+```
+
+Bilang **"sleep mode"** untuk membisukan (kerja jalan terus), **"Daddy's home"**
+untuk membangunkan + laporan. Aturannya ada di `~/.claude/CLAUDE.md`. Butuh
+`FISH_AUDIO_API_KEY` di environment; tanpa itu hook diam total, bukan error.
 
 ## Agen proyek ini
 
@@ -637,15 +697,23 @@ komposit ini mendahului, mengikuti, atau menerangkan variabel pasar Indonesia.
 Kedua berkas menyatakan itu di field `note`-nya sendiri, dan backtest menjaga
 supaya komposit tidak pernah terbit saat nol komponen punya z-score.
 
-**Layar RISK sekarang ada** (`src/components/analytics/CountryRisk.tsx`, kode
-mnemonic `RISK`). Aturannya bukan gaya: skalanya dicetak di ubinnya sendiri —
-40,2 di skala berkas itu artinya 0,98 simpangan baku di bawah rata-rata jendela,
-bukan "40 dari 100" — metode dan daftar `unavailable` duduk satu panel dengan
-angkanya, tiap komponen ditampilkan mentah beserta ukuran sampelnya, OFAC tampil
-sebagai "di luar komposit" bukan dihilangkan, dan `note` serta `method` dirender
-VERBATIM dari JSON supaya tidak bisa melenceng dari skrip ingest-nya. Hari yang
-di bawah lantai 30 peristiwa ditandai "belum penuh" dan angka turunannya
-diredupkan, karena komposit di atasnya juga tidak memakainya.
+**Layar RISK SUDAH DIHAPUS.** Ia menskor Indonesia atas nada konflik, gempa dan
+sanksi lalu mengatakan sendiri di captionnya bahwa skornya boleh dibuang — layar
+yang teksnya sendiri menyuruh mengabaikannya tidak layak satu tab. Penggantinya
+`NEWS` (`src/components/analytics/NewsFeed.tsx`): berita realtime lima kantor
+(WSJ, CNBC, Yahoo Finance, Investing.com, CNBC Indonesia) plus kalender ekonomi
+mingguan. `ingest-risk.mjs` dan `risk.json` SENGAJA dibiarkan hidup — masih
+dipakai `backtest.ts` dan `backtest-live.ts`, jadi mencabutnya berarti menyentuh
+penjaga yang tidak sedang rusak.
+
+**Penautan berita ke kode emiten harus KETAT.** Pencocokan longgar menandai
+berita mode cepat Shein sebagai emiten FAST, dan "Bursa Asia Berguguran" sebagai
+PADA — 65% feed jadi "tentang" emiten Indonesia. Banyak ticker IDX kebetulan kata
+biasa (PADA, NAIK, UANG, FAST, EAST, RISE, LINK, NINE, BLUE). Aturannya sekarang:
+ticker dicocokkan **case-sensitive** sebagai token huruf besar berdiri sendiri,
+dan nama perusahaan harus muncul **utuh sebagai frasa**. Turun ke 19 dari 120,
+dan tiap satunya benar. Akronim huruf besar yang bertabrakan masih bisa lolos —
+CASA dalam istilah perbankan salah satunya.
 
 **Dua bug lama ketahuan saat menguji layar itu di 375px, dan keduanya di luar
 layar barunya:**
@@ -804,24 +872,36 @@ mendekati batas waktu, dan chatbot yang diam-diam jatuh ke parser browser.
 
 ## Kondisi saat serah terima ini ditulis
 
-Bekerja di branch `claude/map3d-vercel-deploy-issue-4ovlcn`, digabung ke `main`
-dan sudah ter-push; Vercel produksi mengikuti `main`. Verifikasi lokal hijau
-semua: `tsc` bersih, 34/34 uji, backtest 65.204 pemeriksaan 3 pass nol temuan,
-build sukses, dan alur HP 390px diperiksa lewat Chromium sungguhan — nol overflow
-horizontal.
+Semua ter-commit dan ter-push ke `main`; Vercel produksi mengikuti `main`.
+Verifikasi lokal hijau: `tsc` bersih, 16/16 + 18/18 uji, backtest **38.961
+pemeriksaan nol temuan**, build produksi sukses.
 
-`backtest:live` BELUM dijalankan dari sesi ini: kebijakan egress sesi cloud
-menolak `valuation-pro-lake.vercel.app` sama seperti ia menolak `idx.co.id`, jadi
-tidak ada satu pun pemeriksaan terhadap deployment yang bisa saya lakukan.
-Jalankan dari mesin lokal sebelum mengandalkan apa pun tentang situs live.
+Yang berubah sesi ini, singkat:
+- Screener & Watchlist default **5 teratas** menurut conviction, bisa dibuka penuh
+- **Trade setup** entry/stop/target berbasis ATR di tiap baris
+- **Papan strategi** out-of-sample: 21.312 rule set, 101 lolos, WR uji 65-73%
+- **Portofolio** (`PORT`) — posisi sendiri, tersimpan di localStorage, TIDAK
+  pernah menyuruh menjual; hanya menaruh fakta mekanis di sebelah harga beli
+- **Tanker & Freight** (`TNKR`) dengan peta selat sebagai tampilan di dalamnya
+- **Berita & Kalender** (`NEWS`) menggantikan Country Risk
+- Broker Summary dihapus (pipeline `data:brokers` tetap hidup)
+- Global Drivers dapat mode **per saham** lewat `linkagesForEmiten`
+- Suara Fish Audio + sleep mode + laporan bangun
 
-Dua hal yang sengaja ditinggalkan merah, bukan lupa:
-- `refresh-data.yml` sekarang GAGAL tiap kali crawl IDX diblokir. Itu penjaganya
-  bekerja, dan sudah dibuktikan sekali (run #7, bukan diasumsikan): pesan
-  errornya menyebut kedua crawl yang mati sementara refresh harga tetap
-  ter-commit lebih dulu.
-- Seri resmi IDX tertinggal empat sesi sampai `npm run data:refresh` dijalankan
-  dari rumah.
+`backtest:live` BELUM dijalankan terhadap deployment sesi ini — jalankan dari
+mesin lokal sebelum mengandalkan apa pun tentang situs live.
+
+Tiga hal yang sengaja ditinggalkan terbuka:
+- **Tier mingguan CI belum terbukti pulih.** Timeout per langkah sudah dipasang,
+  tapi slot mingguan berikutnya baru Sabtu 01:00 UTC. Sampai run itu hijau,
+  anggap ownership/quotes/brokers bergantung pada penjadwal lokal.
+- **AIS kapal tidak ada dan tidak akan ada tanpa langganan.** Panel tanker
+  memakai proksi (pemilik tanker tercatat), dan mengatakannya terang-terangan.
+  Korelasi BULL ke proksi crude terukur **0,02 dari 469 sesi** — praktis tidak
+  nyambung, dan itu temuan yang sah, bukan kegagalan.
+- **Bandarmology belum bisa di-backtest.** `RawSeries.f` (jumlah transaksi) baru
+  mulai direkam, jadi historisnya NaN. Dipakai live saja sampai cukup sesi
+  terkumpul.
 
 ---
 
