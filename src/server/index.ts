@@ -251,6 +251,22 @@ async function runJob(id: JobId, reason: string, sendAlert: boolean): Promise<st
       await runScript('ingest-idx.mjs', ['--days', '20']);
       const n = await refreshHolidays();
 
+      // Announcements moved here from CI-only, and the reason is measured, not
+      // theoretical: IDX answers a GitHub runner with a Cloudflare challenge,
+      // so `Laporkan crawl IDX yang diblokir` has failed on four of the last
+      // five scheduled runs and announcements.json sat 114 hours stale while
+      // every screen kept rendering. The same ingest finishes in 54 seconds
+      // from this machine, because a home connection is not a datacenter IP.
+      // The Watchlist's narrative stage reads this file; without it that stage
+      // runs on curated themes alone and quietly loses most of its input.
+      let ann = '';
+      try {
+        await runScript('ingest-announcements.mjs');
+        ann = '; pengumuman IDX diperbarui';
+      } catch (err) {
+        ann = `; pengumuman IDX GAGAL (${(err as Error).message.slice(0, 80)})`;
+      }
+
       // The strategy search re-runs once the session is final, so the
       // leaderboard always reflects the newest bar — and, more importantly, so
       // the out-of-sample window keeps sliding forward. A leaderboard fitted
@@ -263,13 +279,39 @@ async function runJob(id: JobId, reason: string, sendAlert: boolean): Promise<st
       } catch (err) {
         lab = `; backtest strategi GAGAL (${(err as Error).message.slice(0, 80)})`;
       }
-      return `data resmi IDX diperbarui (${n} hari libur diketahui)${lab}`;
+      return `data resmi IDX diperbarui (${n} hari libur diketahui)${ann}${lab}`;
     }
     case 'weekly': {
-      await runScript('ingest-quotes.mjs');
-      await runScript('ingest-fundamentals.mjs', ['--concurrency', '3']);
-      await runScript('ingest-brokers.mjs', ['--days', '180']);
-      return 'fundamental, rasio valuasi & aktivitas broker diperbarui';
+      // Each step is independent so one failure cannot swallow the rest. The
+      // CI weekly run on 2026-08-29 was cancelled partway through the KSEI
+      // ownership pull, and because its commit came after that step, NOTHING
+      // from that run was ever saved — quotes and ownership then sat 125 hours
+      // stale with no sign anything had gone wrong. Sequential-and-fatal is
+      // what turned one slow endpoint into four dead feeds.
+      const done: string[] = [];
+      const failed: string[] = [];
+      const step = async (label: string, run: () => Promise<void>) => {
+        try {
+          await run();
+          done.push(label);
+        } catch (err) {
+          failed.push(`${label} (${(err as Error).message.slice(0, 60)})`);
+        }
+      };
+
+      await step('rasio valuasi', () => runScript('ingest-quotes.mjs'));
+      await step('laporan keuangan', () => runScript('ingest-fundamentals.mjs', ['--concurrency', '3']));
+      await step('aktivitas broker', () => runScript('ingest-brokers.mjs', ['--days', '180']));
+      // Added here because CI never reached them: the cancelled run above meant
+      // ownership had not refreshed since August, and macro/tanker were on no
+      // local tier at all.
+      await step('kepemilikan KSEI', () => runScript('ingest-ownership.mjs', ['--months', '24']));
+      await step('makro global', () => runScript('ingest-macro.mjs', ['--range', '2y']));
+      await step('proksi tanker', () => runScript('ingest-tanker.mjs', ['--range', '2y']));
+
+      return failed.length
+        ? `${done.length} diperbarui (${done.join(', ')}); GAGAL: ${failed.join('; ')}`
+        : `diperbarui: ${done.join(', ')}`;
     }
   }
 }

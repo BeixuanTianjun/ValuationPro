@@ -244,17 +244,29 @@ jobs:
       - name: Rasio valuasi & mata uang pelaporan
         if: steps.plan.outputs.weekly == 'true'
         continue-on-error: true
+        timeout-minutes: 20
         run: npm run data:quotes
 
       - name: Laporan keuangan tahunan
         if: steps.plan.outputs.weekly == 'true'
         continue-on-error: true
+        timeout-minutes: 40
         run: node scripts/ingest-fundamentals.mjs --concurrency 2 --gap 200
 
       - name: Aktivitas anggota bursa
         if: steps.plan.outputs.weekly == 'true'
         continue-on-error: true
+        timeout-minutes: 25
         run: npm run data:brokers
+
+      # EVERY SLOW WEEKLY STEP CARRIES A TIMEOUT, and run 33241417759 is why.
+      # On 2026-08-29 the KSEI pull hung, the whole job was cancelled while it
+      # waited, and because "Commit data fundamental" sits AFTER these steps,
+      # nothing that had already succeeded was ever committed. Quotes and
+      # ownership then sat 125 hours stale with no failure anyone would see —
+      # a cancelled run looks like a scheduling hiccup, not like four dead
+      # feeds. A timeout turns the hang into an ordinary continue-on-error skip
+      # and lets the commit run with whatever did finish.
 
       # KSEI publishes ownership once a month, so a weekly check is more than
       # enough. The runner has no warm cache, so this re-downloads all 24 months
@@ -264,6 +276,7 @@ jobs:
       - name: Register kepemilikan KSEI
         if: steps.plan.outputs.weekly == 'true'
         continue-on-error: true
+        timeout-minutes: 25
         run: npm run data:ownership
 
       - name: Commit data fundamental
