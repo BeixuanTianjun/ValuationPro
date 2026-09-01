@@ -61,6 +61,18 @@ configureAuth(join(ROOT, '.data'));
 loadEnv({ path: join(ROOT, '.env') });
 
 const PORT = Number(process.env.PORT || 8787);
+/**
+ * Loopback only, unless HOST says otherwise.
+ *
+ * `listen(PORT)` with no host binds every interface, which put the account
+ * store, the chatbot and now the portfolio on the local network for anyone who
+ * could reach this machine. Nothing here is meant to be a network service: the
+ * browser talks to it through Vite's proxy on the same box, and remote access
+ * goes through the Vercel deploy or Claude Remote Control, never straight at
+ * this port. Binding to 127.0.0.1 is what makes an unauthenticated portfolio
+ * route defensible below.
+ */
+const HOST = process.env.HOST || '127.0.0.1';
 
 const log = (...a: unknown[]) => {
   const w = wibNow();
@@ -451,6 +463,13 @@ const OPEN_ROUTES = new Set([
   // gating them behind a session would protect nothing and break the terminal
   // for a signed-out visitor.
   '/api/live',
+  // The portfolio is personal, and it is open for exactly one reason: the
+  // service now listens on loopback only, so "open" means open to processes on
+  // this machine, which is the same trust boundary as the file itself. Gating
+  // it behind a session would mean re-authenticating in every fresh browser
+  // profile just to see your own holdings — which is precisely the friction
+  // that made localStorage look like the right answer in the first place.
+  '/api/portfolio',
 ]);
 
 const server = createServer(async (req, res) => {
@@ -547,6 +566,39 @@ const server = createServer(async (req, res) => {
       }
     }
 
+    /**
+     * Portfolio storage.
+     *
+     * WHY THIS MOVED OFF localStorage. The first version kept positions in the
+     * browser, reasoning that Vercel has no persistent disk and the data is
+     * private. Both premises still hold — but the browser Michael actually
+     * views this in starts with a clean profile, so every new session lost the
+     * portfolio and it had to be typed again. Storage that silently forgets is
+     * worse than storage that asks for a setup step.
+     *
+     * The file is the source of truth when this service is reachable; the
+     * client keeps its localStorage copy as a fallback for the deployed static
+     * site, where no service exists.
+     */
+    if (url.pathname === '/api/portfolio') {
+      const file = join(ROOT, '.data', 'portfolio.json');
+      if (req.method === 'GET') {
+        try {
+          return json(res, 200, { positions: JSON.parse(await readFile(file, 'utf8')) });
+        } catch {
+          return json(res, 200, { positions: [] });
+        }
+      }
+      if (req.method === 'PUT') {
+        const body = JSON.parse((await readBody(req)) || '{}') as { positions?: unknown };
+        if (!Array.isArray(body.positions)) return json(res, 400, { error: 'positions harus array' });
+        await mkdir(dirname(file), { recursive: true });
+        await writeFile(file, JSON.stringify(body.positions, null, 2));
+        return json(res, 200, { ok: true, count: body.positions.length });
+      }
+      return json(res, 405, { error: 'Pakai GET atau PUT' });
+    }
+
     if (url.pathname === '/api/status') {
       if (accountsExist && !viewer) {
         return json(res, 200, { viewer: null, accountsExist, locked: true });
@@ -635,7 +687,7 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, async () => {
+server.listen(PORT, HOST, async () => {
   await loadRunState();
   const holidayCount = await refreshHolidays();
   const w = wibNow();

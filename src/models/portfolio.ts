@@ -1,23 +1,23 @@
 // Portfolio tracker — your actual positions, priced live, read against the
 // same mechanical rules the rest of this terminal applies to everything else.
 //
-// ── WHERE THE DATA LIVES, AND WHY IT IS NOT ON A SERVER ───────────────────
+// ── WHERE THE DATA LIVES ──────────────────────────────────────────────────
 //
-// localStorage, in your own browser. Two reasons, and the second is the real
-// one:
+// The local service first (`/api/portfolio` -> `.data/portfolio.json`), with
+// localStorage as the fallback.
 //
-//   1. This app deploys to Vercel, which has no persistent disk. A server-side
-//      store would work on the local service and silently lose every position
-//      on the deployed site — the worst kind of split behaviour, because it
-//      only shows up after you have trusted it with real numbers.
-//   2. Your average price and position size are the most private data this
-//      terminal will ever hold. Keeping them in your browser means they never
-//      cross the network at all, and nothing here has to be trusted not to
-//      log them.
+// IT USED TO BE localStorage ONLY, and that was wrong in practice even though
+// the reasoning looked sound. The argument was that Vercel has no persistent
+// disk and the data is private, so the browser was the only place both true
+// things could hold at once. What that missed is how this is actually used: the
+// browser it gets viewed in starts from a clean profile, so every new session
+// found an empty portfolio and the positions had to be typed in again. Storage
+// that silently forgets is worse than storage that needs a service running.
 //
-// The cost is honest and stated in the UI: clear your browser data and the
-// portfolio goes with it. That is why export/import to a JSON file exists —
-// the data is never trapped in a store you cannot get it out of.
+// So the service owns the file when it is reachable. localStorage is still
+// written on every save and still read when no service answers, which is what
+// keeps the deployed static site working. Export/import remains, because data
+// you cannot get out of a store is not really yours.
 //
 // ── WHAT THIS DELIBERATELY DOES NOT DO ────────────────────────────────────
 //
@@ -100,48 +100,109 @@ export interface PortfolioSummary {
 
 // ─────────────────────────────────────────────────────────────── storage ──
 
+const API = '/api/portfolio';
+
+/** Shared validation: this JSON can be hand-edited, imported, or an old shape. */
+function sanitise(parsed: unknown): Position[] {
+  if (!Array.isArray(parsed)) return [];
+  return parsed.flatMap((p) => {
+    const r = p as Partial<Position>;
+    if (typeof r.code !== 'string' || !r.code.trim()) return [];
+    const lots = Number(r.lots);
+    const avgPrice = Number(r.avgPrice);
+    // A NaN avgPrice would poison every downstream number in silence, so the
+    // row is dropped rather than carried through as a hole.
+    if (!Number.isFinite(lots) || lots <= 0) return [];
+    if (!Number.isFinite(avgPrice) || avgPrice <= 0) return [];
+    return [
+      {
+        id: typeof r.id === 'string' && r.id ? r.id : `${r.code}-${Math.random().toString(36).slice(2, 9)}`,
+        code: r.code.trim().toUpperCase(),
+        lots,
+        avgPrice,
+        boughtOn: typeof r.boughtOn === 'string' ? r.boughtOn : undefined,
+        note: typeof r.note === 'string' ? r.note : undefined,
+      },
+    ];
+  });
+}
+
+/**
+ * Positions from the service, falling back to this browser's copy.
+ *
+ * The fallback is deliberately NOT "whichever has more rows": the service is
+ * authoritative whenever it answers, because two browsers editing the same
+ * portfolio must converge on one file rather than on whichever was opened last.
+ * localStorage only speaks when nothing else does.
+ */
+export async function fetchPositions(): Promise<{ positions: Position[]; source: 'layanan' | 'browser' }> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(API, { signal: controller.signal, cache: 'no-store' });
+    clearTimeout(timer);
+    if (res.ok) {
+      const body = (await res.json()) as { positions?: unknown };
+      const positions = sanitise(body.positions);
+      // Seed the file from this browser the first time a populated local copy
+      // meets an empty service — otherwise switching to server storage would
+      // look exactly like losing everything.
+      if (!positions.length) {
+        const local = loadPositions();
+        if (local.length) {
+          await savePositions(local);
+          return { positions: local, source: 'layanan' };
+        }
+      }
+      local_only(positions);
+      return { positions, source: 'layanan' };
+    }
+  } catch {
+    /* no service here — the deployed site is the normal case */
+  }
+  return { positions: loadPositions(), source: 'browser' };
+}
+
+/** Mirror to localStorage without attempting the network again. */
+function local_only(positions: Position[]): Position[] {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
+  } catch {
+    /* private window */
+  }
+  return positions;
+}
+
+/** Write through to the service, and mirror locally either way. */
+export async function savePositions(positions: Position[]): Promise<boolean> {
+  let localOk = true;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
+  } catch {
+    localOk = false;
+  }
+  try {
+    const res = await fetch(API, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positions }),
+    });
+    if (res.ok) return true;
+  } catch {
+    /* fall through to the local result */
+  }
+  return localOk;
+}
+
 export function loadPositions(): Position[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    // Every field is re-validated rather than trusted: this JSON can be edited
-    // by hand, imported from a file, or left over from an older shape, and a
-    // NaN avgPrice would poison every downstream number silently.
-    return parsed.flatMap((p) => {
-      const r = p as Partial<Position>;
-      if (typeof r.code !== 'string' || !r.code.trim()) return [];
-      const lots = Number(r.lots);
-      const avgPrice = Number(r.avgPrice);
-      if (!Number.isFinite(lots) || lots <= 0) return [];
-      if (!Number.isFinite(avgPrice) || avgPrice <= 0) return [];
-      return [
-        {
-          id: typeof r.id === 'string' && r.id ? r.id : `${r.code}-${Math.random().toString(36).slice(2, 9)}`,
-          code: r.code.trim().toUpperCase(),
-          lots,
-          avgPrice,
-          boughtOn: typeof r.boughtOn === 'string' ? r.boughtOn : undefined,
-          note: typeof r.note === 'string' ? r.note : undefined,
-        },
-      ];
-    });
+    return sanitise(JSON.parse(raw));
   } catch {
     // A corrupt or unavailable store must not take the screen down; an empty
     // portfolio is a correct rendering of "nothing readable is saved".
     return [];
-  }
-}
-
-export function savePositions(positions: Position[]): boolean {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
-    return true;
-  } catch {
-    // Private windows and disabled site data both throw here. The caller warns
-    // rather than pretending the save happened.
-    return false;
   }
 }
 

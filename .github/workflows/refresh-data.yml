@@ -11,6 +11,7 @@ name: Refresh data IDX & kirim alert
 #   09:47 UTC = 16:47 WIB  CLOSING RETRY   -> refresh only, belt and braces
 #   11:32 UTC = 18:32 WIB  IDX end-of-day  -> official OHLC + foreign flow
 #   Sat 01:00 UTC = 08:00 WIB              -> fundamentals, ratios, brokers
+#   Sun 01:00 UTC = 08:00 WIB              -> ULANGI kalau Sabtu tidak menghasilkan
 #
 # THE CLOSING CAPTURE IS THE ONE THAT MATTERS and it is scheduled twice on
 # purpose. IDX's regular session 2 ends 15:49:59 WIB, pre-closing runs to 16:00
@@ -26,6 +27,17 @@ name: Refresh data IDX & kirim alert
 # so putting the fundamentals crawl first would mean a timeout there throws away
 # a perfectly good price refresh — which is exactly what happened on run #1.
 #
+# THE WEEKLY TIER IS SCHEDULED TWICE, Saturday and Sunday, for the same reason
+# the closing capture is. It used to have exactly one slot a week, so when run
+# 33241417759 was cancelled partway through the KSEI pull on 2026-08-29 there was
+# no second chance until the following Saturday — and quotes, ownership, macro
+# and announcements sat stale for five days with nothing to show anyone that a
+# scheduled job had died. One slot per week means one bad run costs a week.
+#
+# The Sunday run is cheap when Saturday worked: every weekly ingest rewrites its
+# file wholesale, so a repeat is idempotent and the commit step simply finds
+# nothing staged.
+#
 # GitHub's scheduler is best-effort and can run several minutes late under load.
 
 on:
@@ -35,6 +47,7 @@ on:
     - cron: '47 9 * * 1-5'
     - cron: '32 11 * * 1-5'
     - cron: '0 1 * * 6'
+    - cron: '0 1 * * 0'
   # A MANUAL RUN MEANS "MAKE THE DATA CURRENT", and it did not.
   #
   # With no cron to match, the plan step left EOD=false, so pressing Run
@@ -95,6 +108,7 @@ jobs:
             "47 9 * * 1-5")  CLOSE=true;  TRIGGER="Penutupan (percobaan kedua)" ;;
             "32 11 * * 1-5") EOD=true ;;
             "0 1 * * 6")     WEEKLY=true; EOD=true ;;
+            "0 1 * * 0")     WEEKLY=true; EOD=true ;;
           esac
           if [ "${{ inputs.send_alert }}" = "true" ]; then ALERT=true; fi
           if [ "${{ inputs.official_catchup }}" = "true" ]; then EOD=true; fi

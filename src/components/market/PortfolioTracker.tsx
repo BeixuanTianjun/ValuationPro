@@ -20,7 +20,7 @@ import {
   PositionReading,
   SHARES_PER_LOT,
   buildPortfolio,
-  loadPositions,
+  fetchPositions,
   newPositionId,
   savePositions,
 } from '../../models/portfolio';
@@ -87,6 +87,7 @@ export const PortfolioTracker: React.FC<Props> = ({ db, factors, onSelectEmiten 
   const [positions, setPositions] = useState<Position[]>([]);
   const [ownership, setOwnership] = useState<OwnershipFile | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [store, setStore] = useState<'layanan' | 'browser' | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -97,7 +98,17 @@ export const PortfolioTracker: React.FC<Props> = ({ db, factors, onSelectEmiten 
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => setPositions(loadPositions()), []);
+  useEffect(() => {
+    let alive = true;
+    void fetchPositions().then(({ positions: p, source }) => {
+      if (!alive) return;
+      setPositions(p);
+      setStore(source);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -122,7 +133,7 @@ export const PortfolioTracker: React.FC<Props> = ({ db, factors, onSelectEmiten 
 
   const persist = (next: Position[]) => {
     setPositions(next);
-    setSaveFailed(!savePositions(next));
+    void savePositions(next).then((ok) => setSaveFailed(!ok));
   };
 
   const screenerRows = useMemo(() => runStockScreener(db).all, [db]);
@@ -182,10 +193,10 @@ export const PortfolioTracker: React.FC<Props> = ({ db, factors, onSelectEmiten 
     void f.text().then((t) => {
       try {
         const parsed = JSON.parse(t) as Position[];
-        if (Array.isArray(parsed)) {
-          localStorage.setItem('valuationpro.portfolio.v1', JSON.stringify(parsed));
-          setPositions(loadPositions());
-        }
+        // Routed through persist() so an imported file lands in the service
+        // too, not only in this browser — otherwise importing would look like
+        // it worked and then vanish with the next fresh profile.
+        if (Array.isArray(parsed)) persist(parsed);
       } catch {
         /* a malformed file leaves the current portfolio untouched */
       }
@@ -199,7 +210,11 @@ export const PortfolioTracker: React.FC<Props> = ({ db, factors, onSelectEmiten 
           icon={Briefcase}
           title="Portofolio"
           tone="text-violet-300"
-          subtitle="Posisi Anda, dihargai dengan harga sesi berjalan. Tersimpan di browser ini saja — tidak pernah dikirim ke server mana pun, dan ikut terhapus kalau data situs dibersihkan. Pakai Ekspor untuk menyimpan salinannya."
+          subtitle={
+            store === 'browser'
+              ? 'Posisi Anda, dihargai dengan harga sesi berjalan. Layanan lokal tidak menjawab, jadi ini tersimpan di browser ini saja dan ikut terhapus kalau data situs dibersihkan — jalankan "npm run auto" supaya tersimpan permanen di .data/portfolio.json.'
+              : 'Posisi Anda, dihargai dengan harga sesi berjalan. Tersimpan di .data/portfolio.json oleh layanan lokal, jadi tetap ada di sesi berikutnya. Salinan cadangan disimpan di browser ini juga.'
+          }
           actions={
             <>
               <button
