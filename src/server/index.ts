@@ -147,9 +147,49 @@ function runNpm(script: string): Promise<void> {
   });
 }
 
+/**
+ * Speak a one-line alert, if the voice hook is installed and configured.
+ *
+ * WHY THE SCHEDULER TALKS AT ALL. A failed ingest is already recorded in
+ * `history` and visible on /api/status, but both require someone to go and
+ * look. The failure that matters — IDX answering with a Cloudflare challenge,
+ * so the official series silently stops growing — is exactly the one nobody
+ * looks for, because every screen keeps rendering yesterday's data perfectly.
+ *
+ * IT IS DELIBERATELY FIRE-AND-FORGET. Detached, stdio ignored, unref'd, and
+ * wrapped so a missing script or a broken Node cannot touch the scheduler. A
+ * data pipeline must never fail because a speaker did. If the hook is not
+ * installed, or FISH_AUDIO_API_KEY is unset, the child exits silently on its
+ * own and nothing here notices or cares.
+ */
+function speakAlert(text: string): void {
+  try {
+    const script = join(
+      process.env.USERPROFILE || process.env.HOME || '',
+      '.claude',
+      'hooks',
+      'speak-alert.mjs'
+    );
+    const child = spawn(process.execPath, [script, '--text', text], {
+      stdio: 'ignore',
+      detached: true,
+      windowsHide: true,
+    });
+    child.on('error', () => {
+      /* no voice installed — that is a fine state to be in */
+    });
+    child.unref();
+  } catch {
+    /* never let the narrator break the pipeline */
+  }
+}
+
 function record(job: string, reason: string, ok: boolean, detail: string) {
   history.unshift({ at: new Date().toISOString(), job, reason, ok, detail });
   history.length = Math.min(history.length, 40);
+  // Only failures are spoken. Announcing every successful refresh would be a
+  // voice going off six times a session saying nothing happened.
+  if (!ok) speakAlert(`Job ${job} di ValuationPro gagal. ${detail.slice(0, 120)}`);
 }
 
 /** SMTP settings, addressed to the administrator account when one exists. */
