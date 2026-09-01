@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-09-01T01:20:05.145Z",
-  "sessions": 714,
-  "universe": 299,
+  "generatedAt": "2026-09-01T15:31:52.127Z",
+  "sessions": 715,
+  "universe": 301,
   "ruleSetsTested": 21312,
-  "signalsFired": 45616,
-  "totalTradesSimulated": 3281616,
+  "signalsFired": 45946,
+  "totalTradesSimulated": 3305304,
   "split": {
     "trainFrom": "2023-08-28",
-    "trainTo": "2025-10-03",
-    "testFrom": "2025-10-03",
-    "testTo": "2026-08-31",
+    "trainTo": "2025-10-06",
+    "testFrom": "2025-10-06",
+    "testTo": "2026-09-01",
     "trainFraction": 0.7
   },
   "gates": {
@@ -21,7 +21,7 @@
     "minTestExpectancyR": 0.15,
     "stressWinRateHaircut": 0.1
   },
-  "survivors": 101,
+  "survivors": 107,
   "strategies": [
     {
       "id": "ma10x50+vol25+flow20pos__s3t4h10",
@@ -40,25 +40,25 @@
         "targetMult": 4,
         "maxHold": 10
       },
-      "trades": 188,
-      "winRate": 0.5904255319148937,
-      "expectancyR": 0.3563079455731368,
-      "profitFactor": 2.8404132973713767,
-      "maxDrawdownR": 3.668954996186116,
+      "trades": 187,
+      "winRate": 0.5935828877005348,
+      "expectancyR": 0.36321841519301495,
+      "profitFactor": 2.883836896245186,
+      "maxDrawdownR": 3.5022883295194447,
       "rewardRisk": 1.3333333333333333,
-      "stressedExpectancyR": 0.2756923476254437,
+      "stressedExpectancyR": 0.28047789123356803,
       "train": {
-        "trades": 116,
-        "winRate": 0.5517241379310345,
-        "expectancyR": 0.2955937518565467
+        "trades": 115,
+        "winRate": 0.5565217391304348,
+        "expectancyR": 0.30397661068366977
       },
       "test": {
         "trades": 72,
         "winRate": 0.6527777777777778,
-        "expectancyR": 0.45412525767208745,
-        "profitFactor": 2.8404132973713767,
+        "expectancyR": 0.45784074183988577,
+        "profitFactor": 2.883836896245186,
         "avgWinR": 1.0736839731118244,
-        "avgLossR": 0.710645127354617
+        "avgLossR": 0.6999445329513577
       }
     },
     {
@@ -78,17 +78,17 @@
         "targetMult": 2.5,
         "maxHold": 5
       },
-      "trades": 107,
-      "winRate": 0.5887850467289719,
-      "expectancyR": 0.2205890104429201,
+      "trades": 106,
+      "winRate": 0.5943396226415094,
+      "expectancyR": 0.23210400110747595,
       "profitFactor": 2.3259403445287825,
       "maxDrawdownR": 3.840909090909091,
       "rewardRisk": 1.25,
       "stressedExpectancyR": 0.20035706730923009,
       "train": {
-        "trades": 67,
-        "winRate": 0.5522388059701493,
-        "expectancyR": 0.11985951459710159
+        "trades": 66,
+        "winRate": 0.5606060606060606,
+        "expectancyR": 0.13682708300008803
       },
       "test": {
         "trades": 40,
@@ -116,17 +116,17 @@
         "targetMult": 2.5,
         "maxHold": 5
       },
-      "trades": 107,
-      "winRate": 0.616822429906542,
-      "expectancyR": 0.1882417591023191,
+      "trades": 106,
+      "winRate": 0.6226415094339622,
+      "expectancyR": 0.19945158701837873,
       "profitFactor": 2.882654103614628,
       "maxDrawdownR": 3.069906728180109,
       "rewardRisk": 0.8333333333333334,
       "stressedExpectancyR": 0.18959368758891096,
       "train": {
-        "trades": 67,
-        "winRate": 0.582089552238806,
-        "expectancyR": 0.11498350869520094
+        "trades": 66,
+        "winRate": 0.5909090909090909,
+        "expectancyR": 0.13187719822088578
       },
       "test": {
         "trades": 40,
@@ -154,25 +154,25 @@
         "targetMult": 2.5,
         "maxHold": 20
       },
-      "trades": 188,
-      "winRate": 0.6382978723404256,
-      "expectancyR": 0.21398826056302506,
-      "profitFactor": 2.4368988872012394,
-      "maxDrawdownR": 4.986324353574619,
+      "trades": 187,
+      "winRate": 0.6417112299465241,
+      "expectancyR": 0.22052768491230412,
+      "profitFactor": 2.4733235954086954,
+      "maxDrawdownR": 5.036013794568409,
       "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.17076350672633195,
+      "stressedExpectancyR": 0.17526621247852014,
       "train": {
-        "trades": 116,
-        "winRate": 0.5948275862068966,
-        "expectancyR": 0.14374624735293112
+        "trades": 115,
+        "winRate": 0.6,
+        "expectancyR": 0.1516698010049987
       },
       "test": {
         "trades": 72,
         "winRate": 0.7083333333333334,
-        "expectancyR": 0.32715594851262086,
-        "profitFactor": 2.4368988872012394,
+        "expectancyR": 0.3305090272642503,
+        "profitFactor": 2.4733235954086954,
         "avgWinR": 0.7833005703892982,
-        "avgLossR": 0.7806238474735947
+        "avgLossR": 0.7691275774680078
       }
     },
     {
@@ -192,17 +192,17 @@
         "targetMult": 2.5,
         "maxHold": 10
       },
-      "trades": 107,
-      "winRate": 0.5981308411214953,
-      "expectancyR": 0.2217732342697636,
+      "trades": 106,
+      "winRate": 0.6037735849056604,
+      "expectancyR": 0.2332993968572142,
       "profitFactor": 2.483690438387602,
-      "maxDrawdownR": 1.9337024572069588,
+      "maxDrawdownR": 1.87987987987988,
       "rewardRisk": 0.8333333333333334,
       "stressedExpectancyR": 0.1660291401708343,
       "train": {
-        "trades": 67,
-        "winRate": 0.5522388059701493,
-        "expectancyR": 0.172172478088948
+        "trades": 66,
+        "winRate": 0.5606060606060606,
+        "expectancyR": 0.18993266715090176
       },
       "test": {
         "trades": 40,
@@ -230,17 +230,17 @@
         "targetMult": 2.5,
         "maxHold": 20
       },
-      "trades": 107,
-      "winRate": 0.7009345794392523,
-      "expectancyR": 0.3133185613969933,
+      "trades": 106,
+      "winRate": 0.7075471698113207,
+      "expectancyR": 0.32570835914602153,
       "profitFactor": 2.331893484126898,
       "maxDrawdownR": 2.298798798798797,
       "rewardRisk": 0.8333333333333334,
       "stressedExpectancyR": 0.1658220388748472,
       "train": {
-        "trades": 67,
-        "winRate": 0.6865671641791045,
-        "expectancyR": 0.2964590041268762
+        "trades": 66,
+        "winRate": 0.696969696969697,
+        "expectancyR": 0.3161023223712228
       },
       "test": {
         "trades": 40,
@@ -268,289 +268,25 @@
         "targetMult": 2.5,
         "maxHold": 10
       },
-      "trades": 188,
-      "winRate": 0.6170212765957447,
-      "expectancyR": 0.2142454080808325,
-      "profitFactor": 2.3191251952491148,
-      "maxDrawdownR": 3.6727157187423325,
+      "trades": 187,
+      "winRate": 0.6203208556149733,
+      "expectancyR": 0.21959117089910155,
+      "profitFactor": 2.3362282174636526,
+      "maxDrawdownR": 3.7224051597361214,
       "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.1460057913355478,
+      "stressedExpectancyR": 0.14816218968759837,
       "train": {
-        "trades": 116,
-        "winRate": 0.5689655172413793,
-        "expectancyR": 0.16551827872773514
+        "trades": 115,
+        "winRate": 0.5739130434782609,
+        "expectancyR": 0.17277004648417288
       },
       "test": {
         "trades": 72,
         "winRate": 0.6944444444444444,
-        "expectancyR": 0.292750227594156,
-        "profitFactor": 2.3191251952491148,
+        "expectancyR": 0.294374911284057,
+        "profitFactor": 2.3362282174636526,
         "avgWinR": 0.7411360050510152,
-        "avgLossR": 0.7263083575350687
-      }
-    },
-    {
-      "id": "ma50x100+vol15__s3t2.5h20",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥1,5× rata-rata 20 sesi"
-      ],
-      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
-      "entryParams": {
-        "filters": 1
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 2.5,
-        "maxHold": 20
-      },
-      "trades": 204,
-      "winRate": 0.6421568627450981,
-      "expectancyR": 0.2281714678945729,
-      "profitFactor": 2.186720361590448,
-      "maxDrawdownR": 5.357221045791164,
-      "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.13959437852553985,
-      "train": {
-        "trades": 144,
-        "winRate": 0.6180555555555556,
-        "expectancyR": 0.19565512810560481
-      },
-      "test": {
-        "trades": 60,
-        "winRate": 0.7,
-        "expectancyR": 0.3062106833880963,
-        "profitFactor": 2.186720361590448,
-        "avgWinR": 0.8060595979757652,
-        "avgLossR": 0.8601034506497981
-      }
-    },
-    {
-      "id": "ma50x100+vol15+vol25__s3t1.5h5",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥1,5× rata-rata 20 sesi",
-        "volume ≥2,5× rata-rata 20 sesi"
-      ],
-      "exitLabel": "stop 3×ATR, target 1.5×ATR, maksimal 5 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 1.5,
-        "maxHold": 5
-      },
-      "trades": 106,
-      "winRate": 0.6226415094339622,
-      "expectancyR": 0.09480895353297858,
-      "profitFactor": 2.786333404396071,
-      "maxDrawdownR": 5.54535519125683,
-      "rewardRisk": 0.5,
-      "stressedExpectancyR": 0.13096314649113733,
-      "train": {
-        "trades": 72,
-        "winRate": 0.5694444444444444,
-        "expectancyR": 0.032283860500932446
-      },
-      "test": {
-        "trades": 34,
-        "winRate": 0.7352941176470589,
-        "expectancyR": 0.22721503289495862,
-        "profitFactor": 2.786333404396071,
-        "avgWinR": 0.4819994380815443,
-        "avgLossR": 0.4805194259566685
-      }
-    },
-    {
-      "id": "ma50x100+vol25__s3t1.5h5",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥2,5× rata-rata 20 sesi"
-      ],
-      "exitLabel": "stop 3×ATR, target 1.5×ATR, maksimal 5 sesi",
-      "entryParams": {
-        "filters": 1
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 1.5,
-        "maxHold": 5
-      },
-      "trades": 106,
-      "winRate": 0.6226415094339622,
-      "expectancyR": 0.09480895353297858,
-      "profitFactor": 2.786333404396071,
-      "maxDrawdownR": 5.54535519125683,
-      "rewardRisk": 0.5,
-      "stressedExpectancyR": 0.13096314649113733,
-      "train": {
-        "trades": 72,
-        "winRate": 0.5694444444444444,
-        "expectancyR": 0.032283860500932446
-      },
-      "test": {
-        "trades": 34,
-        "winRate": 0.7352941176470589,
-        "expectancyR": 0.22721503289495862,
-        "profitFactor": 2.786333404396071,
-        "avgWinR": 0.4819994380815443,
-        "avgLossR": 0.4805194259566685
-      }
-    },
-    {
-      "id": "ma50x100+vol25+aboveMa100__s3t1.5h5",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥2,5× rata-rata 20 sesi",
-        "harga di atas MA100"
-      ],
-      "exitLabel": "stop 3×ATR, target 1.5×ATR, maksimal 5 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 1.5,
-        "maxHold": 5
-      },
-      "trades": 103,
-      "winRate": 0.6407766990291263,
-      "expectancyR": 0.09917702629189776,
-      "profitFactor": 2.786333404396071,
-      "maxDrawdownR": 5.54535519125683,
-      "rewardRisk": 0.5,
-      "stressedExpectancyR": 0.13096314649113733,
-      "train": {
-        "trades": 69,
-        "winRate": 0.5942028985507246,
-        "expectancyR": 0.0360858346324185
-      },
-      "test": {
-        "trades": 34,
-        "winRate": 0.7352941176470589,
-        "expectancyR": 0.22721503289495862,
-        "profitFactor": 2.786333404396071,
-        "avgWinR": 0.4819994380815443,
-        "avgLossR": 0.4805194259566685
-      }
-    },
-    {
-      "id": "ma50x100+vol25+ma50up__s3t1.5h5",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥2,5× rata-rata 20 sesi",
-        "MA50 sedang naik"
-      ],
-      "exitLabel": "stop 3×ATR, target 1.5×ATR, maksimal 5 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 1.5,
-        "maxHold": 5
-      },
-      "trades": 101,
-      "winRate": 0.6534653465346535,
-      "expectancyR": 0.11711805294130259,
-      "profitFactor": 2.786333404396071,
-      "maxDrawdownR": 4.545355191256829,
-      "rewardRisk": 0.5,
-      "stressedExpectancyR": 0.13096314649113733,
-      "train": {
-        "trades": 67,
-        "winRate": 0.6119402985074627,
-        "expectancyR": 0.06124794371108911
-      },
-      "test": {
-        "trades": 34,
-        "winRate": 0.7352941176470589,
-        "expectancyR": 0.22721503289495862,
-        "profitFactor": 2.786333404396071,
-        "avgWinR": 0.4819994380815443,
-        "avgLossR": 0.4805194259566685
-      }
-    },
-    {
-      "id": "ma50x100+vol15+aboveMa100__s3t2.5h20",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥1,5× rata-rata 20 sesi",
-        "harga di atas MA100"
-      ],
-      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 2.5,
-        "maxHold": 20
-      },
-      "trades": 191,
-      "winRate": 0.6544502617801047,
-      "expectancyR": 0.24665535437550315,
-      "profitFactor": 2.1328939337795614,
-      "maxDrawdownR": 5.199999999999989,
-      "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.13072661762882853,
-      "train": {
-        "trades": 132,
-        "winRate": 0.6363636363636364,
-        "expectancyR": 0.2240292804224898
-      },
-      "test": {
-        "trades": 59,
-        "winRate": 0.6949152542372882,
-        "expectancyR": 0.2972764011856347,
-        "profitFactor": 2.1328939337795614,
-        "avgWinR": 0.8053943849182637,
-        "avgLossR": 0.8601034506497981
-      }
-    },
-    {
-      "id": "ma50x100+vol15+ma50up__s3t2.5h20",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥1,5× rata-rata 20 sesi",
-        "MA50 sedang naik"
-      ],
-      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 2.5,
-        "maxHold": 20
-      },
-      "trades": 194,
-      "winRate": 0.654639175257732,
-      "expectancyR": 0.24587473261142173,
-      "profitFactor": 2.132893933779561,
-      "maxDrawdownR": 6.033333333333324,
-      "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.13072661762882842,
-      "train": {
-        "trades": 135,
-        "winRate": 0.6370370370370371,
-        "expectancyR": 0.22341029967898787
-      },
-      "test": {
-        "trades": 59,
-        "winRate": 0.6949152542372882,
-        "expectancyR": 0.2972764011856347,
-        "profitFactor": 2.132893933779561,
-        "avgWinR": 0.8053943849182634,
-        "avgLossR": 0.8601034506497981
+        "avgLossR": 0.7209912109135742
       }
     },
     {
@@ -570,25 +306,176 @@
         "targetMult": 2.5,
         "maxHold": 20
       },
-      "trades": 133,
-      "winRate": 0.6090225563909775,
-      "expectancyR": 0.16822351959006954,
-      "profitFactor": 2.1235731878492534,
-      "maxDrawdownR": 5.663896149333613,
+      "trades": 136,
+      "winRate": 0.6102941176470589,
+      "expectancyR": 0.17424109111796462,
+      "profitFactor": 2.143319822884626,
+      "maxDrawdownR": 5.923327445261258,
       "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.1281942463760644,
+      "stressedExpectancyR": 0.13095239709137407,
       "train": {
-        "trades": 96,
-        "winRate": 0.5729166666666666,
-        "expectancyR": 0.1186004387228465
+        "trades": 97,
+        "winRate": 0.5773195876288659,
+        "expectancyR": 0.12596881907965565
       },
       "test": {
-        "trades": 37,
-        "winRate": 0.7027027027027027,
-        "expectancyR": 0.2969752969752969,
-        "profitFactor": 2.1235731878492534,
-        "avgWinR": 0.7987567987567984,
-        "avgLossR": 0.8890537072355255
+        "trades": 39,
+        "winRate": 0.6923076923076923,
+        "expectancyR": 0.2943028959311946,
+        "profitFactor": 2.143319822884626,
+        "avgWinR": 0.7969198154383336,
+        "avgLossR": 0.8365851729598689
+      }
+    },
+    {
+      "id": "ma50x100+vol15+vol25__s3t1.5h5",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "volume ≥1,5× rata-rata 20 sesi",
+        "volume ≥2,5× rata-rata 20 sesi"
+      ],
+      "exitLabel": "stop 3×ATR, target 1.5×ATR, maksimal 5 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 3,
+        "targetMult": 1.5,
+        "maxHold": 5
+      },
+      "trades": 108,
+      "winRate": 0.6296296296296297,
+      "expectancyR": 0.10873314566138922,
+      "profitFactor": 2.709851926021085,
+      "maxDrawdownR": 4.1259186067365174,
+      "rewardRisk": 0.5,
+      "stressedExpectancyR": 0.12538343081026895,
+      "train": {
+        "trades": 72,
+        "winRate": 0.5833333333333334,
+        "expectancyR": 0.05311719383426577
+      },
+      "test": {
+        "trades": 36,
+        "winRate": 0.7222222222222222,
+        "expectancyR": 0.2199650493156361,
+        "profitFactor": 2.709851926021085,
+        "avgWinR": 0.4826917673861003,
+        "avgLossR": 0.463124417667571
+      }
+    },
+    {
+      "id": "ma50x100+vol25__s3t1.5h5",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "volume ≥2,5× rata-rata 20 sesi"
+      ],
+      "exitLabel": "stop 3×ATR, target 1.5×ATR, maksimal 5 sesi",
+      "entryParams": {
+        "filters": 1
+      },
+      "exitParams": {
+        "stopMult": 3,
+        "targetMult": 1.5,
+        "maxHold": 5
+      },
+      "trades": 108,
+      "winRate": 0.6296296296296297,
+      "expectancyR": 0.10873314566138922,
+      "profitFactor": 2.709851926021085,
+      "maxDrawdownR": 4.1259186067365174,
+      "rewardRisk": 0.5,
+      "stressedExpectancyR": 0.12538343081026895,
+      "train": {
+        "trades": 72,
+        "winRate": 0.5833333333333334,
+        "expectancyR": 0.05311719383426577
+      },
+      "test": {
+        "trades": 36,
+        "winRate": 0.7222222222222222,
+        "expectancyR": 0.2199650493156361,
+        "profitFactor": 2.709851926021085,
+        "avgWinR": 0.4826917673861003,
+        "avgLossR": 0.463124417667571
+      }
+    },
+    {
+      "id": "ma50x100+vol25+aboveMa100__s3t1.5h5",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "volume ≥2,5× rata-rata 20 sesi",
+        "harga di atas MA100"
+      ],
+      "exitLabel": "stop 3×ATR, target 1.5×ATR, maksimal 5 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 3,
+        "targetMult": 1.5,
+        "maxHold": 5
+      },
+      "trades": 105,
+      "winRate": 0.6476190476190476,
+      "expectancyR": 0.11341585109523596,
+      "profitFactor": 2.709851926021085,
+      "maxDrawdownR": 3.9604339731667775,
+      "rewardRisk": 0.5,
+      "stressedExpectancyR": 0.12538343081026895,
+      "train": {
+        "trades": 69,
+        "winRate": 0.6086956521739131,
+        "expectancyR": 0.05782496506720109
+      },
+      "test": {
+        "trades": 36,
+        "winRate": 0.7222222222222222,
+        "expectancyR": 0.2199650493156361,
+        "profitFactor": 2.709851926021085,
+        "avgWinR": 0.4826917673861003,
+        "avgLossR": 0.463124417667571
+      }
+    },
+    {
+      "id": "ma50x100+vol25+ma50up__s3t1.5h5",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "volume ≥2,5× rata-rata 20 sesi",
+        "MA50 sedang naik"
+      ],
+      "exitLabel": "stop 3×ATR, target 1.5×ATR, maksimal 5 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 3,
+        "targetMult": 1.5,
+        "maxHold": 5
+      },
+      "trades": 103,
+      "winRate": 0.6601941747572816,
+      "expectancyR": 0.1312849903301541,
+      "profitFactor": 2.709851926021085,
+      "maxDrawdownR": 3.3467443341606824,
+      "rewardRisk": 0.5,
+      "stressedExpectancyR": 0.12538343081026895,
+      "train": {
+        "trades": 67,
+        "winRate": 0.6268656716417911,
+        "expectancyR": 0.08363600341258166
+      },
+      "test": {
+        "trades": 36,
+        "winRate": 0.7222222222222222,
+        "expectancyR": 0.2199650493156361,
+        "profitFactor": 2.709851926021085,
+        "avgWinR": 0.4826917673861003,
+        "avgLossR": 0.463124417667571
       }
     },
     {
@@ -610,11 +497,11 @@
       },
       "trades": 193,
       "winRate": 0.6476683937823834,
-      "expectancyR": 0.2304085159558336,
-      "profitFactor": 2.069474215791111,
-      "maxDrawdownR": 7.273254281949924,
+      "expectancyR": 0.23165940543830674,
+      "profitFactor": 2.092735682626009,
+      "maxDrawdownR": 7.106587615283253,
       "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.11723147418398,
+      "stressedExpectancyR": 0.12099969601914456,
       "train": {
         "trades": 109,
         "winRate": 0.6238532110091743,
@@ -623,10 +510,199 @@
       "test": {
         "trades": 84,
         "winRate": 0.6785714285714286,
-        "expectancyR": 0.2765314714659133,
-        "profitFactor": 2.069474215791111,
+        "expectancyR": 0.27940553896730996,
+        "profitFactor": 2.092735682626009,
         "avgWinR": 0.7885671770149865,
-        "avgLossR": 0.8044327958043511
+        "avgLossR": 0.7954912524666724
+      }
+    },
+    {
+      "id": "ma50x100+vol15__s3t2.5h20",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "volume ≥1,5× rata-rata 20 sesi"
+      ],
+      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
+      "entryParams": {
+        "filters": 1
+      },
+      "exitParams": {
+        "stopMult": 3,
+        "targetMult": 2.5,
+        "maxHold": 20
+      },
+      "trades": 207,
+      "winRate": 0.642512077294686,
+      "expectancyR": 0.23125623061380104,
+      "profitFactor": 2.066964631799705,
+      "maxDrawdownR": 5.357221045791164,
+      "rewardRisk": 0.8333333333333334,
+      "stressedExpectancyR": 0.11934955198591846,
+      "train": {
+        "trades": 144,
+        "winRate": 0.625,
+        "expectancyR": 0.2083866095870863
+      },
+      "test": {
+        "trades": 63,
+        "winRate": 0.6825396825396826,
+        "expectancyR": 0.28352965010343467,
+        "profitFactor": 2.066964631799705,
+        "avgWinR": 0.8047363107939627,
+        "avgLossR": 0.8370646703812005
+      }
+    },
+    {
+      "id": "ma10x50+vol25+aboveMa100__s3t2.5h20",
+      "family": "trend",
+      "triggerLabel": "MA10 memotong ke atas MA50",
+      "filterLabels": [
+        "volume ≥2,5× rata-rata 20 sesi",
+        "harga di atas MA100"
+      ],
+      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 3,
+        "targetMult": 2.5,
+        "maxHold": 20
+      },
+      "trades": 345,
+      "winRate": 0.6347826086956522,
+      "expectancyR": 0.20021452675000595,
+      "profitFactor": 2.0832049235132937,
+      "maxDrawdownR": 9.296331205026902,
+      "rewardRisk": 0.8333333333333334,
+      "stressedExpectancyR": 0.11910647041158756,
+      "train": {
+        "trades": 208,
+        "winRate": 0.6009615384615384,
+        "expectancyR": 0.14774763247524536
+      },
+      "test": {
+        "trades": 137,
+        "winRate": 0.6861313868613139,
+        "expectancyR": 0.2798722932401535,
+        "profitFactor": 2.0832049235132937,
+        "avgWinR": 0.784465751753171,
+        "avgLossR": 0.8231924765324894
+      }
+    },
+    {
+      "id": "ma50x100+vol15+aboveMa100__s3t2.5h20",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "volume ≥1,5× rata-rata 20 sesi",
+        "harga di atas MA100"
+      ],
+      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 3,
+        "targetMult": 2.5,
+        "maxHold": 20
+      },
+      "trades": 194,
+      "winRate": 0.654639175257732,
+      "expectancyR": 0.24966099470250022,
+      "profitFactor": 2.0171875140440463,
+      "maxDrawdownR": 5.199999999999989,
+      "rewardRisk": 0.8333333333333334,
+      "stressedExpectancyR": 0.11054983879240382,
+      "train": {
+        "trades": 132,
+        "winRate": 0.6439393939393939,
+        "expectancyR": 0.23791816931137874
+      },
+      "test": {
+        "trades": 62,
+        "winRate": 0.6774193548387096,
+        "expectancyR": 0.27466184876101696,
+        "profitFactor": 2.0171875140440463,
+        "avgWinR": 0.8040554293049299,
+        "avgLossR": 0.8370646703812005
+      }
+    },
+    {
+      "id": "ma50x100+vol15+ma50up__s3t2.5h20",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "volume ≥1,5× rata-rata 20 sesi",
+        "MA50 sedang naik"
+      ],
+      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 3,
+        "targetMult": 2.5,
+        "maxHold": 20
+      },
+      "trades": 197,
+      "winRate": 0.6548223350253807,
+      "expectancyR": 0.24884648940700388,
+      "profitFactor": 2.0171875140440463,
+      "maxDrawdownR": 6.033333333333324,
+      "rewardRisk": 0.8333333333333334,
+      "stressedExpectancyR": 0.11054983879240382,
+      "train": {
+        "trades": 135,
+        "winRate": 0.6444444444444445,
+        "expectancyR": 0.23699054659256827
+      },
+      "test": {
+        "trades": 62,
+        "winRate": 0.6774193548387096,
+        "expectancyR": 0.27466184876101696,
+        "profitFactor": 2.0171875140440463,
+        "avgWinR": 0.8040554293049299,
+        "avgLossR": 0.8370646703812005
+      }
+    },
+    {
+      "id": "ma10x50+vol25+aboveMa100__s3t2.5h10",
+      "family": "trend",
+      "triggerLabel": "MA10 memotong ke atas MA50",
+      "filterLabels": [
+        "volume ≥2,5× rata-rata 20 sesi",
+        "harga di atas MA100"
+      ],
+      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 10 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 3,
+        "targetMult": 2.5,
+        "maxHold": 10
+      },
+      "trades": 345,
+      "winRate": 0.6144927536231884,
+      "expectancyR": 0.18219750585484493,
+      "profitFactor": 2.0484063033328543,
+      "maxDrawdownR": 7.6818299336132405,
+      "rewardRisk": 0.8333333333333334,
+      "stressedExpectancyR": 0.10585411619012786,
+      "train": {
+        "trades": 208,
+        "winRate": 0.5769230769230769,
+        "expectancyR": 0.13566899323265094
+      },
+      "test": {
+        "trades": 137,
+        "winRate": 0.6715328467153284,
+        "expectancyR": 0.25283933523744606,
+        "profitFactor": 2.0484063033328543,
+        "avgWinR": 0.7356374999914109,
+        "avgLossR": 0.7342146904817709
       }
     },
     {
@@ -646,25 +722,25 @@
         "targetMult": 2.5,
         "maxHold": 20
       },
-      "trades": 106,
-      "winRate": 0.6226415094339622,
-      "expectancyR": 0.20870808241770708,
-      "profitFactor": 1.9500753002062936,
+      "trades": 108,
+      "winRate": 0.6296296296296297,
+      "expectancyR": 0.22669587092479568,
+      "profitFactor": 1.9736045017655366,
       "maxDrawdownR": 4.166666666666668,
       "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.10065033270778168,
+      "stressedExpectancyR": 0.10497156067093266,
       "train": {
         "trades": 72,
-        "winRate": 0.5972222222222222,
-        "expectancyR": 0.1792384498297753
+        "winRate": 0.6111111111111112,
+        "expectancyR": 0.20470141279273835
       },
       "test": {
-        "trades": 34,
-        "winRate": 0.6764705882352942,
-        "expectancyR": 0.27111436319215093,
-        "profitFactor": 1.9500753002062936,
-        "avgWinR": 0.8226156382886398,
-        "avgLossR": 0.8820246665550532
+        "trades": 36,
+        "winRate": 0.6666666666666666,
+        "expectancyR": 0.27068478718891037,
+        "profitFactor": 1.9736045017655366,
+        "avgWinR": 0.823062208915502,
+        "avgLossR": 0.8340700562642732
       }
     },
     {
@@ -683,25 +759,25 @@
         "targetMult": 2.5,
         "maxHold": 20
       },
-      "trades": 106,
-      "winRate": 0.6226415094339622,
-      "expectancyR": 0.20870808241770708,
-      "profitFactor": 1.9500753002062936,
+      "trades": 108,
+      "winRate": 0.6296296296296297,
+      "expectancyR": 0.22669587092479568,
+      "profitFactor": 1.9736045017655366,
       "maxDrawdownR": 4.166666666666668,
       "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.10065033270778168,
+      "stressedExpectancyR": 0.10497156067093266,
       "train": {
         "trades": 72,
-        "winRate": 0.5972222222222222,
-        "expectancyR": 0.1792384498297753
+        "winRate": 0.6111111111111112,
+        "expectancyR": 0.20470141279273835
       },
       "test": {
-        "trades": 34,
-        "winRate": 0.6764705882352942,
-        "expectancyR": 0.27111436319215093,
-        "profitFactor": 1.9500753002062936,
-        "avgWinR": 0.8226156382886398,
-        "avgLossR": 0.8820246665550532
+        "trades": 36,
+        "winRate": 0.6666666666666666,
+        "expectancyR": 0.27068478718891037,
+        "profitFactor": 1.9736045017655366,
+        "avgWinR": 0.823062208915502,
+        "avgLossR": 0.8340700562642732
       }
     },
     {
@@ -721,25 +797,25 @@
         "targetMult": 2.5,
         "maxHold": 20
       },
-      "trades": 103,
-      "winRate": 0.6310679611650486,
-      "expectancyR": 0.21508304068133652,
-      "profitFactor": 1.9500753002062936,
+      "trades": 105,
+      "winRate": 0.638095238095238,
+      "expectancyR": 0.23346333822646323,
+      "profitFactor": 1.9736045017655366,
       "maxDrawdownR": 4.166666666666668,
       "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.10065033270778168,
+      "stressedExpectancyR": 0.10497156067093266,
       "train": {
         "trades": 69,
-        "winRate": 0.6086956521739131,
-        "expectancyR": 0.18747340350209465
+        "winRate": 0.6231884057971014,
+        "expectancyR": 0.21404345181127343
       },
       "test": {
-        "trades": 34,
-        "winRate": 0.6764705882352942,
-        "expectancyR": 0.27111436319215093,
-        "profitFactor": 1.9500753002062936,
-        "avgWinR": 0.8226156382886398,
-        "avgLossR": 0.8820246665550532
+        "trades": 36,
+        "winRate": 0.6666666666666666,
+        "expectancyR": 0.27068478718891037,
+        "profitFactor": 1.9736045017655366,
+        "avgWinR": 0.823062208915502,
+        "avgLossR": 0.8340700562642732
       }
     },
     {
@@ -759,25 +835,25 @@
         "targetMult": 2.5,
         "maxHold": 20
       },
-      "trades": 101,
-      "winRate": 0.6336633663366337,
-      "expectancyR": 0.22099227581033992,
-      "profitFactor": 1.9500753002062936,
+      "trades": 103,
+      "winRate": 0.6407766990291263,
+      "expectancyR": 0.23961472990723595,
+      "profitFactor": 1.9736045017655366,
       "maxDrawdownR": 5,
       "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.10065033270778168,
+      "stressedExpectancyR": 0.10497156067093266,
       "train": {
         "trades": 67,
-        "winRate": 0.6119402985074627,
-        "expectancyR": 0.19555718669121191
+        "winRate": 0.6268656716417911,
+        "expectancyR": 0.2229203707708139
       },
       "test": {
-        "trades": 34,
-        "winRate": 0.6764705882352942,
-        "expectancyR": 0.27111436319215093,
-        "profitFactor": 1.9500753002062936,
-        "avgWinR": 0.8226156382886398,
-        "avgLossR": 0.8820246665550532
+        "trades": 36,
+        "winRate": 0.6666666666666666,
+        "expectancyR": 0.27068478718891037,
+        "profitFactor": 1.9736045017655366,
+        "avgWinR": 0.823062208915502,
+        "avgLossR": 0.8340700562642732
       }
     },
     {
@@ -797,25 +873,25 @@
         "targetMult": 1.5,
         "maxHold": 20
       },
-      "trades": 188,
-      "winRate": 0.6542553191489362,
-      "expectancyR": 0.15301185751373747,
-      "profitFactor": 2.0016659211155505,
+      "trades": 187,
+      "winRate": 0.6577540106951871,
+      "expectancyR": 0.1587459030533034,
+      "profitFactor": 1.9934047815333884,
       "maxDrawdownR": 5.25,
       "rewardRisk": 0.75,
-      "stressedExpectancyR": 0.09863988512656119,
+      "stressedExpectancyR": 0.09711469534050182,
       "train": {
-        "trades": 116,
-        "winRate": 0.6120689655172413,
-        "expectancyR": 0.07974137931034475
+        "trades": 115,
+        "winRate": 0.6173913043478261,
+        "expectancyR": 0.08913043478260863
       },
       "test": {
         "trades": 72,
         "winRate": 0.7222222222222222,
-        "expectancyR": 0.27105873906364797,
-        "profitFactor": 2.0016659211155505,
+        "expectancyR": 0.26993727598566314,
+        "profitFactor": 1.9934047815333884,
         "avgWinR": 0.75,
-        "avgLossR": 0.9741885393708675
+        "avgLossR": 0.9782258064516128
       }
     },
     {
@@ -835,17 +911,17 @@
         "targetMult": 1.5,
         "maxHold": 10
       },
-      "trades": 107,
-      "winRate": 0.6635514018691588,
-      "expectancyR": 0.11884540200230655,
+      "trades": 106,
+      "winRate": 0.6698113207547169,
+      "expectancyR": 0.1294005473042151,
       "profitFactor": 2.316510624514838,
       "maxDrawdownR": 2.546546546546547,
       "rewardRisk": 0.5,
       "stressedExpectancyR": 0.09629199533508759,
       "train": {
-        "trades": 67,
-        "winRate": 0.6119402985074627,
-        "expectancyR": 0.06524563242726675
+        "trades": 66,
+        "winRate": 0.6212121212121212,
+        "expectancyR": 0.08138571776707382
       },
       "test": {
         "trades": 40,
@@ -873,17 +949,17 @@
         "targetMult": 1.5,
         "maxHold": 5
       },
-      "trades": 107,
-      "winRate": 0.6448598130841121,
-      "expectancyR": 0.09988720964145786,
+      "trades": 106,
+      "winRate": 0.6509433962264151,
+      "expectancyR": 0.11026350407203768,
       "profitFactor": 2.3128661561540063,
-      "maxDrawdownR": 3.1943618137733822,
+      "maxDrawdownR": 3.0699067281801087,
       "rewardRisk": 0.5,
       "stressedExpectancyR": 0.09449689269685488,
       "train": {
-        "trades": 67,
-        "winRate": 0.5970149253731343,
-        "expectancyR": 0.041995005926423724
+        "trades": 66,
+        "winRate": 0.6060606060606061,
+        "expectancyR": 0.057782809046521076
       },
       "test": {
         "trades": 40,
@@ -892,81 +968,6 @@
         "profitFactor": 2.3128661561540063,
         "avgWinR": 0.4783459858241744,
         "avgLossR": 0.5452515958486777
-      }
-    },
-    {
-      "id": "ma10x50+vol25+aboveMa100__s3t2.5h20",
-      "family": "trend",
-      "triggerLabel": "MA10 memotong ke atas MA50",
-      "filterLabels": [
-        "volume ≥2,5× rata-rata 20 sesi",
-        "harga di atas MA100"
-      ],
-      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 2.5,
-        "maxHold": 20
-      },
-      "trades": 343,
-      "winRate": 0.6268221574344023,
-      "expectancyR": 0.18675054867348723,
-      "profitFactor": 1.938767509765144,
-      "maxDrawdownR": 9.296331205026839,
-      "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.09364978089475867,
-      "train": {
-        "trades": 209,
-        "winRate": 0.5980861244019139,
-        "expectancyR": 0.14336863699624977
-      },
-      "test": {
-        "trades": 134,
-        "winRate": 0.6716417910447762,
-        "expectancyR": 0.2544133810655964,
-        "profitFactor": 1.938767509765144,
-        "avgWinR": 0.7822938592384974,
-        "avgLossR": 0.8253421424698825
-      }
-    },
-    {
-      "id": "ma50x100+vol15__s3t1.5h5",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥1,5× rata-rata 20 sesi"
-      ],
-      "exitLabel": "stop 3×ATR, target 1.5×ATR, maksimal 5 sesi",
-      "entryParams": {
-        "filters": 1
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 1.5,
-        "maxHold": 5
-      },
-      "trades": 204,
-      "winRate": 0.6029411764705882,
-      "expectancyR": 0.06791616983942332,
-      "profitFactor": 2.3204485133817236,
-      "maxDrawdownR": 5.013949152938967,
-      "rewardRisk": 0.5,
-      "stressedExpectancyR": 0.09353584895941378,
-      "train": {
-        "trades": 144,
-        "winRate": 0.5625,
-        "expectancyR": 0.017720937445988454
-      },
-      "test": {
-        "trades": 60,
-        "winRate": 0.7,
-        "expectancyR": 0.188384727583667,
-        "profitFactor": 2.3204485133817236,
-        "avgWinR": 0.4729313634564266,
-        "avgLossR": 0.4755574227861054
       }
     }
   ]
