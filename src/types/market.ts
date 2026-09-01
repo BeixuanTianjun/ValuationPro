@@ -32,6 +32,14 @@ export interface RawSeries {
   t: string;   // turnover value in IDR million
   fn: string;  // net foreign flow in IDR million (buy - sell, at close)
   /**
+   * Trade count (frequency), added later than the other fields — absent or
+   * blank on sessions ingested before this existed. See tradeSetup.ts /
+   * strategyLab.ts: this is what makes the bandarmology ticket-size signal
+   * (value ÷ frequency) reconstructable session-by-session going forward,
+   * where before it only existed for the current day's daily.json snapshot.
+   */
+  f?: string;
+  /**
    * Sparse corporate-action factors, present only for emiten that had one.
    * A value at position i means prices BEFORE i must be multiplied by it to be
    * comparable with prices from i onward (a 1:5 split gives 0.2).
@@ -60,6 +68,8 @@ export interface PriceSeries {
   volume: Float64Array;
   value: Float64Array;
   foreignNet: Float64Array;
+  /** Trade count. NaN before this field started being recorded — see RawSeries.f. */
+  freq: Float64Array;
   rawClose: Float64Array;
   /** Number of corporate actions folded into this series. */
   adjustments: number;

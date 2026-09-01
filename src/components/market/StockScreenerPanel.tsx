@@ -1,13 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { Check, Filter, Info, RotateCcw, Search, SlidersHorizontal, Target, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Crosshair, Filter, Info, RotateCcw, Search, SlidersHorizontal, Target, X } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
+import { FactorSnapshot } from '../../types/market';
 import { TradingViewChart } from './TradingViewChart';
 import {
   DEFAULT_SCREENER_SETTINGS,
   ScreenerRow,
   ScreenerSettings,
+  convictionScore,
   runStockScreener,
 } from '../../models/stockScreener';
+import { TradeSetup, buildTradeSetup } from '../../models/tradeSetup';
 import {
   EmptyState,
   Panel,
@@ -24,8 +27,12 @@ import {
 
 interface Props {
   db: MarketDatabase;
+  factors: Map<string, FactorSnapshot> | null;
   onSelectEmiten: (code: string) => void;
 }
+
+/** How many rows show by default — the rest are one click away, never gone. */
+const DEFAULT_SHOWN = 5;
 
 const rp = (v: number, d = 0) => (Number.isFinite(v) ? v.toLocaleString('id-ID', { maximumFractionDigits: d }) : '–');
 const pct = (v: number, d = 1) => (Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%` : '–');
@@ -37,9 +44,18 @@ const shares = (v: number) => {
 };
 const bn = (v: number, d = 1) => (Number.isFinite(v) ? `${(v / 1e9).toFixed(d)}` : '–');
 
-type SortKey = 'valueIdr' | 'changePercent' | 'volumeShares' | 'premiumToMaLong' | 'volumeSurge' | 'sessionsAboveMaLong' | 'foreignNetIdrBn';
+type SortKey =
+  | 'conviction'
+  | 'valueIdr'
+  | 'changePercent'
+  | 'volumeShares'
+  | 'premiumToMaLong'
+  | 'volumeSurge'
+  | 'sessionsAboveMaLong'
+  | 'foreignNetIdrBn';
 
 const SORTS: { key: SortKey; label: string }[] = [
+  { key: 'conviction', label: 'Conviction' },
   { key: 'valueIdr', label: 'Nilai transaksi' },
   { key: 'changePercent', label: 'Perubahan' },
   { key: 'volumeShares', label: 'Volume' },
@@ -48,6 +64,10 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: 'sessionsAboveMaLong', label: 'Hari di atas MA' },
   { key: 'foreignNetIdrBn', label: 'Asing hari ini' },
 ];
+
+interface RankedRow extends ScreenerRow {
+  conviction: number;
+}
 
 /**
  * THE CHART OPENS HERE, IN THIS PANEL.
@@ -61,31 +81,47 @@ const SORTS: { key: SortKey; label: string }[] = [
  * showed no chart — the button appeared to do something random. A control named
  * chart has to produce a chart for the row it was pressed on.
  */
-export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten }) => {
+export const StockScreenerPanel: React.FC<Props> = ({ db, factors, onSelectEmiten }) => {
   const [settings, setSettings] = useState<ScreenerSettings>(DEFAULT_SCREENER_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
-  const [sort, setSort] = useState<SortKey>('valueIdr');
+  const [sort, setSort] = useState<SortKey>('conviction');
   const [query, setQuery] = useState('');
   const [inspect, setInspect] = useState<string>('');
   const [chartCode, setChartCode] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const result = useMemo(() => runStockScreener(db, settings), [db, settings]);
 
+  const ranked: RankedRow[] = useMemo(
+    () => result.rows.map((r) => ({ ...r, conviction: convictionScore(r, factors?.get(r.code)) })),
+    [result.rows, factors]
+  );
+
   const rows = useMemo(() => {
     const q = query.trim().toUpperCase();
-    const filtered = q
-      ? result.rows.filter((r) => r.code.includes(q) || r.name.toUpperCase().includes(q))
-      : result.rows;
-    return [...filtered].sort((a, b) => {
+    const filtered = q ? ranked.filter((r) => r.code.includes(q) || r.name.toUpperCase().includes(q)) : ranked;
+    const sorted = [...filtered].sort((a, b) => {
       const av = a[sort];
       const bv = b[sort];
       if (!Number.isFinite(av as number)) return 1;
       if (!Number.isFinite(bv as number)) return -1;
       return (bv as number) - (av as number);
     });
-  }, [result.rows, sort, query]);
+    return showAll || query.trim() ? sorted : sorted.slice(0, DEFAULT_SHOWN);
+  }, [ranked, sort, query, showAll]);
 
-  const inspected: ScreenerRow | null = inspect ? result.all.get(inspect.toUpperCase()) ?? null : null;
+  const inspectedRow: ScreenerRow | null = inspect ? (result.all.get(inspect.toUpperCase()) ?? null) : null;
+  const inspected: RankedRow | null = inspectedRow
+    ? { ...inspectedRow, conviction: convictionScore(inspectedRow, factors?.get(inspectedRow.code)) }
+    : null;
+
+  const inspectedSetup: TradeSetup | null = inspected
+    ? buildTradeSetup({
+        code: inspected.code,
+        close: inspected.close,
+        atr14: factors?.get(inspected.code)?.atr14 ?? NaN,
+      })
+    : null;
 
   const patch = (p: Partial<ScreenerSettings>) => setSettings((s) => ({ ...s, ...p }));
   const isDefault =
@@ -226,11 +262,29 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten }) => {
       <Panel>
         <PanelHeader
           icon={Filter}
-          title={`${rows.length} emiten lolos`}
+          title={
+            showAll || query.trim()
+              ? `${rows.length} dari ${ranked.length} emiten lolos`
+              : `${rows.length} conviction tertinggi dari ${ranked.length} lolos`
+          }
           tone="text-emerald-400"
-          subtitle="Diurutkan menurut kolom pilihan Anda. Klik kode untuk membuka detail emiten, ikon chart untuk membuka TradingView."
+          subtitle="Diurutkan menurut kolom pilihan Anda — bawaannya conviction, komposit dari lonjakan volume, arus asing, dan kekuatan tren di atas ketiga aturan keras. Klik kode untuk membuka detail emiten, ikon chart untuk membuka TradingView."
           actions={
             <>
+              {!query.trim() && ranked.length > DEFAULT_SHOWN && (
+                <button
+                  type="button"
+                  onClick={() => setShowAll((v) => !v)}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-[11px] font-bold text-slate-200 hover:bg-slate-700 touch-target"
+                >
+                  {showAll ? (
+                    <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
+                  )}
+                  {showAll ? `Tampilkan ${DEFAULT_SHOWN} teratas` : `Tampilkan semua (${ranked.length})`}
+                </button>
+              )}
               <div className="relative w-full sm:w-52">
                 <Search className="pointer-events-none absolute left-3 top-1/2 w-3.5 h-3.5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
                 <label htmlFor="scr-search" className="sr-only">
@@ -278,6 +332,9 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten }) => {
                   <Th align="left" sticky>
                     Emiten
                   </Th>
+                  <Th title="Komposit lonjakan volume, arus asing, jarak & lama di atas MA, RSI, dan kualitas tren — bukan aturan keempat, hanya urutan di antara yang sudah lolos tiga aturan.">
+                    Conviction
+                  </Th>
                   <Th>Harga</Th>
                   <Th>Ubah</Th>
                   <Th>MA{settings.maShort}</Th>
@@ -303,6 +360,20 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten }) => {
                         {r.code}
                       </button>
                       <div className="max-w-[170px] truncate text-[10px] text-slate-500">{r.name}</div>
+                    </Td>
+                    <Td>
+                      <span
+                        className={cx(
+                          'inline-block rounded px-1.5 py-0.5 font-bold tabular-nums',
+                          r.conviction >= 0.6
+                            ? 'bg-emerald-500/15 text-emerald-300'
+                            : r.conviction >= 0.35
+                              ? 'text-slate-200'
+                              : 'text-slate-500'
+                        )}
+                      >
+                        {r.conviction.toFixed(2)}
+                      </span>
                     </Td>
                     <Td className="font-semibold text-slate-100">{rp(r.close)}</Td>
                     <Td className={r.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
@@ -424,6 +495,8 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, onSelectEmiten }) => {
               </button>
             </div>
 
+            <TradeSetupBlock setup={inspectedSetup} />
+
             {chartCode === inspected.code && (
               <div className="rounded-lg border border-slate-800 bg-slate-950 p-2 sm:p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
@@ -469,6 +542,52 @@ const RuleRow: React.FC<{ ok: boolean; label: string; detail: string }> = ({ ok,
     </div>
   </div>
 );
+
+/**
+ * Entry/stop/target reference level — see models/tradeSetup.ts for why ATR
+ * and not a flat percentage. Deliberately labelled as a mechanical level, not
+ * a recommendation.
+ */
+const TradeSetupBlock: React.FC<{ setup: TradeSetup | null }> = ({ setup }) => {
+  if (!setup) {
+    return (
+      <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5 text-[11px] text-slate-500">
+        Trade setup belum bisa dihitung — ATR14 emiten ini belum tersedia.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5">
+      <div className="flex items-center gap-2">
+        <Crosshair className="w-3.5 h-3.5 text-cyan-400" aria-hidden="true" />
+        <h5 className="text-xs font-bold text-white">Trade setup — berbasis ATR14</h5>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+        <div>
+          <div className="text-[10px] uppercase tracking-wide text-slate-500">Entry</div>
+          <div className="text-sm font-bold text-slate-100 tabular-nums">{rp(setup.entry)}</div>
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wide text-rose-400">Stop</div>
+          <div className="text-sm font-bold text-rose-300 tabular-nums">{rp(setup.stop)}</div>
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wide text-emerald-400">Target</div>
+          <div className="text-sm font-bold text-emerald-300 tabular-nums">{rp(setup.target)}</div>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        <Pill tone="muted">Risiko {(setup.riskPercent * 100).toFixed(1)}%</Pill>
+        <Pill tone="muted">R:R 1 : {setup.rewardRiskRatio.toFixed(1)}</Pill>
+        <Pill tone="muted">ATR14 {rp(setup.atr14, 1)}</Pill>
+      </div>
+      <p className="mt-2.5 text-[10px] leading-relaxed text-slate-500">
+        Stop = entry − 1,5×ATR14, target = entry + 2,5×ATR14 — level mekanis yang sama untuk semua emiten, dihitung
+        dari volatilitas hariannya sendiri. Ini bukan rekomendasi beli atau jual.
+      </p>
+    </div>
+  );
+};
 
 const NumberField: React.FC<{
   label: string;

@@ -118,6 +118,35 @@ function runScript(script: string, args: string[] = []): Promise<void> {
   });
 }
 
+/**
+ * Runs a package.json script, for the jobs whose entry point is TypeScript.
+ *
+ * `runScript` above spawns node directly on a file in scripts/, which only
+ * works for the .mjs ingests. strategy-lab.ts has to be bundled by esbuild
+ * first, and its npm script already encodes that two-step. Shelling out to npm
+ * reuses that definition instead of duplicating the esbuild invocation here,
+ * where it would quietly drift the first time a flag changes.
+ */
+function runNpm(script: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('npm', ['run', script], {
+      cwd: ROOT,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      // Windows resolves npm through npm.cmd, which needs a shell. The command
+      // and argument are fixed constants — nothing external reaches this call.
+      shell: true,
+    });
+    let stderr = '';
+    child.stdout.on('data', (b) => process.stdout.write(b));
+    child.stderr.on('data', (b) => {
+      stderr += b.toString();
+    });
+    child.on('close', (code) =>
+      code === 0 ? resolve() : reject(new Error(`npm run ${script} exited ${code}: ${stderr.slice(-400)}`))
+    );
+  });
+}
+
 function record(job: string, reason: string, ok: boolean, detail: string) {
   history.unshift({ at: new Date().toISOString(), job, reason, ok, detail });
   history.length = Math.min(history.length, 40);
@@ -161,16 +190,40 @@ async function runJob(id: JobId, reason: string, sendAlert: boolean): Promise<st
     case 'post-sesi-1':
     case 'post-close': {
       await runScript('ingest-intraday.mjs', ['--quiet']);
-      if (!sendAlert) return 'harga live diperbarui';
+      // The wire rides the intraday cycle: RSS is cheap, and a news panel that
+      // is an hour stale during the session is the one complaint it cannot
+      // survive. A failure here must not cost the price refresh, which is what
+      // anybody actually opened the terminal for.
+      let news = '';
+      try {
+        await runScript('ingest-news.mjs');
+        news = '; berita diperbarui';
+      } catch (err) {
+        news = `; berita GAGAL (${(err as Error).message.slice(0, 80)})`;
+      }
+      if (!sendAlert) return `harga live diperbarui${news}`;
       const mail = await emailDigest(reason);
-      return `harga live diperbarui; ${mail}`;
+      return `harga live diperbarui${news}; ${mail}`;
     }
     case 'eod': {
       // A short window is enough for the daily catch-up; the per-session cache
       // means already-fetched days cost nothing.
       await runScript('ingest-idx.mjs', ['--days', '20']);
       const n = await refreshHolidays();
-      return `data resmi IDX diperbarui (${n} hari libur diketahui)`;
+
+      // The strategy search re-runs once the session is final, so the
+      // leaderboard always reflects the newest bar — and, more importantly, so
+      // the out-of-sample window keeps sliding forward. A leaderboard fitted
+      // once and never revisited becomes a historical curiosity within weeks.
+      // It runs after the ingest because it reads what the ingest just wrote.
+      let lab = '';
+      try {
+        await runNpm('strategy:lab');
+        lab = '; strategi di-backtest ulang';
+      } catch (err) {
+        lab = `; backtest strategi GAGAL (${(err as Error).message.slice(0, 80)})`;
+      }
+      return `data resmi IDX diperbarui (${n} hari libur diketahui)${lab}`;
     }
     case 'weekly': {
       await runScript('ingest-quotes.mjs');

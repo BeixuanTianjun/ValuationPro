@@ -298,7 +298,7 @@ async function main() {
   }
 
   const series = {};
-  for (const c of codes) series[c] = { c: [], h: [], l: [], v: [], t: [], fn: [], adj: [] };
+  for (const c of codes) series[c] = { c: [], h: [], l: [], v: [], t: [], fn: [], f: [], adj: [] };
 
   // Corporate-action factors, derived from IDX's own data.
   //
@@ -344,6 +344,7 @@ async function main() {
       S.v.push(row.v ? Math.round(row.v / 100) : ''); // lots
       S.t.push(row.t ? Math.round(row.t / 1e6) : ''); // IDR million turnover
       S.fn.push(row.fb || row.fs ? Math.round(((row.fb - row.fs) * close) / 1e6) : ''); // IDR mn net foreign
+      S.f.push(row.f ? Math.round(row.f) : ''); // trade count — see types/market.ts RawSeries.f
     }
     for (const c of codes) {
       if (!seen.has(c)) {
@@ -354,6 +355,7 @@ async function main() {
         S.v.push('');
         S.t.push('');
         S.fn.push('');
+        S.f.push('');
         S.adj.push('');
       }
     }
@@ -401,7 +403,7 @@ async function main() {
   // The crawl produced values for `dates`; fold them into the stored history so
   // a short catch-up run never shortens the series.
   const mergedDates = [...new Set([...priorDates, ...dates])].sort();
-  const FIELDS = ['c', 'h', 'l', 'v', 't', 'fn', 'adj'];
+  const FIELDS = ['c', 'h', 'l', 'v', 't', 'fn', 'f', 'adj'];
 
   const historySeries = {};
   let withData = 0;

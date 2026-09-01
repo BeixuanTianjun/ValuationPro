@@ -166,6 +166,7 @@ export function assembleMarketDatabase(files: RawFiles): MarketDatabase {
       volume: decodeSeries(raw.v, n),
       value: decodeSeries(raw.t, n),
       foreignNet: decodeSeries(raw.fn, n),
+      freq: decodeSeries(raw.f || '', n),
       rawClose,
       adjustments,
     });
@@ -187,6 +188,7 @@ export function assembleMarketDatabase(files: RawFiles): MarketDatabase {
         s.volume = extend(s.volume);
         s.value = extend(s.value);
         s.foreignNet = extend(s.foreignNet);
+        s.freq = extend(s.freq);
       }
     }
 
@@ -203,7 +205,8 @@ export function assembleMarketDatabase(files: RawFiles): MarketDatabase {
         s.low[i] = q.low || q.price;
         s.volume[i] = q.volume ? Math.round(q.volume / 100) : NaN; // lots
         s.value[i] = q.volume ? Math.round((q.volume * q.price) / 1e6) : NaN; // IDR mn
-        // foreignNet intentionally left as-is (NaN on an appended session).
+        // foreignNet and freq intentionally left as-is (NaN on an appended
+        // session) — the intraday feed does not carry either.
       }
 
       const prior = dailyMap.get(code);

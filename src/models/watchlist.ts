@@ -21,8 +21,8 @@
 // horizon all shift together, so the weekly list reacts to a filing from
 // Tuesday while the monthly list still remembers one from three weeks ago.
 //
-// ON "BROKER SUMMARY". IDX does not publish per-stock broker breakdowns (see
-// models/brokerFlow.ts). What IS available per stock is value ÷ frequency —
+// ON "BANDARMOLOGY". IDX does not publish per-stock broker breakdowns. What IS
+// available per stock is value ÷ frequency —
 // the average rupiah size of a trade in that specific name — and that is the
 // same discriminator the market-wide broker data uses: retail prints many small
 // tickets, institutions print few large ones. history.json keeps turnover but

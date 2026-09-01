@@ -148,25 +148,26 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
     added: '2026-08-28',
   },
   {
-    code: 'RISK',
-    name: 'Country Risk',
-    // The hint is what `searchFunctions` matches keywords against, so it has to
-    // carry the words somebody would actually type to find this screen.
-    hint: 'Risiko dan tekanan Indonesia: konflik dan nada berita GDELT, gempa, sanksi — komponennya mentah, skornya boleh dibuang.',
+    code: 'TNKR',
+    name: 'Tanker & Freight',
+    hint: 'Proksi tarif charter tanker dari pemilik kapal tercatat (FRO, DHT, TNK, INSW, STNG), korelasinya ke emiten pelayaran IDX seperti BULL dan HITS, plus lalu lintas tanker di lima selat Indonesia.',
     group: 'Analytics',
     area: 'analytics',
-    sub: 'risk',
+    sub: 'tanker',
     tone: 'text-cyan-300',
-    added: '2026-08-29',
+    added: '2026-09-01',
   },
   {
-    code: 'BRK',
-    name: 'Broker Summary',
-    hint: 'Aktivitas 88 anggota bursa dan struktur transaksi per emiten.',
+    code: 'NEWS',
+    name: 'Berita & Kalender',
+    // The hint is what `searchFunctions` matches keywords against, so it has to
+    // carry the words somebody would actually type to find this screen.
+    hint: 'Berita pasar realtime dari WSJ, CNBC, Yahoo Finance, Investing.com dan CNBC Indonesia, ditandai kode emiten, plus kalender ekonomi mingguan dengan tingkat dampaknya.',
     group: 'Analytics',
     area: 'analytics',
-    sub: 'broker',
-    tone: 'text-cyan-300',
+    sub: 'news',
+    tone: 'text-amber-300',
+    added: '2026-09-01',
   },
   {
     code: 'AVAL',

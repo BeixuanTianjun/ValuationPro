@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronUp,
+  Crosshair,
   ExternalLink,
   FileText,
   Info,
@@ -13,12 +14,15 @@ import {
   Network,
   Newspaper,
   Activity,
+  FlaskConical,
 } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
 import { FactorSnapshot } from '../../types/market';
 import { AnnouncementsFile, summariseAnnouncements } from '../../models/announcements';
 import { OwnershipFile } from '../../models/ownershipFlow';
 import { Horizon, WatchlistCandidate, buildWatchlist } from '../../models/watchlist';
+import { buildTradeSetup } from '../../models/tradeSetup';
+import { StrategyFile, loadStrategyFile } from '../../models/strategyLab';
 import { NARRATIVE_THEMES } from '../../data/narratives';
 import { TradingViewChart } from './TradingViewChart';
 import {
@@ -57,6 +61,9 @@ const HORIZON_OPTIONS = [
 
 const STAGE_ICONS = [Newspaper, Network, Activity, LineChart];
 
+/** How many candidates show by default — the rest are one click away, never gone. */
+const DEFAULT_SHOWN = 5;
+
 export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten }) => {
   const [horizon, setHorizon] = useState<Horizon>('mingguan');
   const [announcements, setAnnouncements] = useState<AnnouncementsFile | null>(null);
@@ -66,6 +73,18 @@ export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten })
   const [expanded, setExpanded] = useState<string | null>(null);
   const [onlyScreened, setOnlyScreened] = useState(false);
   const [showThemes, setShowThemes] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [strategies, setStrategies] = useState<StrategyFile | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void loadStrategyFile().then((f) => {
+      if (alive) setStrategies(f);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -104,10 +123,12 @@ export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten })
 
   const annSummary = useMemo(() => (announcements ? summariseAnnouncements(announcements) : null), [announcements]);
 
-  const shown = useMemo(
+  const filtered = useMemo(
     () => (onlyScreened ? result.candidates.filter((c) => c.priceAction.passesScreener) : result.candidates),
     [result.candidates, onlyScreened]
   );
+
+  const shown = showAll ? filtered : filtered.slice(0, DEFAULT_SHOWN);
 
   if (loading) return <Spinner label="Memuat pengumuman IDX dan register kepemilikan…" />;
 
@@ -179,6 +200,20 @@ export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten })
           >
             Hanya yang lolos screener
           </button>
+          {filtered.length > DEFAULT_SHOWN && (
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-[11px] font-bold text-slate-300 hover:bg-slate-800 touch-target"
+            >
+              {showAll ? (
+                <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
+              )}
+              {showAll ? `Tampilkan ${DEFAULT_SHOWN} conviction teratas` : `Tampilkan semua (${filtered.length})`}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowThemes((v) => !v)}
@@ -207,6 +242,8 @@ export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten })
 
       {showThemes && <ThemePanel />}
 
+      {strategies && strategies.strategies.length > 0 && <StrategyLabPanel file={strategies} />}
+
       {/* Candidates ---------------------------------------------------- */}
       {shown.length === 0 ? (
         <EmptyState icon={Newspaper} title="Belum ada kandidat">
@@ -224,6 +261,7 @@ export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten })
               open={expanded === c.code}
               onToggle={() => setExpanded(expanded === c.code ? null : c.code)}
               onSelectEmiten={onSelectEmiten}
+              atr14={factors?.get(c.code)?.atr14 ?? NaN}
             />
           ))}
         </div>
@@ -250,7 +288,8 @@ const CandidateCard: React.FC<{
   open: boolean;
   onToggle: () => void;
   onSelectEmiten: (code: string) => void;
-}> = ({ rank, candidate: c, open, onToggle, onSelectEmiten }) => {
+  atr14: number;
+}> = ({ rank, candidate: c, open, onToggle, onSelectEmiten, atr14 }) => {
   const stages = [
     { label: 'Narasi', value: c.narrative.score, tone: 'bg-amber-500' },
     { label: 'Rotasi', value: c.rotation.score, tone: 'bg-indigo-500' },
@@ -339,14 +378,16 @@ const CandidateCard: React.FC<{
         </button>
       </div>
 
-      {open && <CandidateDetail candidate={c} />}
+      {open && <CandidateDetail candidate={c} atr14={atr14} />}
     </Panel>
   );
 };
 
 // ---------------------------------------------------------------------------
 
-const CandidateDetail: React.FC<{ candidate: WatchlistCandidate }> = ({ candidate: c }) => (
+const CandidateDetail: React.FC<{ candidate: WatchlistCandidate; atr14: number }> = ({ candidate: c, atr14 }) => {
+  const setup = buildTradeSetup({ code: c.code, close: c.close, atr14 });
+  return (
   <div className="space-y-4 border-t border-slate-800 bg-slate-950 p-4 sm:p-5">
     {/* 1 — narrative */}
     <StageBlock n={1} icon={Newspaper} title="Narasi" tone="text-amber-400" score={c.narrative.score}>
@@ -490,15 +531,54 @@ const CandidateDetail: React.FC<{ candidate: WatchlistCandidate }> = ({ candidat
       </p>
     </StageBlock>
 
+    {/* trade setup — mechanical, not scored alongside the funnel stages */}
+    <StageBlock icon={Crosshair} title="Trade setup" tone="text-rose-300" score={null}>
+      {setup ? (
+        <>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-slate-500">Entry</div>
+              <div className="text-sm font-bold text-slate-100 tabular-nums">
+                {setup.entry.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-rose-400">Stop</div>
+              <div className="text-sm font-bold text-rose-300 tabular-nums">
+                {setup.stop.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-emerald-400">Target</div>
+              <div className="text-sm font-bold text-emerald-300 tabular-nums">
+                {setup.target.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <Pill tone="muted">Risiko {(setup.riskPercent * 100).toFixed(1)}%</Pill>
+            <Pill tone="muted">R:R 1 : {setup.rewardRiskRatio.toFixed(1)}</Pill>
+          </div>
+          <p className="mt-2.5 text-[10px] leading-relaxed text-slate-500">
+            Stop = entry − 1,5×ATR14, target = entry + 2,5×ATR14 — level mekanis dari volatilitas hariannya sendiri,
+            bukan rekomendasi beli atau jual.
+          </p>
+        </>
+      ) : (
+        <p className="text-[11px] text-slate-500">Trade setup belum bisa dihitung — ATR14 belum tersedia.</p>
+      )}
+    </StageBlock>
+
     {/* 4 — chart */}
     <StageBlock n={4} icon={LineChart} title="Chart" tone="text-cyan-400" score={null}>
       <TradingViewChart symbol={c.tradingViewSymbol} />
     </StageBlock>
   </div>
-);
+  );
+};
 
 const StageBlock: React.FC<{
-  n: number;
+  n?: number;
   icon: React.ElementType;
   title: string;
   tone: string;
@@ -508,9 +588,11 @@ const StageBlock: React.FC<{
   <section className="rounded-xl border border-slate-800 bg-slate-900 p-3.5 sm:p-4">
     <div className="mb-3 flex items-center justify-between gap-2">
       <div className="flex items-center gap-2">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-800 text-[10px] font-bold text-slate-300">
-          {n}
-        </span>
+        {n !== undefined && (
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-800 text-[10px] font-bold text-slate-300">
+            {n}
+          </span>
+        )}
         <Icon className={cx('w-3.5 h-3.5 shrink-0', tone)} aria-hidden="true" />
         <h5 className="text-xs font-bold text-white">{title}</h5>
       </div>
@@ -525,6 +607,111 @@ const StageBlock: React.FC<{
 );
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Reads scripts/strategy-lab.ts's output.
+ *
+ * EVERY HEADLINE NUMBER IS THE OUT-OF-SAMPLE ONE. The lab searches ~21,000 rule
+ * sets on the first 70% of the history and then judges the survivors on the
+ * last 30%, which the search never saw. Leading with the full-history figure
+ * would re-import exactly the overfitting the split exists to remove, so the
+ * card shows the test result big and the train result small beside it — the gap
+ * between them is the reader's own overfitting check.
+ */
+const StrategyLabPanel: React.FC<{ file: StrategyFile }> = ({ file }) => {
+  const [open, setOpen] = useState(false);
+  const shown = open ? file.strategies : file.strategies.slice(0, 3);
+
+  return (
+    <Panel>
+      <PanelHeader
+        icon={FlaskConical}
+        title="Strategi teruji"
+        tone="text-rose-300"
+        subtitle={`${file.ruleSetsTested.toLocaleString('id-ID')} kombinasi aturan diuji atas ${file.universe} emiten × ${file.sessions} sesi (${file.totalTradesSimulated.toLocaleString('id-ID')} trade tersimulasi). Dicari di ${file.split.trainFrom} → ${file.split.trainTo}, lalu diuji di ${file.split.testFrom} → ${file.split.testTo} yang belum pernah dilihat. Angka besar di bawah ini semuanya dari data uji itu.`}
+        actions={
+          file.strategies.length > 3 && (
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-[11px] font-bold text-slate-300 hover:bg-slate-800 touch-target"
+            >
+              {open ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />}
+              {open ? 'Ringkas' : `Tampilkan semua (${file.strategies.length})`}
+            </button>
+          )
+        }
+      />
+
+      <div className="mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <Stat label="Lolos semua gerbang" value={String(file.survivors)} tone="accent" hint={`dari ${file.ruleSetsTested.toLocaleString('id-ID')} diuji`} />
+        <Stat label="Syarat winrate" value={`≥${(file.gates.minTestWinRate * 100).toFixed(0)}%`} hint="di data uji, bukan data latih" />
+        <Stat label="Syarat expectancy" value={`≥${file.gates.minTestExpectancyR.toFixed(2)}R`} hint="per trade, di data uji" />
+        <Stat
+          label="Uji rapuh"
+          value={`−${(file.gates.stressWinRateHaircut * 100).toFixed(0)}pp`}
+          tone="warn"
+          hint="winrate dipotong, harus tetap untung"
+        />
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {shown.map((s, i) => (
+          <div key={s.id} className="rounded-xl border border-slate-800 bg-slate-950 p-3.5">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-[10px] text-slate-600">#{i + 1}</span>
+              <Pill tone="accent">{s.family}</Pill>
+              <span className="text-base font-extrabold text-white tabular-nums">
+                {(s.test.winRate * 100).toFixed(0)}%
+              </span>
+              <span className="text-[11px] text-slate-500">winrate uji · {s.test.trades} trade</span>
+              <span className="text-slate-700">|</span>
+              <span className="text-sm font-bold text-emerald-300 tabular-nums">
+                {s.test.expectancyR >= 0 ? '+' : ''}
+                {s.test.expectancyR.toFixed(2)}R
+              </span>
+              <span className="text-[11px] text-slate-500">expectancy</span>
+            </div>
+
+            <p className="mt-2 text-[11px] leading-relaxed text-slate-300">
+              <span className="text-slate-500">Entry:</span> {s.triggerLabel}
+              {s.filterLabels.length > 0 && (
+                <>
+                  , disaring <strong className="font-semibold text-slate-200">{s.filterLabels.join(' + ')}</strong>
+                </>
+              )}
+              . <span className="text-slate-500">Exit:</span> {s.exitLabel}.
+            </p>
+
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <Pill tone={s.stressedExpectancyR > 0 ? 'up' : 'down'}>
+                Tahan uji rapuh {s.stressedExpectancyR >= 0 ? '+' : ''}
+                {s.stressedExpectancyR.toFixed(2)}R
+              </Pill>
+              <Pill tone="muted">R:R {s.rewardRisk.toFixed(2)}</Pill>
+              <Pill tone="muted">Profit factor {Number.isFinite(s.profitFactor) ? s.profitFactor.toFixed(2) : '∞'}</Pill>
+              <Pill tone="muted">Max drawdown {s.maxDrawdownR.toFixed(1)}R</Pill>
+              <Pill tone="muted">
+                latih: {(s.train.winRate * 100).toFixed(0)}% dari {s.train.trades}
+              </Pill>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <SourceNote icon={Info}>
+        <strong className="text-slate-400">Winrate tinggi itu gampang dipalsukan, dan itu yang dijaga di sini.</strong>{' '}
+        Target kecil dengan stop lebar bisa menang 90% dan tetap rugi, karena satu kekalahan menghapus enam kemenangan.
+        Karena itu tiap kandidat dihitung ulang dengan winrate dipotong{' '}
+        {(file.gates.stressWinRateHaircut * 100).toFixed(0)} poin memakai rata-rata menang dan rata-rata kalahnya
+        sendiri; yang jadi rugi setelah potongan itu dibuang, berapa pun winrate aslinya. Peringkatnya pun memakai angka
+        setelah potongan, bukan winrate mentah. Tetap angka historis, bukan janji. Sinyal bandarmology (ukuran tiket
+        rata-rata) belum diuji karena riwayat jumlah transaksi baru mulai direkam — lihat komentar di
+        scripts/strategy-lab.ts.
+      </SourceNote>
+    </Panel>
+  );
+};
 
 const ThemePanel: React.FC = () => (
   <Panel>

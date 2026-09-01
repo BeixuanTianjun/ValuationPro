@@ -103,7 +103,7 @@ export const MarketWorkspace: React.FC<Props> = ({
       )}
 
       {subTab === 'screener' && (
-        <StockScreenerPanel db={db} onSelectEmiten={openEmiten} />
+        <StockScreenerPanel db={db} factors={factors} onSelectEmiten={openEmiten} />
       )}
 
       {subTab === 'watchlist' && (

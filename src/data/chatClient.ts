@@ -88,6 +88,21 @@ function answerInBrowser(
   };
 }
 
+/**
+ * Set when the last /api/chat call failed for a reason worth telling the user.
+ *
+ * WHY THIS EXISTS. The fallback below used to swallow EVERY non-ok response in
+ * silence: a 401 from the auth gate produced the same output as a healthy
+ * offline install — a keyword-search answer with no explanation. Signed out
+ * with a perfectly good Anthropic key configured, the app answered free-form
+ * questions with the dumb parser and said nothing, so the only available
+ * conclusion was "the chatbot is broken". It was not; it was locked, and the
+ * one fact that would have resolved it in a second was the one fact the code
+ * threw away. The fallback still happens — an answer beats an error page — but
+ * it now arrives carrying its reason.
+ */
+let lastTransportNote: string | null = null;
+
 export async function askEmitenChat(
   message: string,
   history: ChatTurn[],
@@ -97,6 +112,8 @@ export async function askEmitenChat(
 ): Promise<ChatAnswer> {
   if (chatEndpointAvailable === false) return answerInBrowser(message, db, factors, fundamentals);
 
+  lastTransportNote = null;
+
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45_000);
@@ -105,17 +122,36 @@ export async function askEmitenChat(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, history: history.slice(-6) }),
       signal: controller.signal,
+      // Explicit rather than relying on the same-origin default: the session
+      // cookie is what the /api/chat auth gate reads, and the two sibling
+      // callers below already say this out loud.
+      credentials: 'include',
     });
     clearTimeout(timer);
     if (res.ok) {
       chatEndpointAvailable = true;
       return (await res.json()) as ChatAnswer;
     }
-    if (res.status === 404) chatEndpointAvailable = false;
+    if (res.status === 404) {
+      chatEndpointAvailable = false;
+    } else if (res.status === 401) {
+      lastTransportNote =
+        'Anda belum masuk. Chatbot Claude butuh sesi login — tekan "Masuk" di kanan atas. Jawaban di bawah ini dari mesin lokal yang jauh lebih terbatas.';
+    } else {
+      const detail = await res
+        .json()
+        .then((b: { error?: string }) => b?.error)
+        .catch(() => null);
+      lastTransportNote = `Layanan chat menjawab HTTP ${res.status}${detail ? ` — ${detail}` : ''}. Dijawab mesin lokal.`;
+    }
   } catch {
-    /* service not running — fall through */
+    /* service not running — fall through, silently: this is the expected
+       state on a static deploy and saying so on every question is noise. */
   }
-  return answerInBrowser(message, db, factors, fundamentals);
+
+  const local = answerInBrowser(message, db, factors, fundamentals);
+  if (lastTransportNote) local.note = lastTransportNote;
+  return local;
 }
 
 /**

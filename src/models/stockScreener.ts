@@ -27,7 +27,7 @@
 // 1,000,000 would silently screen for 100 million shares and return almost
 // nothing on a quiet session.
 
-import { Emiten } from '../types/market';
+import { Emiten, FactorSnapshot } from '../types/market';
 import { MarketDatabase } from '../data/marketRepository';
 
 const SHARES_PER_LOT = 100;
@@ -279,6 +279,40 @@ export function runStockScreener(db: MarketDatabase, partial: Partial<ScreenerSe
     funnel,
     all,
   };
+}
+
+const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0);
+
+/**
+ * Conviction score, 0..1 — orders the rows that already passed the three hard
+ * rules, it never decides which ones pass.
+ *
+ * WHY THIS IS A SEPARATE FUNCTION AND NOT A FIELD ON ScreenerRow. The rest of
+ * this file is deliberately a gate, not a score — see the file header. Folding
+ * a composite number into passAll's neighbourhood would make it look like a
+ * fourth rule. This stays a ranking the UI applies on top, so "why did X pass"
+ * still has three checkable answers and "why is X ranked first among the ones
+ * that passed" has this one, kept visibly separate.
+ *
+ * Inputs: today's volume surge and trend premium (from the row itself, always
+ * present), plus RSI/trend-quality/relative-strength when a factor snapshot is
+ * available (it usually is, but the screener can run before factors finish
+ * computing — this degrades gracefully to the row-only signals instead of
+ * throwing).
+ */
+export function convictionScore(row: ScreenerRow, f?: FactorSnapshot): number {
+  const surge = clamp01(((row.volumeSurge ?? 1) - 1) / 1.5); // 1x -> 0, 2.5x+ -> 1
+  const flow = clamp01(row.foreignNetIdrBn / 5); // Rp 5bn+ net foreign buy saturates
+  const trend = clamp01(row.premiumToMaLong / 0.08); // 8%+ above the long MA saturates
+  const persistence = clamp01(row.sessionsAboveMaLong / 10);
+  // RSI rewards strength without punishing it as "overbought" until it is
+  // actually stretched — 60 is the sweet spot, both 20 and 100 score 0.
+  const rsi = Number.isFinite(f?.rsi14) ? clamp01(1 - Math.abs((f!.rsi14 - 60) / 40)) : 0.4;
+  const quality = Number.isFinite(f?.trendQuality) ? clamp01(f!.trendQuality) : 0;
+  const relStrength = Number.isFinite(f?.relativeStrength3m) ? clamp01((f!.relativeStrength3m + 0.1) / 0.3) : 0;
+  return clamp01(
+    surge * 0.2 + flow * 0.2 + trend * 0.15 + persistence * 0.1 + rsi * 0.15 + quality * 0.1 + relStrength * 0.1
+  );
 }
 
 export { IDR_BN, IDR_MN, SHARES_PER_LOT };

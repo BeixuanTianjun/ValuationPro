@@ -1,6 +1,70 @@
-import { execSync } from 'node:child_process';
-import { defineConfig } from 'vite';
+import { execSync, spawn, type ChildProcess } from 'node:child_process';
+import { connect } from 'node:net';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+
+const API_PORT = 8787;
+
+/** Resolves true if something is already listening on API_PORT. */
+function apiAlreadyRunning(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = connect({ port: API_PORT, host: '127.0.0.1' });
+    const done = (ok: boolean) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(ok);
+    };
+    socket.once('connect', () => done(true));
+    socket.once('error', () => done(false));
+    socket.setTimeout(400, () => done(false));
+  });
+}
+
+/**
+ * "Satu localhost saja." `npm run dev` used to be Vite alone — the proxy
+ * below sent /api to a backend nobody started, so every call 500'd until a
+ * second terminal ran `npm run auto`. This spawns that backend automatically
+ * so the single `npm run dev` origin is fully functional on its own.
+ *
+ * Probes the port first rather than always spawning: re-running `vite dev`
+ * without this checking would either crash on EADDRINUSE or, worse, leave two
+ * competing schedulers running. If something already answers on 8787 — a
+ * prior dev session's backend, or `npm run auto` started by hand — this plugin
+ * gets out of the way and reuses it.
+ */
+function autoBackend(): Plugin {
+  let child: ChildProcess | null = null;
+  return {
+    name: 'valuationpro-auto-backend',
+    async configureServer(server) {
+      if (await apiAlreadyRunning()) {
+        server.config.logger.info('[auto-backend] port 8787 sudah menjawab, memakai yang itu');
+        return;
+      }
+      server.config.logger.info('[auto-backend] menjalankan "npm run auto" di background…');
+      // shell:true is required for npm.cmd to spawn correctly on Windows
+      // (spawning it directly throws EINVAL). Safe here — the command and
+      // args are fixed constants, nothing external ever reaches this call.
+      //
+      // PORT is forced to API_PORT rather than inherited: some launchers set
+      // process.env.PORT to whatever port THEY told Vite to use (5173 here).
+      // The backend also reads process.env.PORT (see src/server/index.ts) —
+      // inheriting that value silently pointed it at Vite's own port, so it
+      // lost the bind to Vite and every /api/* call 500'd with nothing
+      // listening on 8787 at all. Overriding it here is what makes the two
+      // processes agree on which port is whose.
+      child = spawn('npm', ['run', 'auto'], {
+        stdio: 'inherit',
+        shell: true,
+        env: { ...process.env, PORT: String(API_PORT) },
+      });
+      server.httpServer?.once('close', () => {
+        child?.kill();
+        child = null;
+      });
+    },
+  };
+}
 
 /*
  * The build stamp.
@@ -41,7 +105,7 @@ const STAMP = buildStamp();
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), autoBackend()],
   define: {
     __BUILD_SHA__: JSON.stringify(STAMP.sha),
     __BUILD_REF__: JSON.stringify(STAMP.ref),

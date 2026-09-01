@@ -1,14 +1,14 @@
 import React from 'react';
-import { Calculator, Globe, Globe2, Landmark, Network, Scale, ServerCrash, ShieldAlert, Users } from 'lucide-react';
+import { Calculator, Globe, Globe2, Landmark, Network, Newspaper, Scale, ServerCrash, Ship } from 'lucide-react';
 import { MarketDataState } from '../../hooks/useMarketData';
 import { LeadersLaggards } from './LeadersLaggards';
 import { ConglomerateRotation } from './ConglomerateRotation';
-import { BrokerFlow } from './BrokerFlow';
 import { AutoValuation } from './AutoValuation';
 import { MutualFundTracker } from './MutualFundTracker';
 import { MacroMonitor } from './MacroMonitor';
 import { WorldMap } from './WorldMap';
-import { CountryRisk } from './CountryRisk';
+import { NewsFeed } from './NewsFeed';
+import { TankerWatch } from './TankerWatch';
 import { recentSubs } from '../../data/functions';
 import { EmptyState, Segmented, SegmentedOption, Spinner } from '../common/ui';
 
@@ -16,11 +16,11 @@ export type AnalyticsSubTab =
   | 'leaders'
   | 'conglo'
   | 'funds'
-  | 'broker'
   | 'valuation'
   | 'macro'
   | 'map'
-  | 'risk';
+  | 'tanker'
+  | 'news';
 
 interface Props {
   market: MarketDataState;
@@ -37,16 +37,15 @@ const TABS: SegmentedOption<AnalyticsSubTab>[] = [
   { id: 'conglo', label: 'Conglomerate Rotation', shortLabel: 'Conglo', icon: Network },
   { id: 'funds', label: 'Mutual Fund Tracker', shortLabel: 'Fund', icon: Landmark },
   { id: 'valuation', label: 'Auto Valuation', shortLabel: 'Valuation', icon: Calculator },
-  { id: 'broker', label: 'Broker Summary', shortLabel: 'Broker', icon: Users },
   { id: 'macro', label: 'Global Drivers', shortLabel: 'Macro', icon: Globe },
   { id: 'map', label: 'Chokepoint Map', shortLabel: 'Map', icon: Globe2 },
-  { id: 'risk', label: 'Country Risk', shortLabel: 'Risk', icon: ShieldAlert },
+  { id: 'tanker', label: 'Tanker & Freight', shortLabel: 'Tanker', icon: Ship },
+  { id: 'news', label: 'Berita & Kalender', shortLabel: 'Berita', icon: Newspaper },
 ];
 
 /*
- * Four of these tools read their own data file — the ownership register, the
- * broker tape, the chokepoint map and the risk layer — and none needs the
- * price database. They
+ * Three of these tools read their own data file — the ownership register, the
+ * chokepoint map and the news wire — and none needs the price database. They
  * stay usable while the rest of the terminal is still parsing 280 sessions of
  * history, so the loading branch below renders them rather than a spinner.
  *
@@ -89,14 +88,12 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
           entirely, and only while the price database was still parsing, which is
           exactly when nobody is looking closely.
         */}
-        {subTab === 'broker' ? (
-          <BrokerFlow db={db} onSelectEmiten={onSelectEmiten} />
-        ) : subTab === 'funds' ? (
+        {subTab === 'funds' ? (
           <MutualFundTracker db={db} onSelectEmiten={onSelectEmiten} focusEmiten={focusEmiten} />
         ) : subTab === 'map' ? (
           <WorldMap />
-        ) : subTab === 'risk' ? (
-          <CountryRisk />
+        ) : subTab === 'news' ? (
+          <NewsFeed onSelectEmiten={onSelectEmiten} />
         ) : (
           <Spinner label="Memuat basis data pasar…" />
         )}
@@ -130,10 +127,10 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
       {subTab === 'funds' && (
         <MutualFundTracker db={db} onSelectEmiten={onSelectEmiten} focusEmiten={focusEmiten} />
       )}
-      {subTab === 'broker' && <BrokerFlow db={db} onSelectEmiten={onSelectEmiten} />}
-      {subTab === 'macro' && <MacroMonitor db={db} />}
+      {subTab === 'macro' && <MacroMonitor db={db} focusEmiten={focusEmiten} />}
       {subTab === 'map' && <WorldMap />}
-      {subTab === 'risk' && <CountryRisk />}
+      {subTab === 'tanker' && <TankerWatch db={db} onSelectEmiten={onSelectEmiten} />}
+      {subTab === 'news' && <NewsFeed onSelectEmiten={onSelectEmiten} />}
       {subTab === 'valuation' && (
         <AutoValuation
           db={db}

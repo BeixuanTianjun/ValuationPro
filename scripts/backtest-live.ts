@@ -107,6 +107,9 @@ async function main() {
     'worldmap.json',
     'gdelt.json',
     'risk.json',
+    'news.json',
+    'strategies.json',
+    'tanker.json',
   ];
   const data: Record<string, unknown> = {};
   for (const f of FILES) {
