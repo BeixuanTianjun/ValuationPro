@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, CalendarDays, LineChart, MessageSquare, Newspaper, ServerCrash, Target } from 'lucide-react';
+import { Briefcase, Building2, CalendarDays, LineChart, MessageSquare, Newspaper, ServerCrash, Target } from 'lucide-react';
 import { MarketDataState } from '../../hooks/useMarketData';
 import { MarketOverview } from './MarketOverview';
 import { EmitenBrowser } from './EmitenBrowser';
 import { EmitenDetail } from './EmitenDetail';
 import { StockScreenerPanel } from './StockScreenerPanel';
 import { StockWatchlist } from './StockWatchlist';
+import { PortfolioTracker } from './PortfolioTracker';
 import { AnnouncementFeed } from './AnnouncementFeed';
 import { EmitenChat } from '../chat/EmitenChat';
 import { EmitenModelBundle, buildEmitenModel } from '../../models/idxCompanyBridge';
 import { recentSubs } from '../../data/functions';
 import { EmptyState, Segmented, SegmentedOption, Spinner } from '../common/ui';
 
-export type MarketSubTab = 'overview' | 'emiten' | 'screener' | 'watchlist' | 'news' | 'chat';
+export type MarketSubTab = 'overview' | 'emiten' | 'screener' | 'watchlist' | 'portfolio' | 'news' | 'chat';
 
 interface Props {
   market: MarketDataState;
@@ -28,6 +29,7 @@ const TABS: SegmentedOption<MarketSubTab>[] = [
   { id: 'overview', label: 'Market Overview', shortLabel: 'Overview', icon: LineChart },
   { id: 'screener', label: 'Stock Screener', shortLabel: 'Screener', icon: Target },
   { id: 'watchlist', label: 'Stock Watchlist', shortLabel: 'Watchlist', icon: CalendarDays },
+  { id: 'portfolio', label: 'Portofolio', shortLabel: 'Portofolio', icon: Briefcase },
   { id: 'news', label: 'Company Disclosures', shortLabel: 'Disclosures', icon: Newspaper },
   { id: 'chat', label: 'Ask a Company', shortLabel: 'Ask', icon: MessageSquare },
   { id: 'emiten', label: 'Company Database', shortLabel: 'Companies', icon: Building2 },
@@ -108,6 +110,10 @@ export const MarketWorkspace: React.FC<Props> = ({
 
       {subTab === 'watchlist' && (
         <StockWatchlist db={db} factors={factors} onSelectEmiten={openEmiten} />
+      )}
+
+      {subTab === 'portfolio' && (
+        <PortfolioTracker db={db} factors={factors} onSelectEmiten={openEmiten} />
       )}
 
       {subTab === 'news' && (

@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Anchor, Info, Ship, ServerCrash, Waves } from 'lucide-react';
+import { AlertTriangle, Anchor, Info, Ship, ServerCrash } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
+import { WorldMap } from './WorldMap';
 import {
   EmptyState,
   Panel,
   PanelHeader,
   Pill,
+  Segmented,
   SourceNote,
   Spinner,
   Stat,
@@ -68,23 +70,6 @@ interface TankerFile {
   failed: { id: string; symbol: string; why: string }[];
   instruments: TankerInstrument[];
   idxShipping: { code: string; cargo: string; note: string }[];
-}
-
-interface ChokePoint {
-  id: string;
-  name: string;
-  indonesian: boolean;
-  latestDate: string;
-  tankersLatest: number;
-  tankers7d: number;
-  tankersPrior30d: number;
-  tankerTrend: number;
-  capacityTankerLatest: number;
-}
-
-interface WorldMapFile {
-  generatedAt: string;
-  chokepoints: ChokePoint[];
 }
 
 interface Props {
@@ -157,25 +142,29 @@ function corrWord(r: number): string {
   return 'nggak nyambung';
 }
 
+const VIEWS = [
+  { id: 'pasar' as const, label: 'Pasar & tarif', shortLabel: 'Pasar' },
+  { id: 'peta' as const, label: 'Peta selat', shortLabel: 'Peta' },
+];
+
+type ViewId = (typeof VIEWS)[number]['id'];
+
 export const TankerWatch: React.FC<Props> = ({ db, onSelectEmiten }) => {
   const [file, setFile] = useState<TankerFile | null>(null);
-  const [map, setMap] = useState<WorldMapFile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<ViewId>('pasar');
 
   useEffect(() => {
     let alive = true;
-    const url = (n: string) => `${import.meta.env.BASE_URL || '/'}data/idx/${n}`.replace(/\/{2,}/g, '/');
-    const get = <T,>(n: string): Promise<T | null> =>
-      fetch(url(n), { cache: 'no-cache' })
-        .then((r) => (r.ok ? (r.json() as Promise<T>) : Promise.reject(new Error(`HTTP ${r.status}`))))
-        .catch(() => null);
-
-    void Promise.all([get<TankerFile>('tanker.json'), get<WorldMapFile>('worldmap.json')]).then(([t, w]) => {
-      if (!alive) return;
-      setFile(t);
-      setMap(w);
-      setLoading(false);
-    });
+    const url = `${import.meta.env.BASE_URL || '/'}data/idx/tanker.json`.replace(/\/{2,}/g, '/');
+    void fetch(url, { cache: 'no-cache' })
+      .then((r) => (r.ok ? (r.json() as Promise<TankerFile>) : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .catch(() => null)
+      .then((t) => {
+        if (!alive) return;
+        setFile(t);
+        setLoading(false);
+      });
     return () => {
       alive = false;
     };
@@ -255,11 +244,6 @@ export const TankerWatch: React.FC<Props> = ({ db, onSelectEmiten }) => {
       .sort((a, b) => (Number.isFinite(b.r) ? Math.abs(b.r) : -1) - (Number.isFinite(a.r) ? Math.abs(a.r) : -1));
   }, [file, db, proxyReturns]);
 
-  const indoChokepoints = useMemo(
-    () => (map?.chokepoints ?? []).filter((c) => c.indonesian).sort((a, b) => b.tankersLatest - a.tankersLatest),
-    [map]
-  );
-
   if (loading) return <Spinner label="Menarik proksi tarif tanker…" />;
 
   if (!file) {
@@ -280,8 +264,32 @@ export const TankerWatch: React.FC<Props> = ({ db, onSelectEmiten }) => {
     return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : NaN;
   };
 
+  const nav = (
+    <Segmented
+      options={VIEWS}
+      value={view}
+      onChange={setView}
+      ariaLabel="Tampilan tanker"
+      activeClass="bg-cyan-600 text-white shadow-md shadow-cyan-900/40"
+    />
+  );
+
+  // The map was its own top-level tab until the two were merged. It stays a
+  // separate VIEW rather than being stacked underneath the rate tables: both
+  // screens are long, and a single 900-line scroll would bury the linkage
+  // table nobody would scroll past the globe to reach.
+  if (view === 'peta') {
+    return (
+      <div className="space-y-4 sm:space-y-5">
+        {nav}
+        <WorldMap />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-5">
+      {nav}
       <Panel>
         <PanelHeader
           icon={Ship}
@@ -413,35 +421,6 @@ export const TankerWatch: React.FC<Props> = ({ db, onSelectEmiten }) => {
           diukur di sini, dan angka kecil adalah jawaban yang sah.
         </SourceNote>
       </Panel>
-
-      {/* Indonesian chokepoints ------------------------------------------- */}
-      {indoChokepoints.length > 0 && (
-        <Panel>
-          <PanelHeader
-            icon={Waves}
-            title="Lalu lintas tanker di selat Indonesia"
-            tone="text-blue-400"
-            subtitle={`Jumlah tanker yang melintas per hari, dari IMF PortWatch. Malaka adalah jalur tanker tersibuk di dunia; setiap ton batu bara dan CPO ekspor kita lewat salah satu selat ini. Data per ${indoChokepoints[0].latestDate}.`}
-          />
-          <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {indoChokepoints.map((c) => (
-              <div key={c.id} className="rounded-xl border border-slate-800 bg-slate-950 p-3.5">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-xs font-bold text-slate-100">{c.name}</span>
-                  <span className={cx('text-[11px] font-bold tabular-nums', tone(c.tankerTrend))}>
-                    {pct(c.tankerTrend)}
-                  </span>
-                </div>
-                <div className="mt-1.5 text-xl font-extrabold tabular-nums text-white">{c.tankersLatest}</div>
-                <div className="text-[10px] text-slate-500">
-                  tanker hari itu · rata-rata 7 hari {c.tankers7d.toFixed(1)} · 30 hari sebelumnya{' '}
-                  {c.tankersPrior30d.toFixed(1)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      )}
 
       {/* What is missing --------------------------------------------------- */}
       <Panel tone="accent">

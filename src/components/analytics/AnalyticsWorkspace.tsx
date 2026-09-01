@@ -1,12 +1,11 @@
 import React from 'react';
-import { Calculator, Globe, Globe2, Landmark, Network, Newspaper, Scale, ServerCrash, Ship } from 'lucide-react';
+import { Calculator, Globe, Landmark, Network, Newspaper, Scale, ServerCrash, Ship } from 'lucide-react';
 import { MarketDataState } from '../../hooks/useMarketData';
 import { LeadersLaggards } from './LeadersLaggards';
 import { ConglomerateRotation } from './ConglomerateRotation';
 import { AutoValuation } from './AutoValuation';
 import { MutualFundTracker } from './MutualFundTracker';
 import { MacroMonitor } from './MacroMonitor';
-import { WorldMap } from './WorldMap';
 import { NewsFeed } from './NewsFeed';
 import { TankerWatch } from './TankerWatch';
 import { recentSubs } from '../../data/functions';
@@ -18,7 +17,6 @@ export type AnalyticsSubTab =
   | 'funds'
   | 'valuation'
   | 'macro'
-  | 'map'
   | 'tanker'
   | 'news';
 
@@ -38,7 +36,6 @@ const TABS: SegmentedOption<AnalyticsSubTab>[] = [
   { id: 'funds', label: 'Mutual Fund Tracker', shortLabel: 'Fund', icon: Landmark },
   { id: 'valuation', label: 'Auto Valuation', shortLabel: 'Valuation', icon: Calculator },
   { id: 'macro', label: 'Global Drivers', shortLabel: 'Macro', icon: Globe },
-  { id: 'map', label: 'Chokepoint Map', shortLabel: 'Map', icon: Globe2 },
   { id: 'tanker', label: 'Tanker & Freight', shortLabel: 'Tanker', icon: Ship },
   { id: 'news', label: 'Berita & Kalender', shortLabel: 'Berita', icon: Newspaper },
 ];
@@ -90,8 +87,6 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
         */}
         {subTab === 'funds' ? (
           <MutualFundTracker db={db} onSelectEmiten={onSelectEmiten} focusEmiten={focusEmiten} />
-        ) : subTab === 'map' ? (
-          <WorldMap />
         ) : subTab === 'news' ? (
           <NewsFeed onSelectEmiten={onSelectEmiten} />
         ) : (
@@ -128,7 +123,6 @@ export const AnalyticsWorkspace: React.FC<Props> = ({
         <MutualFundTracker db={db} onSelectEmiten={onSelectEmiten} focusEmiten={focusEmiten} />
       )}
       {subTab === 'macro' && <MacroMonitor db={db} focusEmiten={focusEmiten} />}
-      {subTab === 'map' && <WorldMap />}
       {subTab === 'tanker' && <TankerWatch db={db} onSelectEmiten={onSelectEmiten} />}
       {subTab === 'news' && <NewsFeed onSelectEmiten={onSelectEmiten} />}
       {subTab === 'valuation' && (

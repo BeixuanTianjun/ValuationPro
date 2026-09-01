@@ -67,6 +67,18 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
     tone: 'text-emerald-300',
   },
   {
+    // PORT is Bloomberg's own mnemonic for a portfolio screen, so it is the
+    // keystroke anybody arriving from a real terminal will already try.
+    code: 'PORT',
+    name: 'Portofolio',
+    hint: 'Posisi Anda sendiri: jumlah lot dan harga beli rata-rata, dihargai live, dibaca dengan aturan mekanis yang sama — termasuk stop ATR yang dihitung dari harga beli Anda. Tersimpan di browser, tidak dikirim ke server.',
+    group: 'Market',
+    area: 'market',
+    sub: 'portfolio',
+    tone: 'text-violet-300',
+    added: '2026-09-01',
+  },
+  {
     // CN is Bloomberg's own mnemonic for company news, and the registry note
     // above cites it. It collides with CNG on the first two letters, which the
     // search resolves the way a terminal should: an exact code match outranks a
@@ -140,10 +152,10 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
   {
     code: 'MAP',
     name: 'Chokepoint Map',
-    hint: 'Tanker per hari di 28 selat kunci, 5 di antaranya perairan kita, plus alert yang bikin pelabuhan tutup.',
+    hint: 'Tanker per hari di 28 selat kunci, 5 di antaranya perairan kita, plus alert yang bikin pelabuhan tutup. Sekarang jadi tampilan "Peta selat" di dalam Tanker & Freight.',
     group: 'Analytics',
     area: 'analytics',
-    sub: 'map',
+    sub: 'tanker',
     tone: 'text-cyan-300',
     added: '2026-08-28',
   },
