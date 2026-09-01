@@ -165,6 +165,37 @@ jobs:
         continue-on-error: true
         run: npm run data:announcements
 
+      # Rides EVERY run, not just the end-of-day tier. It is five RSS feeds and
+      # one calendar JSON — seconds of work — and a news panel is the one screen
+      # where being an hour stale is the whole complaint.
+      - name: Berita & kalender ekonomi
+        id: news
+        continue-on-error: true
+        run: npm run data:news
+
+      # Tanker rate proxies are Yahoo quotes on six symbols; cheap enough for the
+      # daily tier and pointless more often than that, since they are US closes.
+      - name: Proksi tarif tanker
+        id: tanker
+        if: steps.plan.outputs.eod == 'true' || steps.plan.outputs.weekly == 'true'
+        continue-on-error: true
+        run: npm run data:tanker
+
+      # THE STRATEGY SEARCH RUNS LAST OF THE DAILY TIER, and the order is not
+      # cosmetic: it reads the history the IDX catch-up above just wrote, so
+      # running it earlier would re-rank yesterday's data and stamp it with
+      # today's date. Re-running daily is what keeps the out-of-sample window
+      # sliding forward — a leaderboard fitted once and never revisited stops
+      # being out-of-sample the moment the market moves past it.
+      #
+      # It is pure computation over committed files, so unlike the IDX crawl it
+      # cannot be blocked by Cloudflare; if it fails, it failed on the data.
+      - name: Backtest ulang papan strategi
+        id: strategy
+        if: steps.plan.outputs.eod == 'true' || steps.plan.outputs.weekly == 'true'
+        continue-on-error: true
+        run: npm run strategy:lab
+
       # Committed BEFORE the test suite, not after.
       #
       # `npm test` reconciles index attribution against whatever prices just
@@ -267,12 +298,15 @@ jobs:
           for pair in \
             "catch-up harian:${{ steps.idx_daily.outcome }}" \
             "crawl penuh mingguan:${{ steps.idx_weekly.outcome }}" \
-            "pengumuman keterbukaan informasi:${{ steps.idx_announcements.outcome }}"; do
+            "pengumuman keterbukaan informasi:${{ steps.idx_announcements.outcome }}" \
+            "berita & kalender:${{ steps.news.outcome }}" \
+            "proksi tarif tanker:${{ steps.tanker.outcome }}" \
+            "backtest papan strategi:${{ steps.strategy.outcome }}"; do
             NAME="${pair%%:*}"; OUTCOME="${pair##*:}"
             if [ "$OUTCOME" = "failure" ]; then FAILED="$FAILED $NAME;"; fi
           done
           if [ -n "$FAILED" ]; then
-            echo "::error::Crawl IDX gagal:$FAILED Harga live tetap ter-commit, tapi seri resmi IDX TIDAK bertambah. Penyebab yang sudah terbukti: IDX menjawab HTML/Cloudflare untuk permintaan dari IP datacenter. Tarik dari mesin lokal dengan 'npm run data:refresh'."
+            echo "::error::Tahap data gagal:$FAILED Harga live tetap ter-commit. Kalau yang gagal crawl IDX, penyebab yang sudah terbukti: IDX menjawab HTML/Cloudflare untuk permintaan dari IP datacenter — tarik dari mesin lokal dengan 'npm run data:refresh'. Kalau yang gagal backtest papan strategi, itu murni perhitungan atas berkas yang sudah ter-commit, jadi penyebabnya ada di datanya, bukan di jaringan."
             exit 1
           fi
-          echo "Semua crawl IDX yang dijadwalkan berhasil."
+          echo "Semua tahap data yang dijadwalkan berhasil."
