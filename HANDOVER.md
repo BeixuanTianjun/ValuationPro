@@ -123,6 +123,25 @@ ditolak akan diganti bunyi sistem dan dilaporkan sukses.
 untuk key yang sah di akun tanpa kredit; key rusak menjawab 401. Model gratis
 `s2.1-pro-free` menjawab 200 pada request yang sama, dan itulah default sekarang.
 
+**Penyimpanan yang benar secara nalar bisa salah dalam pemakaian.** Portofolio
+awalnya disimpan di localStorage, dengan alasan Vercel tidak punya disk permanen
+dan posisi orang itu data paling pribadi di aplikasi ini. Kedua premis itu masih
+benar. Yang terlewat: browser tempat layar ini dilihat mulai dari profil bersih,
+jadi tiap sesi baru menemukan portofolio kosong dan harus diketik ulang.
+Sekarang layanan lokal yang memegang `.data/portfolio.json`, localStorage jadi
+cadangan untuk situs statis terdeploy, dan salinan lokal yang terisi otomatis
+menyemai berkas kosong pada pemakaian pertama — supaya pindah penyimpanan tidak
+terlihat seperti kehilangan semuanya. Pelajarannya: **premis yang benar tidak
+menjamin desain yang benar; yang menentukan adalah bagaimana benda itu dipakai.**
+
+**`listen(PORT)` tanpa host membuka SEMUA interface.** Ditemukan tidak sengaja
+saat memutuskan apakah rute portofolio boleh tanpa auth: selama ini penyimpanan
+akun dan chatbot bisa dijangkau siapa pun di jaringan lokal yang sama. Sekarang
+bind ke `127.0.0.1` (override lewat env `HOST`), diverifikasi lewat `netstat`.
+Itu pula yang membuat `/api/portfolio` tanpa sesi bisa dipertanggungjawabkan:
+"terbuka" berarti terbuka bagi proses di mesin ini, batas kepercayaan yang sama
+dengan berkasnya sendiri.
+
 **Satu sesi bursa yang hilang dari kalender terbaca sebagai 701 aksi korporasi.**
 Ini gabungan dua kesalahan yang masing-masing tidak berbahaya. Pertama, `cached()`
 di `ingest-idx.mjs` menyimpan jawaban KOSONG ke disk selamanya. Feed EOD IDX
@@ -887,14 +906,22 @@ Yang berubah sesi ini, singkat:
 - Broker Summary dihapus (pipeline `data:brokers` tetap hidup)
 - Global Drivers dapat mode **per saham** lewat `linkagesForEmiten`
 - Suara Fish Audio + sleep mode + laporan bangun
+- Portofolio kini tersimpan di `.data/portfolio.json` lewat `/api/portfolio`,
+  bertahan antar sesi; localStorage tinggal cadangan situs terdeploy
+- Layanan bind ke `127.0.0.1` saja (dulu semua interface)
+- Tier mingguan CI dijadwalkan dua kali: Sabtu DAN Minggu
 
 `backtest:live` BELUM dijalankan terhadap deployment sesi ini — jalankan dari
 mesin lokal sebelum mengandalkan apa pun tentang situs live.
 
 Tiga hal yang sengaja ditinggalkan terbuka:
-- **Tier mingguan CI belum terbukti pulih.** Timeout per langkah sudah dipasang,
-  tapi slot mingguan berikutnya baru Sabtu 01:00 UTC. Sampai run itu hijau,
-  anggap ownership/quotes/brokers bergantung pada penjadwal lokal.
+- **Tier mingguan CI belum terbukti pulih.** Sudah ada timeout per langkah DAN
+  percobaan kedua hari Minggu (`0 1 * * 0`), tapi belum ada satu pun run nyata
+  yang membuktikannya — perbaikannya struktural, bukan terverifikasi. Cara
+  membuktikan tanpa menunggu akhir pekan: Actions → Run workflow → centang
+  `full_refresh`, itu menjalankan persis jalur mingguan yang dulu dibatalkan.
+  Sampai run itu hijau, anggap ownership/quotes/brokers bergantung pada
+  penjadwal lokal.
 - **AIS kapal tidak ada dan tidak akan ada tanpa langganan.** Panel tanker
   memakai proksi (pemilik tanker tercatat), dan mengatakannya terang-terangan.
   Korelasi BULL ke proksi crude terukur **0,02 dari 469 sesi** — praktis tidak
