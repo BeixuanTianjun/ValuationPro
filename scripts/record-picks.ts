@@ -51,8 +51,8 @@ async function main() {
   console.log(`\n════════ HASIL SEMENTARA ════════`);
   console.log(`dicatat sejak ${file.startedOn} · ${file.picks.length} pick · ${rows.length} bisa dinilai\n`);
   console.log('sumber                    pick  selesai  terbuka   winrate  expectancy  median 1b  median 3b');
-  const { summaries, provisionalExcluded } = buildPickSummaries(rows);
-  for (const s of summaries) {
+  const { summaries, backfillSummaries, provisionalExcluded } = buildPickSummaries(rows);
+  const line = (s: (typeof summaries)[number]) => {
     const wr =
       s.resolved >= MIN_RESOLVED_FOR_WINRATE
         ? `${(s.winRate * 100).toFixed(0)}%`.padStart(7)
@@ -63,6 +63,24 @@ async function main() {
         `${(Number.isFinite(s.expectancyR) ? s.expectancyR.toFixed(2) + 'R' : '–').padStart(12)}` +
         `${pct(s.medianReturn1m, 1).padStart(11)}${pct(s.medianReturn3m, 1).padStart(11)}`
     );
+  };
+
+  // Dua tabel, tidak pernah satu. Menjumlahkan keduanya menghasilkan angka yang
+  // tidak menjawab pertanyaan apa pun — alasannya ada di atas buildPickSummaries.
+  console.log('');
+  console.log('-- DICATAT HARIAN --');
+  if (summaries.length) summaries.forEach(line);
+  else console.log('  (belum ada)');
+
+  if (backfillSummaries.length) {
+    console.log('');
+    console.log('-- DIISI DARI SEJARAH (npm run picks:backfill) --');
+    backfillSummaries.forEach(line);
+    console.log('');
+    console.log('  Angka di blok ini OPTIMIS. Universe-nya universe HARI INI, jadi emiten');
+    console.log('  yang sudah delisting tidak pernah bisa terpilih, dan delisting condong');
+    console.log('  ke kegagalan. Pakai sebagai perkiraan kasar, bukan sebagai hasil yang');
+    console.log('  setara dengan blok di atasnya.');
   }
 
   if (provisionalExcluded) {

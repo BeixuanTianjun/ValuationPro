@@ -434,8 +434,23 @@ async function main() {
         const s = db.series.get(code);
         const f = factors.get(code);
         if (!s || !f || idx < 0) return null;
-        const entry = s.close[idx];
-        const levels = levelsFor(entry, f.atr14);
+
+        // HARGA TRADED, bukan harga yang disesuaikan — fixture ini harus meniru
+        // pick sungguhan, dan pencatat menulis `db.daily.close`, yaitu harga
+        // sebagaimana diperdagangkan hari itu. Memakai s.close di sini membuat
+        // fixture hidup di skala yang berbeda dari barang yang diwakilinya, dan
+        // pemeriksaan apa pun terhadapnya menguji dunia yang tidak ada.
+        //
+        // atr14 ikut diskalakan dengan faktor yang sama. Ia dihitung dari deret
+        // yang disesuaikan terhadap sesi TERBARU, sedangkan di jalur live ATR
+        // selalu satu skala dengan entry: pada sesi terbaru tidak ada faktor
+        // sesudahnya, jadi disesuaikan dan traded memang sama. Untuk sesi lama
+        // kesamaan itu harus dikembalikan, kalau tidak stop dan target duduk di
+        // jarak yang salah dari entry.
+        const entry = s.rawClose[idx];
+        const k = entry > 0 && s.close[idx] > 0 ? entry / s.close[idx] : NaN;
+        if (!Number.isFinite(k)) return null;
+        const levels = levelsFor(entry, f.atr14 * k);
         if (!levels) return null;
         return {
           id: `${session}:screener:momentum:${code}`,
@@ -450,7 +465,7 @@ async function main() {
           entry,
           stop: levels.stop,
           target: levels.target,
-          atr14: f.atr14,
+          atr14: f.atr14 * k,
           runupFromLow: NaN,
           extensionAtr: NaN,
           gapToIndexPp: NaN,
@@ -503,6 +518,53 @@ async function main() {
       }
       checks++;
       if (graded < 50) fail('jurnal pick', `hanya ${graded} pick sintetis bisa dinilai — terlalu sedikit untuk menjaga apa pun`);
+
+      // ── SATU SKALA HARGA, DAN INI PERNAH SALAH ───────────────────────────
+      //
+      // entry/stop/target ditulis dalam harga TRADED di sesi masuk, sementara
+      // series.close/high/low disesuaikan terhadap sesi TERBARU. Untuk emiten
+      // yang kena aksi korporasi sesudah sesi masuk, keduanya berbeda skala.
+      // Sebelum diperbaiki: 673 dari 22.770 baris jurnal terkena, dan PACK pada
+      // 2025-05-21 tercatat -81,7% padahal pemegangnya untung 142,4% — reverse
+      // split terbaca sebagai keruntuhan. Bendera outcome ikut salah, bukan cuma
+      // angka return-nya.
+      //
+      // Identitas yang harus berlaku: return satu bulan sama dengan rasio pada
+      // deret yang DISESUAIKAN, karena deret itu satu-satunya yang konsisten
+      // melintasi aksi korporasi. Diuji khusus pada emiten yang punya aksi,
+      // karena untuk emiten lain identitas ini berlaku bahkan ketika kodenya
+      // salah — dan sapuan yang lolos karena mengambil sampel yang aman adalah
+      // sapuan yang tidak menjaga apa pun.
+      const withActions = db.emiten
+        .map((e) => db.series.get(e.code))
+        .filter((x): x is NonNullable<typeof x> => !!x && x.adjustments > 0);
+      let scaleChecked = 0;
+      for (const series of withActions) {
+        const i = db.dates.indexOf(anchor);
+        if (i < 0) break;
+        const j = i + 21;
+        if (j >= db.dates.length) break;
+        const a = series.close[i];
+        const b = series.close[j];
+        if (!(a > 0) || !(b > 0) || !(series.rawClose[i] > 0)) continue;
+        const p = synth(series.code, anchor);
+        if (!p) continue;
+        const r = evaluatePick(p, db);
+        if (!r || !Number.isFinite(r.return1m)) continue;
+        scaleChecked++;
+        checks++;
+        const expected = b / a - 1;
+        if (Math.abs(r.return1m - expected) > 1e-9) {
+          fail(
+            'jurnal pick',
+            `${series.code} return1m ${r.return1m.toFixed(6)} tidak sama dengan rasio deret disesuaikan ${expected.toFixed(6)} — skala harga tercampur`,
+          );
+        }
+      }
+      checks++;
+      if (scaleChecked < 5) {
+        fail('jurnal pick', `hanya ${scaleChecked} emiten beraksi korporasi yang teruji skalanya — terlalu sedikit`);
+      }
 
       // THE LOOK-AHEAD GUARD. A pick made on the newest session has no future
       // to be graded against, so anything other than `open` means the evaluator

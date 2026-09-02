@@ -38,6 +38,9 @@ interface JournalPayload {
   total: number;
   provisionalExcluded: number;
   summaries: PickSummary[];
+  /** Baris hasil `npm run picks:backfill`, dijaga terpisah — lihat panel Backfill. */
+  backfillSummaries: PickSummary[];
+  backfillTotal: number;
   picks: EvaluatedPick[];
 }
 
@@ -110,6 +113,14 @@ export const PickJournal: React.FC<Props> = ({ onSelectEmiten }) => {
   const resolved = total?.resolved ?? 0;
   const enough = resolved >= MIN_RESOLVED_FOR_WINRATE;
 
+  // `startedOn` di berkas jurnal mundur ke sesi tertua APA PUN, termasuk yang
+  // diisi backfill. Angka-angka di panel ini hanya bicara soal pencatatan
+  // harian, jadi tanggalnya harus datang dari baris harian juga — kalau tidak,
+  // "49 pick sejak 2024-08-01" terbaca seperti dua tahun yang nyaris kosong.
+  const liveStart = data.picks.length
+    ? data.picks.reduce((a, p) => (p.session < a ? p.session : a), data.picks[0].session)
+    : null;
+
   return (
     <div className="space-y-4 sm:space-y-5">
       <Panel>
@@ -121,8 +132,14 @@ export const PickJournal: React.FC<Props> = ({ onSelectEmiten }) => {
             <>
               Tiap sesi, sepuluh teratas dari tiap layar Screener dan Watchlist dicatat pada harga penutupan, sebelum
               hasilnya diketahui. Dinilai memakai stop dan target ATR yang sama dengan yang dicetak layar, dengan
-              horizon {MAX_HOLD_SESSIONS} sesi (±3 bulan). Dicatat sejak {data.startedOn || '—'} · sesi terakhir{' '}
+              horizon {MAX_HOLD_SESSIONS} sesi (±3 bulan). Dicatat harian sejak {liveStart || '—'} · sesi terakhir{' '}
               {data.latestSession}.
+              {data.backfillTotal > 0 && (
+                <>
+                  {' '}Selain itu ada {rp(data.backfillTotal)} pick yang direkonstruksi dari sejarah — dipisah di
+                  panelnya sendiri di bawah, dan tidak pernah dijumlahkan dengan angka di sini.
+                </>
+              )}
             </>
           }
           actions={
@@ -160,7 +177,7 @@ export const PickJournal: React.FC<Props> = ({ onSelectEmiten }) => {
         />
 
         <StatGrid cols={4} className="mt-4">
-          <Stat label="Pick tercatat" value={rp(total?.picks ?? 0)} hint={`sejak ${data.startedOn || '—'}`} />
+          <Stat label="Dicatat harian" value={rp(total?.picks ?? 0)} hint={`sejak ${liveStart || '—'}`} />
           <Stat label="Sudah selesai" value={rp(resolved)} hint="kena stop, target, atau habis waktu" />
           <Stat label="Masih berjalan" value={rp(total?.open ?? 0)} hint="tidak dihitung ke winrate" />
           <Stat
@@ -232,6 +249,63 @@ export const PickJournal: React.FC<Props> = ({ onSelectEmiten }) => {
           </table>
         </TableScroll>
       </Panel>
+
+      {/* Backfill ------------------------------------------------------ */}
+      {data.backfillSummaries?.length > 0 && (
+        <Panel>
+          <PanelHeader
+            icon={Info}
+            title="Diisi dari sejarah"
+            tone="text-amber-300"
+            subtitle={`${data.backfillTotal.toLocaleString('id-ID')} pick direkonstruksi dari history dengan aturan yang sama. Sampelnya jauh lebih besar, tapi bukan pengukuran yang sama dengan tabel di atas.`}
+          />
+          <div className="mt-3 rounded border border-amber-500/30 bg-amber-500/5 p-3 text-[11px] leading-relaxed text-amber-200">
+            Angka di panel ini <strong>optimis, dan arah biasnya diketahui</strong>. Universe-nya universe hari ini,
+            jadi emiten yang sudah delisting tidak pernah bisa terpilih — dan delisting condong ke kegagalan, bukan ke
+            keberhasilan. Rankingnya juga dihitung dari angka resmi IDX, sementara pencatatan harian berjalan di harga
+            intraday karena IDX belum menerbitkan sesinya saat itu. Dua hal ini membuat kedua tabel tidak boleh
+            dijumlahkan atau dirata-ratakan.
+          </div>
+          <TableScroll className="mt-3">
+            <table className="w-full min-w-[760px] text-xs">
+              <thead className="border-b border-slate-800">
+                <tr>
+                  <Th align="left" sticky>Sumber</Th>
+                  <Th>Pick</Th>
+                  <Th>Selesai</Th>
+                  <Th>Berjalan</Th>
+                  <Th>Menang</Th>
+                  <Th>Kalah</Th>
+                  <Th>Winrate</Th>
+                  <Th title="Rata-rata hasil dalam satuan risiko yang diambil. -1 berarti stop penuh.">Expectancy</Th>
+                  <Th>Median 1 bln</Th>
+                  <Th>Median 3 bln</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/70">
+                {data.backfillSummaries.map((s) => (
+                  <tr key={s.source} className={cx('hover:bg-slate-800/30', s.source === 'SEMUA' && 'bg-slate-900/60')}>
+                    <Td align="left" sticky className="font-bold text-slate-200">{s.label}</Td>
+                    <Td className="text-slate-300">{s.picks}</Td>
+                    <Td className="text-slate-300">{s.resolved}</Td>
+                    <Td className="text-slate-500">{s.open}</Td>
+                    <Td className="text-emerald-400">{s.wins}</Td>
+                    <Td className="text-rose-400">{s.losses}</Td>
+                    <Td className="font-bold text-slate-100">
+                      {s.resolved >= MIN_RESOLVED_FOR_WINRATE ? `${(s.winRate * 100).toFixed(0)}%` : <span className="text-slate-600">belum</span>}
+                    </Td>
+                    <Td className={Number.isFinite(s.expectancyR) && s.expectancyR > 0 ? 'text-emerald-400' : 'text-slate-400'}>
+                      {Number.isFinite(s.expectancyR) ? `${s.expectancyR >= 0 ? '+' : ''}${s.expectancyR.toFixed(2)}R` : '–'}
+                    </Td>
+                    <Td className="text-slate-300">{pct(s.medianReturn1m)}</Td>
+                    <Td className="text-slate-300">{pct(s.medianReturn3m)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableScroll>
+        </Panel>
+      )}
 
       {/* Every pick ---------------------------------------------------- */}
       <Panel>

@@ -29,6 +29,9 @@ import { computeAllFactors } from '../models/factorEngine';
 import { runStockScreener, convictionScore, ScreenerMode } from '../models/stockScreener';
 import { buildWatchlist, Horizon } from '../models/watchlist';
 import { Pick, PickFile, PickSource, levelsFor } from '../models/pickJournal';
+import type { AnnouncementsFile } from '../models/announcements';
+import type { OwnershipFile } from '../models/ownershipFlow';
+import type { MarketDatabase } from '../data/marketRepository';
 import { loadChatContextFromDisk, loadMarketDatabaseFromDisk } from './marketFromDisk';
 
 /**
@@ -52,6 +55,107 @@ export interface RecordResult {
   total: number;
   bySource: Record<string, number>;
   note: string;
+}
+
+/**
+ * Build one session's picks.
+ *
+ * Extracted so the daily recorder and the historical backfill run the SAME
+ * ranking code. If each had its own copy, comparing a backfilled row against
+ * the row recorded live for that session would prove nothing — the comparison
+ * only means something while there is one implementation to disagree with.
+ */
+export interface BuildPicksInput {
+  db: MarketDatabase;
+  /** Already cut to the session for a backfill; today's file for a live run. */
+  announcements: AnnouncementsFile | null;
+  ownership: OwnershipFile | null;
+  session: string;
+  final: boolean;
+  recordedAt: string;
+  /** Ids already in the journal. Anything listed here is left alone. */
+  seen: Set<string>;
+  /** Stamped onto every row so the two kinds never merge silently. */
+  backfilled?: boolean;
+}
+
+export function buildPicksForSession(input: BuildPicksInput): Pick[] {
+  const { db, announcements, ownership, session, final, recordedAt, seen, backfilled } = input;
+  const factors = computeAllFactors(db);
+  const fresh: Pick[] = [];
+
+  const push = (source: PickSource, rank: number, code: string, score: number, readings: Partial<Pick>) => {
+    const id = `${session}:${source}:${code}`;
+    if (seen.has(id)) return;
+    const e = db.byCode.get(code);
+    const quote = db.daily.get(code);
+    const atr14 = factors.get(code)?.atr14 ?? NaN;
+    const entry = quote?.close ?? NaN;
+    const levels = levelsFor(entry, atr14);
+    // No ATR means no mechanical stop, and without a stop there is no R and
+    // nothing to grade. Skipped rather than graded on an invented level.
+    if (!e || !levels) return;
+    seen.add(id);
+    fresh.push({
+      id,
+      recordedAt,
+      session,
+      source,
+      code,
+      name: e.name,
+      sector: e.sector,
+      rank,
+      score,
+      entry,
+      stop: levels.stop,
+      target: levels.target,
+      atr14,
+      runupFromLow: NaN,
+      extensionAtr: NaN,
+      gapToIndexPp: NaN,
+      dipFromHigh: NaN,
+      entryIsFinalClose: final,
+      ...(backfilled ? { backfilled: true } : {}),
+      ...readings,
+    });
+  };
+
+  for (const mode of ['momentum', 'pullback', 'laggard'] as ScreenerMode[]) {
+    const screen = runStockScreener(db, { mode });
+    const ranked = screen.rows
+      .map((r) => ({ r, c: convictionScore(r, factors.get(r.code), mode) }))
+      .sort((a, b) => b.c - a.c)
+      .slice(0, TOP_N);
+    ranked.forEach(({ r, c }, i) =>
+      push(`screener:${mode}` as PickSource, i + 1, r.code, c, {
+        runupFromLow: r.runupFromLow,
+        extensionAtr: r.extensionAtr,
+        gapToIndexPp: r.gapToIndexPp,
+        dipFromHigh: r.dipFromHigh,
+      })
+    );
+  }
+
+  for (const horizon of ['mingguan', 'bulanan'] as Horizon[]) {
+    const wl = buildWatchlist({
+      db,
+      factors,
+      announcements,
+      ownership,
+      horizon,
+      limit: TOP_N,
+    });
+    wl.candidates.slice(0, TOP_N).forEach((c, i) =>
+      push(`watchlist:${horizon}` as PickSource, i + 1, c.code, c.score, {
+        runupFromLow: c.priceAction.screener?.runupFromLow ?? NaN,
+        extensionAtr: c.priceAction.screener?.extensionAtr ?? NaN,
+        gapToIndexPp: c.priceAction.gapToIndexPp,
+        dipFromHigh: c.priceAction.dipFromHigh,
+      })
+    );
+  }
+
+  return fresh;
 }
 
 export async function recordTodaysPicks(
@@ -97,79 +201,15 @@ export async function recordTodaysPicks(
     };
   }
 
-  const factors = computeAllFactors(db);
-  const fresh: Pick[] = [];
-  const recordedAt = new Date().toISOString();
-
-  const push = (source: PickSource, rank: number, code: string, score: number, readings: Partial<Pick>) => {
-    const id = `${session}:${source}:${code}`;
-    if (seen.has(id)) return;
-    const e = db.byCode.get(code);
-    const quote = db.daily.get(code);
-    const atr14 = factors.get(code)?.atr14 ?? NaN;
-    const entry = quote?.close ?? NaN;
-    const levels = levelsFor(entry, atr14);
-    // No ATR means no mechanical stop, and without a stop there is no R and
-    // nothing to grade. Skipped rather than graded on an invented level.
-    if (!e || !levels) return;
-    seen.add(id);
-    fresh.push({
-      id,
-      recordedAt,
-      session,
-      source,
-      code,
-      name: e.name,
-      sector: e.sector,
-      rank,
-      score,
-      entry,
-      stop: levels.stop,
-      target: levels.target,
-      atr14,
-      runupFromLow: NaN,
-      extensionAtr: NaN,
-      gapToIndexPp: NaN,
-      dipFromHigh: NaN,
-      entryIsFinalClose: final,
-      ...readings,
-    });
-  };
-
-  for (const mode of ['momentum', 'pullback', 'laggard'] as ScreenerMode[]) {
-    const screen = runStockScreener(db, { mode });
-    const ranked = screen.rows
-      .map((r) => ({ r, c: convictionScore(r, factors.get(r.code), mode) }))
-      .sort((a, b) => b.c - a.c)
-      .slice(0, TOP_N);
-    ranked.forEach(({ r, c }, i) =>
-      push(`screener:${mode}` as PickSource, i + 1, r.code, c, {
-        runupFromLow: r.runupFromLow,
-        extensionAtr: r.extensionAtr,
-        gapToIndexPp: r.gapToIndexPp,
-        dipFromHigh: r.dipFromHigh,
-      })
-    );
-  }
-
-  for (const horizon of ['mingguan', 'bulanan'] as Horizon[]) {
-    const wl = buildWatchlist({
-      db,
-      factors,
-      announcements: ctx.announcements ?? null,
-      ownership: ctx.ownership ?? null,
-      horizon,
-      limit: TOP_N,
-    });
-    wl.candidates.slice(0, TOP_N).forEach((c, i) =>
-      push(`watchlist:${horizon}` as PickSource, i + 1, c.code, c.score, {
-        runupFromLow: c.priceAction.screener?.runupFromLow ?? NaN,
-        extensionAtr: c.priceAction.screener?.extensionAtr ?? NaN,
-        gapToIndexPp: c.priceAction.gapToIndexPp,
-        dipFromHigh: c.priceAction.dipFromHigh,
-      })
-    );
-  }
+  const fresh = buildPicksForSession({
+    db,
+    announcements: ctx.announcements ?? null,
+    ownership: ctx.ownership ?? null,
+    session,
+    final,
+    recordedAt: new Date().toISOString(),
+    seen,
+  });
 
   const bySource: Record<string, number> = {};
   for (const p of fresh) bySource[p.source] = (bySource[p.source] ?? 0) + 1;

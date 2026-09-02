@@ -99,6 +99,20 @@ export interface Pick {
    * remembers to check.
    */
   entryIsFinalClose: boolean;
+  /**
+   * True when this row was reconstructed from history instead of recorded on
+   * the day, by `npm run picks:backfill`.
+   *
+   * It exists because the two kinds of row are NOT the same measurement and
+   * must never be averaged into one number without saying so. A backfilled row
+   * is drawn from today's universe, so any emiten delisted since is absent —
+   * and delistings skew towards failures, which makes a backfilled win rate an
+   * optimistic one. A forward-recorded row has no such hole.
+   *
+   * Optional rather than required so every row written before this existed
+   * stays valid and reads as false.
+   */
+  backfilled?: boolean;
 }
 
 export interface PickFile {
@@ -147,9 +161,34 @@ export function evaluatePick(pick: Pick, db: MarketDatabase): EvaluatedPick | nu
   if (!series || start < 0) return null;
 
   const risk = pick.entry - pick.stop;
+
+  // ── EVERYTHING BELOW READS ONE SCALE, AND THAT TOOK A BUG TO LEARN ───────
+  //
+  // `entry`, `stop` and `target` were written in the price AS TRADED on the
+  // entry session. `series.close/high/low` are back-adjusted against the NEWEST
+  // session, so a corporate action AFTER the entry moves the whole history onto
+  // a different scale. Comparing the two directly is comparing rupiah before a
+  // split with rupiah after one.
+  //
+  // Measured over a 22,770-row journal: 673 picks (3.0%) sat on the wrong side
+  // of an action, the median 1-month return was overstated as a loss by 0.43pp
+  // and the 3-month by 0.81pp — and one row, PACK on 2025-05-21, was recorded
+  // as -81.7% when the holder was actually up 142.4%. A reverse split read as a
+  // collapse. The outcome flags were wrong too, not only the returns: `stop`
+  // and `target` are tested against `high`/`low` in the same mismatched scale,
+  // so a pick could be marked stopped out on a bar that never touched the stop.
+  //
+  // `k` puts the adjusted series back into the entry session's traded scale.
+  // It is read off the data rather than recomputed from the adjustment factors,
+  // so there is only one implementation of this arithmetic to be wrong.
+  const k =
+    series.rawClose[start] > 0 && series.close[start] > 0
+      ? series.rawClose[start] / series.close[start]
+      : 1;
+
   const priceAt = (i: number): number => {
-    for (let k = Math.min(i, series.close.length - 1); k >= 0; k--) {
-      if (Number.isFinite(series.close[k]) && series.close[k] > 0) return series.close[k];
+    for (let j = Math.min(i, series.close.length - 1); j >= 0; j--) {
+      if (Number.isFinite(series.close[j]) && series.close[j] > 0) return series.close[j] * k;
     }
     return NaN;
   };
@@ -166,8 +205,8 @@ export function evaluatePick(pick: Pick, db: MarketDatabase): EvaluatedPick | nu
 
   for (let h = 1; h <= MAX_HOLD_SESSIONS && start + h < db.dates.length; h++) {
     const i = start + h;
-    const hi = Number.isFinite(series.high[i]) ? series.high[i] : series.close[i];
-    const lo = Number.isFinite(series.low[i]) ? series.low[i] : series.close[i];
+    const hi = (Number.isFinite(series.high[i]) ? series.high[i] : series.close[i]) * k;
+    const lo = (Number.isFinite(series.low[i]) ? series.low[i] : series.close[i]) * k;
     if (!Number.isFinite(hi) || !Number.isFinite(lo)) continue;
 
     // Stop first: a bar spanning both is scored as the loss.
@@ -281,16 +320,41 @@ export const MIN_RESOLVED_FOR_WINRATE = 20;
  * statistic is not the same as deleting it, and the second one destroys
  * evidence.
  */
+/**
+ * Summaries, with the two populations kept apart on purpose.
+ *
+ * `summaries` covers rows recorded on the day. `backfillSummaries` covers rows
+ * reconstructed from history by `npm run picks:backfill`. They are never added
+ * together, and no caller is given a total that spans both, because the two do
+ * not measure the same thing:
+ *
+ *   - A backfilled row is drawn from TODAY's universe, so any emiten delisted
+ *     since is missing. Delistings are not random — they skew towards failures
+ *     — so a backfilled win rate is biased UPWARDS by an amount nobody can
+ *     recover after the fact.
+ *   - A live row is ranked on the intraday overlay, because IDX has not
+ *     published the session when the recorder runs: Yahoo prices, with foreign
+ *     flow and trade counts carried from the previous session. A backfilled row
+ *     is ranked on the official figures. Same rules, different inputs.
+ *
+ * Neither is wrong. Averaging them produces a number that answers no question,
+ * which is worse than either. Whichever surface displays these must label them.
+ */
 export function buildPickSummaries(rows: EvaluatedPick[]): {
   summaries: PickSummary[];
+  backfillSummaries: PickSummary[];
   provisionalExcluded: number;
 } {
   const final = rows.filter((r) => r.entryIsFinalClose);
+  const live = final.filter((r) => !r.backfilled);
+  const back = final.filter((r) => r.backfilled);
+  const forGroup = (g: EvaluatedPick[]) =>
+    g.length
+      ? [summarisePicks(g, 'SEMUA', 'Semua sumber'), ...PICK_SOURCES.map((s) => summarisePicks(g, s.id, s.label))]
+      : [];
   return {
-    summaries: [
-      summarisePicks(final, 'SEMUA', 'Semua sumber'),
-      ...PICK_SOURCES.map((s) => summarisePicks(final, s.id, s.label)),
-    ],
+    summaries: forGroup(live),
+    backfillSummaries: forGroup(back),
     provisionalExcluded: rows.length - final.length,
   };
 }

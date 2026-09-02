@@ -667,7 +667,16 @@ const server = createServer(async (req, res) => {
       const rows = file.picks
         .map((p) => evaluatePick(p, db))
         .filter((r): r is EvaluatedPick => r !== null);
-      const { summaries, provisionalExcluded } = buildPickSummaries(rows);
+      const { summaries, backfillSummaries, provisionalExcluded } = buildPickSummaries(rows);
+
+      // Baris tabel HANYA yang dicatat harian, dan itu keputusan ukuran sekaligus
+      // keputusan makna. Setelah `npm run picks:backfill` jurnal berisi 22.770
+      // baris; mengirim semuanya berarti respons belasan megabyte untuk sebuah
+      // tabel yang tidak ada gunanya digulir sejauh itu. Yang lebih penting,
+      // baris backfill bukan pengukuran yang sama — lihat buildPickSummaries —
+      // jadi mencampurnya dalam satu tabel mengundang pembacaan yang salah.
+      // Ringkasannya tetap dikirim, terpisah dan berlabel.
+      const livePicks = rows.filter((r) => !r.backfilled);
       return json(res, 200, {
         startedOn: file.startedOn,
         note: file.note,
@@ -675,7 +684,9 @@ const server = createServer(async (req, res) => {
         total: file.picks.length,
         provisionalExcluded,
         summaries,
-        picks: rows,
+        backfillSummaries,
+        backfillTotal: rows.length - livePicks.length,
+        picks: livePicks,
       });
     }
 
