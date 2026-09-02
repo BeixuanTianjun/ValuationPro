@@ -33,7 +33,8 @@
     "data:tanker": "node scripts/ingest-tanker.mjs --range 2y",
     "strategy:lab": "esbuild scripts/strategy-lab.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/strategy-lab.mjs --log-level=warning && node .cache/strategy-lab.mjs",
     "picks:record": "esbuild scripts/record-picks.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/picks.mjs --log-level=warning && node .cache/picks.mjs",
-    "picks:report": "esbuild scripts/record-picks.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/picks.mjs --log-level=warning && node .cache/picks.mjs --report-only"
+    "picks:report": "esbuild scripts/record-picks.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/picks.mjs --log-level=warning && node .cache/picks.mjs --report-only",
+    "mail:check": "esbuild scripts/check-mail.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/mailcheck.mjs --log-level=warning && node .cache/mailcheck.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.121.0",

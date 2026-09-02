@@ -371,6 +371,47 @@ menilai pasar yang pengajuan tersegarnya sudah berumur 17 hari. Sekarang skrip
 menolak menulis kalau baris meleset >5% dari `ResultCount` atau kalau pengajuan
 terbaru lebih tua dari 5 hari.
 
+**Alert 12:05 tidak pernah gagal — jendelanya yang terlewat.** `post-sesi-1`
+tercatat terakhir jalan 2026-08-31 sementara semua job lain hari itu juga,
+dan itu bukan bug: penjadwal cuma hidup selama `npm run auto` jalan. Kalau
+pukul 12:05 WIB layanan lokal sedang mati, slot itu lewat tanpa jejak. Bentuk
+kegagalan yang harus dikenali: bukan job yang MERAH, tapi satu job yang
+tanggalnya tertinggal sendirian di `.data/job-state.json`.
+
+Sebelum menyalahkan SMTP, periksa dulu urutan ini — semuanya terbukti sehat
+saat diperiksa 2026-09-02: `.env` punya SMTP_HOST/PORT/USER/PASS dan
+ALERT_EMAIL_TO/FROM; `verifyMail()` berhasil login ke smtp.gmail.com:465 (sandi
+19 karakter = Google App Password); `npm run alert:preview` membangun digest
+lengkap. Uji koneksi + login SMTP tanpa mengirim apa pun: `npm run mail:check`. Yang tidak ada cuma prosesnya, pada jam yang dibutuhkan.
+
+**Mesin ini MEMBLOKIR pembuatan scheduled task tanpa admin.** Tiga cara dicoba
+dan ketiganya dijawab `Access is denied`: `schtasks /Create /XML` lengkap, versi
+tanpa `WakeToRun`, dan `schtasks /SC ONLOGON` polos. Jadi jangan buang waktu
+mencoba varian keempat — kalau tidak elevated, pakai FOLDER STARTUP.
+
+Yang terpasang sekarang: `%APPDATA%\...\Start Menu\Programs\Startup\ValuationPro.vbs`
+memanggil `scripts/service-loop.cmd`. Satu berkas, tanpa registry, tanpa task,
+tanpa admin — hapus berkasnya, fiturnya mati. `service-loop.cmd` melakukan tiga
+hal yang `npm run auto` polos tidak: menolak jadi salinan kedua kalau 8787 sudah
+dijawab (dua penjadwal = tiap alert terkirim dua kali), restart kalau crash
+dengan jeda 30 detik dan berhenti setelah 20 kegagalan beruntun, dan menulis
+`.data/service.log`. Kedua jalur diuji: port terpakai → keluar diam-diam dan
+mencatatnya; port kosong → layanan hidup dalam 5 detik tanpa jendela konsol.
+
+`scripts/install-task.ps1` ada untuk yang punya admin — WakeToRun (membangunkan
+laptop tidur) hanya bisa dari sana. Skripnya sengaja TIDAK menghapus apa pun dan
+berhenti tanpa mengubah apa pun kalau task-nya sudah ada, supaya menjalankan
+ulang selalu aman. Keduanya boleh hidup berdampingan: penjaga port yang
+memutuskan siapa yang benar-benar jalan.
+
+**PowerShell 5.1 membaca `.ps1` sebagai ANSI kalau tidak ada BOM.** `install-task.ps1`
+ditulis UTF-8 tanpa BOM dan langsung gagal parse dengan pesan yang menyesatkan —
+"string is missing the terminator" menunjuk baris 142, padahal penyebabnya em-dash
+dan garis kotak di blok komentar paling atas yang byte-nya salah dibaca dan
+menelan tanda kutip. Simpan skrip PowerShell yang memuat karakter non-ASCII
+sebagai **UTF-8 with BOM**. Cek cepat tanpa menjalankan apa pun:
+`[System.Management.Automation.Language.Parser]::ParseFile($p, [ref]$null, [ref]$err)`.
+
 **Daftar fitur yang ditulis tangan SELALU melenceng, dan melencengnya tidak
 kelihatan.** Halaman depan memuat 11 kartu yang dikurasi manual. Saat diperiksa,
 ia masih mengiklankan **RISK** — layar yang sudah dihapus berminggu-minggu
@@ -934,6 +975,7 @@ npm run data:news       # 5 kantor berita + kalender ekonomi (~3 detik)
 npm run data:tanker     # 6 proksi tarif charter tanker (~3 detik)
 npm run strategy:lab    # cari ulang papan strategi, out-of-sample (~1 detik)
 npm run alert:preview   # hitung pick tanpa mengirim email
+npm run mail:check      # uji login SMTP, tanpa mengirim apa pun
 
 node scripts/wake-report.mjs --since <ISO>   # apa yang terjadi selagi pergi
 ```
