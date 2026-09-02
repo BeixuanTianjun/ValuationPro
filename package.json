@@ -35,7 +35,8 @@
     "picks:record": "esbuild scripts/record-picks.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/picks.mjs --log-level=warning && node .cache/picks.mjs",
     "picks:report": "esbuild scripts/record-picks.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/picks.mjs --log-level=warning && node .cache/picks.mjs --report-only",
     "mail:check": "esbuild scripts/check-mail.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/mailcheck.mjs --log-level=warning && node .cache/mailcheck.mjs",
-    "picks:backfill": "esbuild scripts/backfill-picks.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/backfill-picks.mjs --log-level=warning && node .cache/backfill-picks.mjs"
+    "picks:backfill": "esbuild scripts/backfill-picks.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/backfill-picks.mjs --log-level=warning && node .cache/backfill-picks.mjs",
+    "rank:diag": "esbuild scripts/rank-diagnostic.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/rank-diag.mjs --log-level=warning && node --max-old-space-size=4096 .cache/rank-diag.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.121.0",
