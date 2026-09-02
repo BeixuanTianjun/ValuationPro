@@ -401,7 +401,7 @@ export const LandingPage: React.FC<Props> = ({
       <section className="relative min-h-[94vh] flex flex-col">
         <div className="absolute inset-0 grid-glow opacity-40" aria-hidden="true" />
         <div
-          className="absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.18),transparent_64%)]"
+          className="absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(ellipse_at_top,rgba(255,167,51,0.07),transparent_62%)]"
           aria-hidden="true"
         />
 
@@ -412,14 +412,21 @@ export const LandingPage: React.FC<Props> = ({
           aria-hidden="true"
         >
           <defs>
+            {/* SATU warna, bukan tiga.
+                Palet ini Bloomberg: hitam murni sebagai lantai, amber sebagai
+                satu-satunya tanda tangan. Gradasi violet-biru-hijau di sini
+                melawannya — tiga warna yang berebut perhatian pada satu garis
+                membuat halaman terbaca seperti template, bukan seperti alat.
+                Garisnya sekarang meredup dari amber ke transparan, jadi ia
+                membingkai teks alih-alih bersaing dengannya. */}
             <linearGradient id="heroFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={CHART.blue} stopOpacity="0.22" />
-              <stop offset="100%" stopColor={CHART.blue} stopOpacity="0" />
+              <stop offset="0%" stopColor={CHART.amber} stopOpacity="0.10" />
+              <stop offset="100%" stopColor={CHART.amber} stopOpacity="0" />
             </linearGradient>
             <linearGradient id="heroStroke" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor={CHART.violet} />
-              <stop offset="55%" stopColor={CHART.blue} />
-              <stop offset="100%" stopColor={CHART.green} />
+              <stop offset="0%" stopColor={CHART.amber} stopOpacity="0.15" />
+              <stop offset="50%" stopColor={CHART.amber} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={CHART.amber} stopOpacity="0.25" />
             </linearGradient>
           </defs>
           {mounted && (
@@ -429,7 +436,7 @@ export const LandingPage: React.FC<Props> = ({
                 points={hero.points}
                 fill="none"
                 stroke="url(#heroStroke)"
-                strokeWidth="2.2"
+                strokeWidth="1.4"
                 strokeLinejoin="round"
                 strokeLinecap="round"
                 className="animate-draw"
@@ -442,11 +449,13 @@ export const LandingPage: React.FC<Props> = ({
 
         <header className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
           <div className="flex items-center gap-3 animate-rise">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg shadow-blue-900/40">
-              <LineChart className="w-5 h-5 text-white" aria-hidden="true" />
+            {/* Bayangannya dulu biru di bawah kotak amber — dua warna yang
+                tidak pernah bertemu di palet ini. Diganti hairline. */}
+            <div className="w-10 h-10 rounded-lg bg-amber-400 flex items-center justify-center">
+              <LineChart className="w-5 h-5 text-slate-950" aria-hidden="true" />
             </div>
             <div>
-              <div className="text-lg font-extrabold tracking-tight">
+              <div className="text-lg font-semibold tracking-[-0.02em] text-slate-50">
                 Valuation<span className="text-amber-500">Pro</span>
               </div>
               <div className="text-[11px] text-slate-500 -mt-0.5">Terminal Pasar Modal Indonesia</div>
@@ -456,7 +465,7 @@ export const LandingPage: React.FC<Props> = ({
           <div className="flex items-center gap-2.5 animate-rise" style={{ animationDelay: '80ms' }}>
             {authChecked && serviceUp && (
               account ? (
-                <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900/80 border border-slate-800">
                   <ShieldCheck
                     className={`w-3.5 h-3.5 ${account.role === 'administrator' ? 'text-blue-400' : 'text-slate-500'}`}
                     aria-hidden="true"
@@ -466,7 +475,7 @@ export const LandingPage: React.FC<Props> = ({
               ) : (
                 <button
                   onClick={onOpenAuth}
-                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-sm font-semibold transition-all duration-200 cursor-pointer"
+                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-sm font-semibold transition-all duration-200 cursor-pointer"
                 >
                   <LogIn className="w-4 h-4" aria-hidden="true" />
                   Masuk
@@ -479,7 +488,11 @@ export const LandingPage: React.FC<Props> = ({
               // `whitespace-nowrap` because at 375px the two words wrapped and
               // the header button became two lines tall, which reads as a
               // layout accident rather than a control.
-              className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-slate-950 transition-all duration-200 hover:bg-amber-400 cursor-pointer"
+              // Hairline, bukan amber pekat. Tombol ini dan tombol utama di hero
+              // sama-sama amber sebelumnya, dan dua elemen paling keras di satu
+              // layar berarti tidak ada yang paling keras. Yang di header cukup
+              // terbaca; yang di hero yang boleh berteriak.
+              className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-amber-400/40 bg-transparent px-4 py-2.5 text-sm font-semibold text-amber-400 transition-colors duration-200 hover:border-amber-400 hover:bg-amber-400/10 cursor-pointer"
             >
               Buka Terminal
               <ArrowRight className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -488,7 +501,7 @@ export const LandingPage: React.FC<Props> = ({
         </header>
 
         <div className="relative z-10 flex-1 flex items-center">
-          <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-10 sm:py-14 text-center">
+          <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-14 sm:py-20 text-center">
             <div
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-semibold animate-rise"
               style={{ animationDelay: '120ms' }}
@@ -501,15 +514,19 @@ export const LandingPage: React.FC<Props> = ({
                   : 'Basis data belum dibangun'}
             </div>
 
+            {/* Bobot TURUN, bukan naik.
+                font-extrabold pada ukuran 7xl membuat huruf saling menempel dan
+                terbaca murah; tipografi yang mahal justru melonggarkan bobot
+                saat ukurannya membesar dan merapatkan jaraknya. Gradasi tiga
+                warna diganti satu aksen amber pada baris kedua — halaman ini
+                punya satu hal untuk dikatakan, jadi ia butuh satu penekanan. */}
             <h1
-              className="mt-7 text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.04] text-balance animate-rise"
+              className="mt-8 text-4xl sm:text-6xl lg:text-[4.5rem] font-semibold tracking-[-0.03em] leading-[1.03] text-balance text-slate-50 animate-rise"
               style={{ animationDelay: '200ms' }}
             >
               Semua saham Indonesia,
               <br />
-              <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent">
-                plus alasannya.
-              </span>
+              <span className="text-amber-400">plus alasannya.</span>
             </h1>
 
             <p
@@ -525,9 +542,16 @@ export const LandingPage: React.FC<Props> = ({
               className="mt-9 flex flex-wrap items-center justify-center gap-3 animate-rise"
               style={{ animationDelay: '360ms' }}
             >
+              {/* Amber, bukan biru, dan tanpa bayangan berwarna.
+                  Amber adalah warna "keadaan aktif" di palet ini; tombol biru
+                  dengan cahaya biru di bawahnya adalah bahasa tombol SaaS, dan
+                  ia satu-satunya elemen paling cepat membuat halaman terbaca
+                  murah. Teks gelap di atas amber juga memberi kontras tertinggi
+                  di seluruh halaman, yang memang pantas untuk satu tindakan
+                  utama. */}
               <button
                 onClick={() => onEnter('screener')}
-                className="group flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-900/40 transition-all duration-200 cursor-pointer"
+                className="group flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold tracking-tight transition-colors duration-200 cursor-pointer"
               >
                 <Target className="w-4 h-4" aria-hidden="true" />
                 Jalankan Screener Hari Ini
@@ -538,9 +562,9 @@ export const LandingPage: React.FC<Props> = ({
               </button>
               <button
                 onClick={() => onEnter('chat')}
-                className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 font-bold transition-all duration-200 cursor-pointer"
+                className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-transparent hover:bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 font-semibold tracking-tight transition-colors duration-200 cursor-pointer"
               >
-                <MessageSquare className="w-4 h-4 text-indigo-400" aria-hidden="true" />
+                <MessageSquare className="w-4 h-4 text-slate-400" aria-hidden="true" />
                 Tanya Emiten
               </button>
             </div>
@@ -554,13 +578,13 @@ export const LandingPage: React.FC<Props> = ({
               // shortening the chart, which is the one piece of real market
               // data on this page.
               <div
-                className="mx-auto mt-11 inline-flex flex-wrap items-end justify-center gap-x-10 gap-y-4 rounded-2xl border border-slate-800/80 bg-slate-950/70 px-6 py-4 backdrop-blur-md animate-rise"
+                className="mx-auto mt-11 inline-flex flex-wrap items-end justify-center gap-x-10 gap-y-4 rounded-lg border border-slate-800/80 bg-slate-950/70 px-6 py-4 backdrop-blur-md animate-rise"
                 style={{ animationDelay: '440ms' }}
               >
                 <div className="text-left">
                   <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">IHSG</div>
                   <div className="flex items-baseline gap-3">
-                    <span className="text-3xl font-extrabold tabular-nums">{idr(composite.close, 2)}</span>
+                    <span className="text-3xl font-semibold tabular-nums tracking-[-0.02em]">{idr(composite.close, 2)}</span>
                     <span
                       className={`text-sm font-bold tabular-nums ${
                         composite.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'
@@ -615,28 +639,36 @@ export const LandingPage: React.FC<Props> = ({
       </section>
 
       {/* ------------------------------------------------------------- angka */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger">
           {stats.map((s, i) => (
+            // Angka putih pekat, bukan gradasi.
+            // Gradasi pada angka membuatnya memudar di bagian bawah, dan angka
+            // yang memudar adalah angka yang terlihat dekoratif. Di terminal,
+            // angka adalah isinya. Labelnya turun jadi huruf kapital kecil
+            // berjarak lebar supaya hierarkinya datang dari bentuk, bukan dari
+            // menebalkan semuanya.
             <div
               key={s.label}
-              className="rounded-2xl border border-slate-800 bg-slate-900 p-5 animate-rise"
+              className="rounded-lg border border-slate-800/80 bg-slate-900/60 p-5 animate-rise"
               style={{ ['--i' as string]: i }}
             >
-              <div className="text-2xl sm:text-3xl font-extrabold tabular-nums bg-gradient-to-br from-white to-slate-400 bg-clip-text text-transparent">
+              <div className="text-3xl sm:text-4xl font-semibold tabular-nums tracking-[-0.02em] text-slate-50">
                 {s.value}
               </div>
-              <div className="text-xs text-slate-300 font-semibold mt-1.5">{s.label}</div>
-              <div className="text-[10px] text-slate-600 mt-0.5 leading-snug">{s.sub}</div>
+              <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                {s.label}
+              </div>
+              <div className="text-[11px] text-slate-600 mt-1 leading-snug">{s.sub}</div>
             </div>
           ))}
         </div>
       </section>
 
       {/* -------------------------------------------------------------- sikap */}
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">Kenapa dibikin</p>
-        <h2 className="mt-4 text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.1] text-balance">
+        <h2 className="mt-5 text-3xl sm:text-5xl font-semibold tracking-[-0.03em] leading-[1.06] text-balance text-slate-50">
           Kebanyakan alat saham sok tahu.
           <br className="hidden sm:block" />
           <span className="text-slate-500"> Yang ini nggak.</span>
@@ -661,7 +693,7 @@ export const LandingPage: React.FC<Props> = ({
             },
           ].map((b) => (
             <div key={b.n} className="grid grid-cols-[auto_1fr] gap-5 sm:gap-8">
-              <div className="text-3xl sm:text-5xl font-extrabold tabular-nums text-slate-800">{b.n}</div>
+              <div className="text-3xl sm:text-5xl font-semibold tabular-nums tracking-[-0.02em] text-slate-800">{b.n}</div>
               <div className="min-w-0">
                 <h3 className="text-lg sm:text-2xl font-bold tracking-tight text-slate-100">{b.h}</h3>
                 <p className="mt-2.5 text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl">{b.p}</p>
@@ -672,10 +704,10 @@ export const LandingPage: React.FC<Props> = ({
       </section>
 
       {/* --------------------------------------------------------- perbedaan */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <div className="text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">Bedanya di mana</p>
-          <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight text-balance">
+          <h2 className="mt-5 text-3xl sm:text-4xl font-semibold tracking-[-0.03em] text-balance text-slate-50">
             Dua cara bikin alat kayak gini
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm sm:text-base text-slate-400 leading-relaxed">
@@ -684,7 +716,7 @@ export const LandingPage: React.FC<Props> = ({
         </div>
 
         <div className="mt-10 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 sm:p-7">
+          <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-6 sm:p-7">
             <div className="flex items-center gap-2.5">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/10 text-rose-400">
                 <X className="h-4 w-4" aria-hidden="true" />
@@ -700,7 +732,7 @@ export const LandingPage: React.FC<Props> = ({
             </ul>
           </div>
 
-          <div className="rounded-2xl border border-emerald-800/50 bg-gradient-to-br from-emerald-950/25 to-slate-900/50 p-6 sm:p-7">
+          <div className="rounded-lg border border-emerald-800/50 bg-gradient-to-br from-emerald-950/25 to-slate-900/50 p-6 sm:p-7">
             <div className="flex items-center gap-2.5">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
                 <Check className="h-4 w-4" aria-hidden="true" />
@@ -720,8 +752,8 @@ export const LandingPage: React.FC<Props> = ({
 
       {/* ------------------------------------------------------ papan strategi */}
       {strategy && (
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-          <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-7 sm:p-10">
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+          <div className="rounded-lg border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-7 sm:p-10">
             <div className="flex items-center gap-2.5">
               <FlaskConical className="h-5 w-5 text-rose-300" aria-hidden="true" />
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-300">Papan strategi</p>
@@ -729,7 +761,7 @@ export const LandingPage: React.FC<Props> = ({
             <div className="mt-5 grid gap-8 lg:grid-cols-[auto_1fr] lg:items-center">
               <div className="flex gap-8 sm:gap-12">
                 <div>
-                  <div className="text-4xl sm:text-5xl font-extrabold tabular-nums text-white">
+                  <div className="text-4xl sm:text-5xl font-semibold tabular-nums tracking-[-0.02em] text-slate-50">
                     {idr(strategy.tested)}
                   </div>
                   <div className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
@@ -737,7 +769,7 @@ export const LandingPage: React.FC<Props> = ({
                   </div>
                 </div>
                 <div>
-                  <div className="text-4xl sm:text-5xl font-extrabold tabular-nums text-emerald-300">
+                  <div className="text-4xl sm:text-5xl font-semibold tabular-nums tracking-[-0.02em] text-emerald-400">
                     {idr(strategy.survivors)}
                   </div>
                   <div className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
@@ -764,7 +796,7 @@ export const LandingPage: React.FC<Props> = ({
               hardcoded its screen list and drifted until it was advertising a
               deleted screen and hiding six live ones; a number written by hand
               here would drift the same way the first time a nineteenth ships. */}
-          <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight text-balance">
+          <h2 className="mt-5 text-3xl sm:text-4xl font-semibold tracking-[-0.03em] text-balance text-slate-50">
             {TERMINAL_FUNCTIONS.length} layar, empat pekerjaan
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm sm:text-base text-slate-400 leading-relaxed">
@@ -777,7 +809,7 @@ export const LandingPage: React.FC<Props> = ({
             <div key={g.key}>
               <div className="max-w-3xl">
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600">{g.eyebrow}</p>
-                <h3 className="mt-3 text-2xl sm:text-3xl font-extrabold tracking-tight text-balance">{g.title}</h3>
+                <h3 className="mt-3 text-2xl sm:text-3xl font-semibold tracking-[-0.025em] text-balance text-slate-100">{g.title}</h3>
                 <p className="mt-3 text-sm text-slate-400 leading-relaxed">{g.blurb}</p>
               </div>
 
@@ -785,11 +817,11 @@ export const LandingPage: React.FC<Props> = ({
                 {g.items.map((f, i) => (
                   <div
                     key={f.code}
-                    className="group rounded-2xl border border-slate-800 bg-slate-900 p-5 transition-all duration-300 hover:border-slate-700 hover:bg-slate-900/70 animate-rise"
+                    className="group rounded-lg border border-slate-800 bg-slate-900 p-5 transition-all duration-300 hover:border-slate-700 hover:bg-slate-900/70 animate-rise"
                     style={{ ['--i' as string]: i }}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+                      <div className="w-10 h-10 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
                         <f.icon className={`w-4.5 h-4.5 ${f.accent}`} aria-hidden="true" />
                       </div>
                       <span className="rounded border border-slate-800 bg-slate-950 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-500">
@@ -814,8 +846,8 @@ export const LandingPage: React.FC<Props> = ({
       </section>
 
       {/* -------------------------------------------------------- provenance */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
-        <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-950 p-8 sm:p-10">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+        <div className="rounded-lg border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-950 p-8 sm:p-10">
           <div className="flex items-start gap-4">
             <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
             <div className="flex-1">
@@ -855,7 +887,7 @@ export const LandingPage: React.FC<Props> = ({
 
       {/* ------------------------------------------------------------ penutup */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-16 sm:pb-24 text-center">
-        <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-balance">
+        <h2 className="text-3xl sm:text-4xl font-semibold tracking-[-0.03em] text-balance text-slate-50">
           Buka screener-nya, terus bantah angkanya.
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-sm sm:text-base text-slate-400 leading-relaxed">
@@ -864,7 +896,7 @@ export const LandingPage: React.FC<Props> = ({
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={() => onEnter('screener')}
-            className="group flex items-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-900/40 transition-all duration-200 cursor-pointer"
+            className="group flex items-center gap-2 px-6 py-3.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold tracking-tight transition-colors duration-200 cursor-pointer"
           >
             <Target className="w-4 h-4" aria-hidden="true" />
             Jalankan Screener Hari Ini
@@ -872,7 +904,7 @@ export const LandingPage: React.FC<Props> = ({
           </button>
           <button
             onClick={() => onEnter('analytics')}
-            className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 font-bold transition-all duration-200 cursor-pointer"
+            className="flex items-center gap-2 px-6 py-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 font-bold transition-all duration-200 cursor-pointer"
           >
             <Scale className="w-4 h-4 text-cyan-400" aria-hidden="true" />
             Lihat Penggerak IHSG
