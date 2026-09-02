@@ -473,20 +473,25 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, factors, onSelectEmite
         <SourceNote icon={Info}>
           {mode === 'momentum' && (
             <>
-              <strong className="text-slate-400">Yang sudah terbang sekarang DIBUANG, bukan sekadar diturunkan
-              peringkatnya.</strong> Saham yang sudah naik {`${(settings.maxRunupPercent * 100).toFixed(0)}%`} dari dasar{' '}
-              {settings.dipWindow} sesinya tidak lolos sama sekali. Itu satu-satunya ambang di layar ini yang punya
-              ukuran di belakangnya, bukan konvensi: dari dua puluh syarat yang diuji sendiri-sendiri terhadap
-              keranjang saham likuid selama 432 sesi, hanya inilah yang hasilnya berjenjang rapi — yang paling belum
-              naik unggul 1,4 poin persen dalam tiga bulan, yang paling sudah naik tertinggal 8,6 poin persen, dan
-              urutannya konsisten di sepuluh tingkat. Syarat lain yang diuji — MA200, pita diskon, RSI, arus asing,
-              kualitas tren — semuanya datar.{' '}
-              <strong className="text-slate-400">Yang belum terbukti, dan Anda berhak tahu.</strong> Angka{' '}
-              {`${(settings.maxRunupPercent * 100).toFixed(0)}%`} itu dipilih SESUDAH datanya dilihat, jadi ia belum diuji pada sesi
-              yang benar-benar baru. Papan strategi memberi arah yang sama — ambang 15% menaikkan tingkat kelolosan
-              1,45 kali, sementara 25% dan 50% justru menurunkannya — tetapi jendela ujinya juga sudah pernah dilihat.
-              Yang bisa dikatakan sejauh ini: dugaannya bisa dibantah dan tidak terbantah. Kolom Sudah naik dan
-              Regangan memperlihatkan angkanya langsung untuk tiap baris.{' '}
+              <strong className="text-slate-400">Naik jangka panjang, dan belum terlanjur jauh.</strong> Dua syarat
+              yang harus dipenuhi bersamaan, dan keduanya ada karena satu tanpa yang lain menghasilkan daftar yang
+              menyesatkan. MA{settings.trendMa} memastikan trennya memang naik — tanpa itu, aturan MA
+              {settings.maShort}/MA{settings.maLong} cuma membaca tiga sampai lima sesi terakhir dan meloloskan saham
+              yang tiga bulan turun lalu memantul tiga hari. Batas{' '}
+              {`${(settings.maxRunupPercent * 100).toFixed(0)}%`} dari dasar {settings.dipWindow} sesi memastikan
+              geraknya belum habis.{' '}
+              <strong className="text-slate-400">Dari mana angkanya.</strong> Dari dua puluh syarat yang diuji
+              sendiri-sendiri terhadap keranjang saham likuid selama 432 sesi, hanya seberapa jauh sebuah saham sudah
+              naik yang hasilnya berjenjang rapi: yang paling belum naik unggul 1,4 poin persen dalam tiga bulan, yang
+              paling sudah naik tertinggal 8,6 poin persen, konsisten di sepuluh tingkat.{' '}
+              {`${(settings.maxRunupPercent * 100).toFixed(0)}%`} adalah titik baliknya — di atas itu efeknya berubah
+              negatif.{' '}
+              <strong className="text-slate-400">Yang belum terbukti, dan Anda berhak tahu.</strong> Angka itu dipilih
+              sesudah datanya dilihat, jadi belum teruji pada sesi yang benar-benar baru. Papan strategi malah lebih
+              menyukai batas 15%, tetapi 15% bersama MA{settings.trendMa} hanya meloloskan satu emiten — di pasar yang
+              turun, saham yang masih di atas rata-rata panjangnya hampir pasti sudah naik. Jadi ini pertukaran yang
+              disengaja antara dua pengukuran, bukan angka yang sudah selesai. Kolom Sudah naik dan Regangan
+              memperlihatkan angkanya langsung untuk tiap baris.{' '}
               <strong className="text-slate-400">Kenapa dua aturan volume, bukan satu.</strong> Aturan volume dan
               aturan nilai mengikat di ujung harga yang berbeda. Saham Rp 50 bisa mencetak 40 juta lembar dan tetap
               hanya bertransaksi Rp 2 miliar; saham Rp 30.000 yang bertransaksi Rp 9 miliar hanya berpindah 300 ribu

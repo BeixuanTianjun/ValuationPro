@@ -138,12 +138,20 @@ export interface Pick {
  *      conviction karena dosis-responsnya rata dan syaratnya meloloskan 94%
  *      keranjang. Pullback dan laggard TIDAK berubah — diukur, baris keduanya
  *      identik sebelum dan sesudah.
+ *   3  2026-09-02, malam. Momentum menambah syarat "masih di atas MA200" dan
+ *      ambang runup dilonggarkan 15% -> 25%. Versi 2 ternyata meloloskan saham
+ *      yang tren panjangnya TURUN: 19 dari 22 berada di bawah MA200, karena
+ *      aturan momentum hanya memeriksa MA3 dan MA5. Ambangnya dilonggarkan
+ *      karena MA200 dan runup 15% nyaris saling meniadakan di pasar turun —
+ *      keduanya bersama meloloskan satu emiten. 25% adalah titik balik
+ *      dosis-respons pada gate:ablate. Pullback dan laggard tetap tidak
+ *      berubah.
  *
  * Naikkan angka ini setiap kali aturan keras atau conviction berubah, dan tulis
  * apa yang berubah di daftar di atas. Baris berversi berbeda tidak boleh
  * dijumlahkan jadi satu winrate tanpa mengatakannya.
  */
-export const RULES_VERSION = 2;
+export const RULES_VERSION = 3;
 
 export interface PickFile {
   version: 1;

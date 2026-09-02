@@ -136,6 +136,19 @@ export interface ScreenerSettings {
    *   15% memberi lift 1,45 terhadap tingkat kelolosan keseluruhan, 25% memberi
    *   0,72, dan 50% memberi 0,45. Makin ketat makin baik, searah dengan ablasi.
    *
+   * KENAPA 25% DAN BUKAN 15% YANG LEBIH DIDUKUNG LAB. Karena gerbang ini
+   * sekarang berdiri di belakang syarat MA200, dan keduanya nyaris saling
+   * meniadakan di pasar yang turun: saham yang masih di atas rata-rata 200
+   * sesinya hampir pasti sudah naik. Diukur pada sesi 2026-09-02, MA200 + 15%
+   * meloloskan SATU emiten. Sebuah layar dengan satu baris bukan screener.
+   *
+   * 25% dipilih karena itu titik balik dosis-responsnya — desil ke-6 pada
+   * gate:ablate berbatas atas 25%, tempat efeknya berpindah dari positif ke
+   * negatif. Jadi angkanya tetap datang dari pengukuran, bukan dari mencari
+   * ambang yang membuat corongnya terlihat enak. Yang JUJUR dikatakan: lab
+   * lebih menyukai 15%, dan pilihan ini menukar sebagian bukti itu demi layar
+   * yang masih bisa dibaca.
+   *
    * YANG BELUM DIBUKTIKAN: 15% dipilih dari data yang juga memuat jendela test
    * lab, jadi lolosnya bukan konfirmasi out-of-sample yang bersih. Yang bisa
    * diklaim hanya bahwa hipotesisnya bisa dibantah dan tidak terbantah. Sesi
@@ -143,10 +156,10 @@ export interface ScreenerSettings {
    * mengujinya bersih — jalankan ulang keduanya setelah beberapa bulan, dan
    * yang berlaku adalah hasil di situ, bukan catatan ini.
    *
-   * HANYA DIPAKAI MOMENTUM. Diukur di 120 sesi terakhir: momentum turun dari
-   * 117 emiten per sesi ke 37, masih layak dibaca. Pullback turun dari 18 ke 7
-   * pada corong yang sudah kurus, dan laggard memang sudah meloloskan nol.
-   * Memasangnya di sana bukan menyaring, melainkan mengosongkan layar.
+   * HANYA DIPAKAI MOMENTUM. Pullback turun dari 18 ke 7 emiten per sesi pada
+   * corong yang sudah kurus, dan laggard memang sudah meloloskan nol tanpa
+   * gerbang apa pun. Memasangnya di sana bukan menyaring, melainkan
+   * mengosongkan layar.
    */
   maxRunupPercent: number;
 
@@ -178,7 +191,7 @@ export const DEFAULT_SCREENER_SETTINGS: ScreenerSettings = {
   maxStockGainPercent: 0.02,
   maxDeclinePercent: 0.25,
 
-  maxRunupPercent: 0.15,
+  maxRunupPercent: 0.25,
 
   minVolumeShares: 1_000_000,
   minValueIdr: 1_000_000_000,
@@ -483,7 +496,7 @@ export function runStockScreener(db: MarketDatabase, partial: Partial<ScreenerSe
 
     const modeRules =
       mode === 'momentum'
-        ? [passMa, passNotFlown, true]
+        ? [passMa, passTrend, passNotFlown]
         : mode === 'pullback'
           ? [passTrend, passDip, passDepth]
           : [passIndexUp, passLag, passIntact];
@@ -568,8 +581,8 @@ export function runStockScreener(db: MarketDatabase, partial: Partial<ScreenerSe
     mode === 'momentum'
       ? [
           `Di atas MA${settings.maShort} dan MA${settings.maLong}`,
+          `Masih di atas MA${settings.trendMa}`,
           `Belum naik ${pctLabel(settings.maxRunupPercent)} dari dasar ${settings.dipWindow} sesi`,
-          '',
         ]
       : mode === 'pullback'
         ? [

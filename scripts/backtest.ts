@@ -335,6 +335,15 @@ async function main() {
               `${code} lolos momentum padahal runup ${row.runupFromLow} >= ambang ${cfg.maxRunupPercent}`,
             );
           }
+          // Tren panjang, ditambahkan setelah gerbang runup sendirian membuat
+          // layar penuh saham yang tiga bulan turun lalu naik tiga hari: 19 dari
+          // 22 yang lolos berada DI BAWAH MA200. Momentum tanpa syarat tren
+          // panjang cuma memeriksa MA3 dan MA5 — tiga dan lima sesi — dan itu
+          // memantulkan apa pun, termasuk yang sedang jatuh.
+          checks++;
+          if (!row.passTrend) {
+            fail('screener', `${code} lolos momentum padahal di bawah MA${cfg.trendMa}`);
+          }
         }
         if (mode !== 'momentum' && row.passAll) {
           checks++;
