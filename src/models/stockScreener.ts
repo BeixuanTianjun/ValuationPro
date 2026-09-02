@@ -119,6 +119,37 @@ export interface ScreenerSettings {
   /** How far it may have fallen before it is broken rather than merely behind. */
   maxDeclinePercent: number;
 
+  /**
+   * Batas runup 60 sesi untuk mode MOMENTUM, sebagai pecahan.
+   *
+   * Satu-satunya ambang di berkas ini yang punya bukti terukur di belakangnya,
+   * dan sekaligus satu-satunya yang boleh dicurigai karena angkanya dipilih
+   * sesudah datanya dilihat. Dua pengukuran yang terpisah:
+   *
+   *   `npm run gate:ablate` menguji dua puluh syarat sendiri-sendiri terhadap
+   *   keranjang likuid. Hanya runup yang punya dosis-respons: desil terendah
+   *   +1,40pp pada tiga bulan, desil tertinggi -8,63pp, monoton di sepuluh
+   *   desil, bertahan di kedua paruh waktu. Regangan ATR, sesi berturut di atas
+   *   MA5, dan RSI semuanya datar.
+   *
+   *   `npm run strategy:lab` menguji ambangnya dengan pembagian train/test:
+   *   15% memberi lift 1,45 terhadap tingkat kelolosan keseluruhan, 25% memberi
+   *   0,72, dan 50% memberi 0,45. Makin ketat makin baik, searah dengan ablasi.
+   *
+   * YANG BELUM DIBUKTIKAN: 15% dipilih dari data yang juga memuat jendela test
+   * lab, jadi lolosnya bukan konfirmasi out-of-sample yang bersih. Yang bisa
+   * diklaim hanya bahwa hipotesisnya bisa dibantah dan tidak terbantah. Sesi
+   * yang belum ada saat angka ini dipilih adalah satu-satunya yang bisa
+   * mengujinya bersih — jalankan ulang keduanya setelah beberapa bulan, dan
+   * yang berlaku adalah hasil di situ, bukan catatan ini.
+   *
+   * HANYA DIPAKAI MOMENTUM. Diukur di 120 sesi terakhir: momentum turun dari
+   * 117 emiten per sesi ke 37, masih layak dibaca. Pullback turun dari 18 ke 7
+   * pada corong yang sudah kurus, dan laggard memang sudah meloloskan nol.
+   * Memasangnya di sana bukan menyaring, melainkan mengosongkan layar.
+   */
+  maxRunupPercent: number;
+
   // -- liquidity, every mode -----------------------------------------------
   /** Minimum traded volume, in SHARES. */
   minVolumeShares: number;
@@ -146,6 +177,8 @@ export const DEFAULT_SCREENER_SETTINGS: ScreenerSettings = {
   minIndexGainPercent: 0.1,
   maxStockGainPercent: 0.02,
   maxDeclinePercent: 0.25,
+
+  maxRunupPercent: 0.15,
 
   minVolumeShares: 1_000_000,
   minValueIdr: 1_000_000_000,
@@ -232,6 +265,8 @@ export interface ScreenerRow {
   passIndexUp: boolean;
   passLag: boolean;
   passIntact: boolean;
+  /** Runup 60 sesi masih di bawah `maxRunupPercent`. Aturan keras di momentum. */
+  passNotFlown: boolean;
   passVolume: boolean;
   passValue: boolean;
   /** Every rule of the ACTIVE mode, including the two liquidity rules. */
@@ -440,12 +475,15 @@ export function runStockScreener(db: MarketDatabase, partial: Partial<ScreenerSe
     const passLag = Number.isFinite(stockReturn) && stockReturn <= settings.maxStockGainPercent;
     const passIntact = Number.isFinite(stockReturn) && stockReturn >= -settings.maxDeclinePercent;
 
+    const passNotFlown =
+      Number.isFinite(runupFromLow) && runupFromLow < settings.maxRunupPercent;
+
     const passVolume = volumeShares > settings.minVolumeShares;
     const passValue = valueIdr > settings.minValueIdr;
 
     const modeRules =
       mode === 'momentum'
-        ? [passMa, true, true]
+        ? [passMa, passNotFlown, true]
         : mode === 'pullback'
           ? [passTrend, passDip, passDepth]
           : [passIndexUp, passLag, passIntact];
@@ -511,6 +549,7 @@ export function runStockScreener(db: MarketDatabase, partial: Partial<ScreenerSe
       passIndexUp,
       passLag,
       passIntact,
+      passNotFlown,
       passVolume,
       passValue,
       passAll: r3 && passVolume && passValue,
@@ -527,7 +566,11 @@ export function runStockScreener(db: MarketDatabase, partial: Partial<ScreenerSe
   const pctLabel = (v: number) => `${(v * 100).toLocaleString('id-ID', { maximumFractionDigits: 0 })}%`;
   const ruleLabels: [string, string, string] =
     mode === 'momentum'
-      ? [`Di atas MA${settings.maShort} dan MA${settings.maLong}`, '', '']
+      ? [
+          `Di atas MA${settings.maShort} dan MA${settings.maLong}`,
+          `Belum naik ${pctLabel(settings.maxRunupPercent)} dari dasar ${settings.dipWindow} sesi`,
+          '',
+        ]
       : mode === 'pullback'
         ? [
             `Masih di atas MA${settings.trendMa}`,
@@ -640,11 +683,33 @@ export function convictionScore(row: ScreenerRow, f?: FactorSnapshot, mode: Scre
  * check rather than a strength score.
  */
 function momentumConviction(row: ScreenerRow, f?: FactorSnapshot): number {
+  // BOBOT DI SINI SEKARANG MENGIKUTI PENGUKURAN, dan pengukurannya tidak enak.
+  //
+  // `npm run gate:ablate` menguji tiap pembacaan sendiri-sendiri terhadap
+  // keranjang likuid selama 432 sesi. Dari dua puluh syarat, hanya runup 60
+  // sesi yang punya dosis-respons: monoton di sepuluh desil, +1,40pp pada desil
+  // terendah sampai -8,63pp pada desil tertinggi. Sisanya datar dalam ±0,3pp
+  // dengan |t| di bawah dua.
+  //
+  // Suku `freshness` yang dulu memegang bobot 0,2 DIHAPUS. Dosis-responsnya
+  // rata, dan syarat ya/tidaknya meloloskan 94% keranjang — sebuah suku yang
+  // nyaris konstan tidak mengurutkan apa pun, ia hanya menambah konstanta ke
+  // semua orang sambil terlihat seperti pertimbangan.
+  //
+  // Sisanya DIKECILKAN, bukan dibuang. Ablasi menilainya nol, tapi strategy:lab
+  // memberi lift 1,96 untuk volume 2,5x sebagai filter dengan stop ATR. Dua
+  // kerangka yang berbeda memberi jawaban berbeda, dan membuang sesuatu atas
+  // dasar satu hasil nol adalah klaim yang sama beraninya dengan memakainya
+  // penuh. Bobot kecil adalah pengakuan bahwa ini belum diputuskan.
+
+  // Runup rendah, sekarang suku terbesar. Aturan keras sudah memotong di 15%,
+  // jadi yang tersisa mengurutkan DI DALAM pita itu — dan ablasi menunjukkan
+  // gradiennya masih ada di sana (desil 1-3 sekitar +0,7pp, desil 5 +0,1pp).
+  const notFlown = Number.isFinite(row.runupFromLow)
+    ? clamp01((0.15 - row.runupFromLow) / 0.15)
+    : 0.4;
   const surge = clamp01(((row.volumeSurge ?? 1) - 1) / 1.5); // 1x -> 0, 2.5x+ -> 1
   const flow = clamp01(row.foreignNetIdrBn / 5); // Rp 5bn+ net foreign buy saturates
-  // 1 session above the long MA -> 1.0, 6+ sessions -> 0. A cross that happened
-  // today is the whole point; one that happened three weeks ago is a report.
-  const freshness = clamp01((6 - row.sessionsAboveMaLong) / 5);
   // Room left before it is stretched. 0 ATR above the 20-session mean -> 1,
   // 3 ATR above -> 0. NaN (no ATR yet) scores neutral rather than free marks.
   const room = Number.isFinite(row.extensionAtr) ? clamp01((3 - row.extensionAtr) / 3) : 0.4;
@@ -652,7 +717,9 @@ function momentumConviction(row: ScreenerRow, f?: FactorSnapshot): number {
   // actually stretched — 60 is the sweet spot, both 20 and 100 score 0.
   const rsi = Number.isFinite(f?.rsi14) ? clamp01(1 - Math.abs((f!.rsi14 - 60) / 40)) : 0.4;
   const quality = Number.isFinite(f?.trendQuality) ? clamp01(f!.trendQuality) : 0;
-  return clamp01(surge * 0.2 + flow * 0.2 + freshness * 0.2 + room * 0.2 + rsi * 0.1 + quality * 0.1);
+  return clamp01(
+    notFlown * 0.35 + surge * 0.2 + flow * 0.15 + room * 0.1 + rsi * 0.1 + quality * 0.1,
+  );
 }
 
 /**

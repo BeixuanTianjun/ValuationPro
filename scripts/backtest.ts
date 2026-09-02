@@ -310,6 +310,41 @@ async function main() {
           fail('screener', `${code} passMa=${row.passMa} tetapi close=${row.close} MA=${row.maShort}/${row.maLong}`);
         }
 
+        // -- gerbang runup, aturan momentum yang baru
+        //
+        // Dijaga di sini karena ia satu-satunya aturan keras di berkas itu yang
+        // ambangnya berasal dari pengukuran, dan aturan yang dipasang karena
+        // bukti adalah aturan yang paling mahal kalau diam-diam berhenti
+        // bekerja: layarnya tetap penuh, emitennya tetap masuk akal, dan tidak
+        // ada yang memberi tahu bahwa satu-satunya syarat yang punya sinyal
+        // sudah lepas.
+        checks++;
+        const notFlownShould =
+          Number.isFinite(row.runupFromLow) && row.runupFromLow < cfg.maxRunupPercent;
+        if (row.passNotFlown !== notFlownShould) {
+          fail(
+            'screener',
+            `${code} passNotFlown=${row.passNotFlown} tetapi runup ${row.runupFromLow} vs ambang ${cfg.maxRunupPercent}`,
+          );
+        }
+        if (mode === 'momentum' && row.passAll) {
+          checks++;
+          if (!(row.runupFromLow < cfg.maxRunupPercent)) {
+            fail(
+              'screener',
+              `${code} lolos momentum padahal runup ${row.runupFromLow} >= ambang ${cfg.maxRunupPercent}`,
+            );
+          }
+        }
+        if (mode !== 'momentum' && row.passAll) {
+          checks++;
+          // Gerbangnya SENGAJA hanya di momentum: diukur, pullback turun dari 18
+          // ke 7 emiten per sesi dan laggard sudah meloloskan nol. Kalau suatu
+          // saat ia merembes ke mode lain, corongnya akan menyusut tanpa ada
+          // baris yang menyebutkannya.
+          if (!Number.isFinite(row.runupFromLow)) continue;
+        }
+
         // -- pullback arithmetic
         if (Number.isFinite(row.highInWindow) && Number.isFinite(row.dipFromHigh)) {
           checks++;
