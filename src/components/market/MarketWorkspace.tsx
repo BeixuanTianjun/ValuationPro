@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Briefcase, Building2, CalendarDays, LineChart, MessageSquare, Newspaper, ServerCrash, Target } from 'lucide-react';
+import { Briefcase, Building2, CalendarDays, ClipboardList, LineChart, MessageSquare, Newspaper, ServerCrash, Target } from 'lucide-react';
 import { MarketDataState } from '../../hooks/useMarketData';
 import { MarketOverview } from './MarketOverview';
+import { PickJournal } from './PickJournal';
 import { EmitenBrowser } from './EmitenBrowser';
 import { EmitenDetail } from './EmitenDetail';
 import { StockScreenerPanel } from './StockScreenerPanel';
@@ -13,7 +14,15 @@ import { EmitenModelBundle, buildEmitenModel } from '../../models/idxCompanyBrid
 import { recentSubs } from '../../data/functions';
 import { EmptyState, Segmented, SegmentedOption, Spinner } from '../common/ui';
 
-export type MarketSubTab = 'overview' | 'emiten' | 'screener' | 'watchlist' | 'portfolio' | 'news' | 'chat';
+export type MarketSubTab =
+  | 'overview'
+  | 'emiten'
+  | 'screener'
+  | 'watchlist'
+  | 'portfolio'
+  | 'journal'
+  | 'news'
+  | 'chat';
 
 interface Props {
   market: MarketDataState;
@@ -30,6 +39,7 @@ const TABS: SegmentedOption<MarketSubTab>[] = [
   { id: 'screener', label: 'Stock Screener', shortLabel: 'Screener', icon: Target },
   { id: 'watchlist', label: 'Stock Watchlist', shortLabel: 'Watchlist', icon: CalendarDays },
   { id: 'portfolio', label: 'Portofolio', shortLabel: 'Portofolio', icon: Briefcase },
+  { id: 'journal', label: 'Pick Journal', shortLabel: 'Jurnal', icon: ClipboardList },
   { id: 'news', label: 'Company Disclosures', shortLabel: 'Disclosures', icon: Newspaper },
   { id: 'chat', label: 'Ask a Company', shortLabel: 'Ask', icon: MessageSquare },
   { id: 'emiten', label: 'Company Database', shortLabel: 'Companies', icon: Building2 },
@@ -115,6 +125,8 @@ export const MarketWorkspace: React.FC<Props> = ({
       {subTab === 'portfolio' && (
         <PortfolioTracker db={db} factors={factors} onSelectEmiten={openEmiten} />
       )}
+
+      {subTab === 'journal' && <PickJournal onSelectEmiten={openEmiten} />}
 
       {subTab === 'news' && (
         <AnnouncementFeed db={db} onSelectEmiten={openEmiten} />

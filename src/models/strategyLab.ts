@@ -48,6 +48,51 @@ export interface RankedStrategy {
   };
 }
 
+/**
+ * One trigger's walk through the gates, published whether or not it survived.
+ *
+ * WHY A FAILING FAMILY IS SHOWN AT ALL. The leaderboard on its own answers
+ * "what worked" and stays silent about everything that was tried and did not —
+ * which is indistinguishable from never having tried it. When the screener
+ * gained a dip mode and a laggard mode, the honest question was whether buying
+ * weakness holds up out of sample; the answer was no, and a board that only
+ * lists winners would have quietly implied the opposite by omission.
+ *
+ * The counts are a funnel, left to right, so the reader can see WHICH gate
+ * killed a family. Hundreds of rule sets clearing the win-rate bar and none
+ * clearing expectancy is a completely different finding from a family that
+ * never won anything.
+ */
+export interface TriggerDiagnostic {
+  id: string;
+  family: string;
+  label: string;
+  ruleSetsTested: number;
+  /** Rule sets with enough trades in both splits to be judged at all. */
+  ruleSetsWithEnoughTrades: number;
+  passedWinRate: number;
+  passedTrainWinRate: number;
+  passedExpectancy: number;
+  /** Cleared every gate including the win-rate haircut. */
+  survivors: number;
+  /**
+   * Mean % the stock had ALREADY risen from its 60-session low when this
+   * trigger fired — how late it is, measured over every signal it ever gave.
+   *
+   * This is the number that answers "the stocks had already flown by the time
+   * we caught them". It is not a gate and nothing is rejected for it; it is
+   * simply the fact that was missing. `breakout20` fires after an 87% run and
+   * survives nothing; `laggardGap` fires after 12% and also survives nothing.
+   * Being early is necessary, not sufficient, and the column shows both halves.
+   */
+  avgRunupAtEntry: number | null;
+  /** Mean distance above the 20-session mean at entry, in ATR units. */
+  avgExtensionAtr: number | null;
+  bestTestWinRate: number | null;
+  bestTestExpectancyR: number | null;
+  bestStressedExpectancyR: number | null;
+}
+
 export interface StrategyFile {
   generatedAt: string;
   sessions: number;
@@ -73,6 +118,12 @@ export interface StrategyFile {
   };
   /** How many rule sets cleared every gate — the pool the top N came from. */
   survivors: number;
+  /**
+   * Optional because a strategies.json written before this field existed is
+   * still a valid file, and the panel must render it rather than crash on a
+   * deployment whose data has not been rebuilt yet.
+   */
+  perTrigger?: TriggerDiagnostic[];
   strategies: RankedStrategy[];
 }
 

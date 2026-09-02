@@ -47,6 +47,9 @@ import {
   PublicUser,
 } from './auth';
 import { JobId, dueJobs, nextMilestone, phaseOf, setHolidays, wibNow } from './schedule';
+import { journalPathFor, readJournal, recordTodaysPicks } from './pickRecorder';
+import { buildPickSummaries, evaluatePick, EvaluatedPick } from '../models/pickJournal';
+import { summariseDisclosure, summaryCachePathFor } from './disclosureSummary';
 import { answerQuestion, ChatTurn } from './chatApi';
 
 // Resolved from the working directory, not from import.meta.url: this file is
@@ -201,7 +204,12 @@ function record(job: string, reason: string, ok: boolean, detail: string) {
   history.length = Math.min(history.length, 40);
   // Only failures are spoken. Announcing every successful refresh would be a
   // voice going off six times a session saying nothing happened.
-  if (!ok) speakAlert(`Job ${job} di ValuationPro gagal. ${detail.slice(0, 120)}`);
+  // Spoken in English on purpose: the voice hook speaks English now, and this
+  // is the one alert string that lives inside the repo rather than in the hook.
+  // `detail` is machine text (an HTTP status, a script name) and is passed
+  // through untranslated — inventing an English paraphrase of an error message
+  // would put a layer between the owner and what actually failed.
+  if (!ok) speakAlert(`ValuationPro job ${job} failed. ${detail.slice(0, 120)}`);
 }
 
 /** SMTP settings, addressed to the administrator account when one exists. */
@@ -253,9 +261,24 @@ async function runJob(id: JobId, reason: string, sendAlert: boolean): Promise<st
       } catch (err) {
         news = `; berita GAGAL (${(err as Error).message.slice(0, 80)})`;
       }
-      if (!sendAlert) return `harga live diperbarui${news}`;
+      // The pick journal is written HERE and only here, at the same point every
+      // day, so the sample is the screen's output rather than a record of when
+      // somebody happened to look. It runs after the price refresh because it
+      // reads what that refresh just wrote, and its failure must not cost the
+      // prices or the digest — a missed day of journalling is a gap in a
+      // measurement, a missed refresh is a terminal showing yesterday.
+      let picks = '';
+      if (id === 'post-close') {
+        try {
+          const r = await recordTodaysPicks(DATA_DIR, journalPathFor(ROOT));
+          picks = `; ${r.note}`;
+        } catch (err) {
+          picks = `; catatan pick GAGAL (${(err as Error).message.slice(0, 80)})`;
+        }
+      }
+      if (!sendAlert) return `harga live diperbarui${news}${picks}`;
       const mail = await emailDigest(reason);
-      return `harga live diperbarui${news}; ${mail}`;
+      return `harga live diperbarui${news}${picks}; ${mail}`;
     }
     case 'eod': {
       // A short window is enough for the daily catch-up; the per-session cache
@@ -470,6 +493,17 @@ const OPEN_ROUTES = new Set([
   // profile just to see your own holdings — which is precisely the friction
   // that made localStorage look like the right answer in the first place.
   '/api/portfolio',
+  // The pick journal and the disclosure summaries follow the portfolio for the
+  // same reason and no other: loopback-only means "open" is open to processes
+  // on this machine. Both are read by screens a signed-out visitor can already
+  // reach, and a login wall in front of a win-rate table would only teach the
+  // owner to stop opening it.
+  //
+  // The summary route stays POST-only, which is the guard that actually matters
+  // here: it is the one route that spends money per call, and POST keeps a
+  // prefetch, a crawler or a refresh from triggering it.
+  '/api/picks',
+  '/api/disclosure-summary',
 ]);
 
 const server = createServer(async (req, res) => {
@@ -597,6 +631,75 @@ const server = createServer(async (req, res) => {
         return json(res, 200, { ok: true, count: body.positions.length });
       }
       return json(res, 405, { error: 'Pakai GET atau PUT' });
+    }
+
+    /**
+     * The pick journal, graded on the fly.
+     *
+     * Graded on read rather than stored: an outcome depends on every session
+     * that has happened since, so a cached verdict is wrong by the next close.
+     * The file itself only ever holds what was known when the pick was made.
+     */
+    if (url.pathname === '/api/picks') {
+      if (req.method === 'POST') {
+        const force = url.searchParams.get('force') === '1';
+        const r = await recordTodaysPicks(DATA_DIR, journalPathFor(ROOT), { force });
+        return json(res, 200, r);
+      }
+      const [db, file] = await Promise.all([
+        loadMarketDatabaseFromDisk(DATA_DIR),
+        readJournal(journalPathFor(ROOT)),
+      ]);
+      const rows = file.picks
+        .map((p) => evaluatePick(p, db))
+        .filter((r): r is EvaluatedPick => r !== null);
+      const { summaries, provisionalExcluded } = buildPickSummaries(rows);
+      return json(res, 200, {
+        startedOn: file.startedOn,
+        note: file.note,
+        latestSession: db.meta.latestSession,
+        total: file.picks.length,
+        provisionalExcluded,
+        summaries,
+        picks: rows,
+      });
+    }
+
+    /**
+     * Summarise one disclosure PDF. POST so a summary is never generated by a
+     * crawler, a prefetch or an accidental page load — each call reads a
+     * document from IDX and spends a model request, and both should happen only
+     * when a person asked for this specific filing.
+     */
+    if (url.pathname === '/api/disclosure-summary' && req.method === 'POST') {
+      const body = JSON.parse((await readBody(req)) || '{}') as {
+        code?: string;
+        date?: string;
+        title?: string;
+        pdfUrl?: string;
+        key?: string;
+      };
+      if (!body.pdfUrl || !body.key) return json(res, 400, { error: 'pdfUrl dan key wajib diisi' });
+      try {
+        const out = await summariseDisclosure(
+          {
+            code: body.code || '',
+            date: body.date || '',
+            title: body.title || '',
+            pdfUrl: body.pdfUrl,
+            key: body.key,
+          },
+          summaryCachePathFor(ROOT),
+          process.env.ANTHROPIC_API_KEY || ''
+        );
+        return json(res, 200, out);
+      } catch (err) {
+        // 200 with an `error` field, not a 4xx: the UI shows the reason inline
+        // next to the filing, and the reason ("PDF tidak bisa diambil", "key
+        // belum diset") is the useful part. A bare status code would put the
+        // real explanation in a console nobody has open.
+        return json(res, 200, { error: (err as Error).message });
+      }
     }
 
     if (url.pathname === '/api/status') {

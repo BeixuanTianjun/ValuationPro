@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ExternalLink, FileText, Filter, Newspaper, Search, ServerCrash, TrendingUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, FileText, Filter, Newspaper, Search, ServerCrash, Sparkles, TrendingUp } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
 import {
   AnnouncementCategory,
@@ -69,6 +69,118 @@ const dateLabel = (iso: string) => {
 
 const ageLabel = (days: number) => (days === 0 ? 'hari ini' : days === 1 ? 'kemarin' : `${days} hari lalu`);
 
+/**
+ * The AI summary for one filing, fetched on demand.
+ *
+ * ON DEMAND, and never on render: each call pulls a PDF from IDX and spends a
+ * model request, so a feed of sixty rows must not summarise sixty documents
+ * because somebody scrolled past them. The button is the consent.
+ *
+ * WHAT THE DISCLAIMER IS FOR. The rest of this screen derives everything from
+ * titles and says so. This one paragraph is different in kind — it is a model
+ * reading a document — and the reader has to be able to tell those apart at a
+ * glance, with the original one click away to check against. A summary that
+ * looks like an extract of the filing, without saying which it is, would be the
+ * least honest thing on this screen.
+ */
+const SummaryBlock: React.FC<{ announcement: ClassifiedAnnouncement }> = ({ announcement }) => {
+  const [state, setState] = useState<{
+    loading: boolean;
+    summary?: string;
+    error?: string;
+    progress?: string;
+    model?: string;
+  }>({
+    loading: false,
+  });
+
+  useEffect(() => {
+    if (!announcement.pdfUrl) {
+      setState({ loading: false, error: 'Pengajuan ini tidak punya lampiran PDF, jadi tidak ada yang bisa dibaca.' });
+      return;
+    }
+    let alive = true;
+    setState({ loading: true });
+    void fetch('/api/disclosure-summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: announcement.code,
+        date: announcement.date,
+        title: announcement.title,
+        pdfUrl: announcement.pdfUrl,
+        key: announcement.pdfUrl,
+      }),
+    })
+      // A 404 and a dead socket mean two different things and deserve two
+      // different sentences. On the deployed site the route simply does not
+      // exist — Vercel has no curl, so it cannot fetch an IDX PDF at all — and
+      // calling that "layanan tidak menjawab" would read as an outage. A
+      // network error, by contrast, really does mean the local service is down.
+      .then((r) => {
+        if (r.status === 404) return { notDeployed: true } as const;
+        if (!r.ok) return Promise.reject(new Error(`HTTP ${r.status}`));
+        return r.json();
+      })
+      .then((d: { summary?: string; error?: string; model?: string; notDeployed?: boolean }) => {
+        if (!alive) return;
+        if (d.notDeployed) {
+          setState({
+            loading: false,
+            progress:
+              'Ringkasan AI masih dalam pengerjaan untuk versi online. Fitur ini membaca PDF aslinya langsung dari IDX, dan itu perlu curl yang tidak tersedia di hosting serverless. Di layanan lokal sudah berjalan penuh.',
+          });
+          return;
+        }
+        setState({ loading: false, summary: d.summary, error: d.error, model: d.model });
+      })
+      .catch(() =>
+        alive &&
+        setState({
+          loading: false,
+          error:
+            'Layanan lokal tidak menjawab. Ringkasan AI perlu "npm run auto" berjalan di mesin ini.',
+        })
+      );
+    return () => {
+      alive = false;
+    };
+  }, [announcement.pdfUrl, announcement.code, announcement.date, announcement.title]);
+
+  return (
+    <div className="mt-2.5 rounded-lg border border-violet-900/50 bg-violet-950/10 p-3">
+      <div className="flex items-center gap-1.5">
+        <Sparkles className="h-3 w-3 text-violet-300" aria-hidden="true" />
+        <span className="text-[10px] font-bold uppercase tracking-wide text-violet-300">Ringkasan AI dari isi PDF</span>
+      </div>
+
+      {state.loading && <p className="mt-2 text-[11px] text-slate-400">Mengambil PDF dari IDX dan membacanya…</p>}
+
+      {state.progress && (
+        <div className="mt-2 flex items-start gap-2 rounded-md border border-cyan-900/50 bg-cyan-950/20 p-2">
+          <span className="mt-px shrink-0 rounded bg-cyan-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-cyan-300">
+            dalam pengerjaan
+          </span>
+          <p className="text-[11px] leading-relaxed text-slate-300">{state.progress}</p>
+        </div>
+      )}
+
+      {state.error && <p className="mt-2 text-[11px] leading-relaxed text-amber-300">{state.error}</p>}
+
+      {state.summary && (
+        <>
+          <p className="mt-2 whitespace-pre-line text-[11.5px] leading-relaxed text-slate-200">{state.summary}</p>
+          <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
+            Ditulis model {state.model ?? 'AI'} dari dokumen aslinya, bukan dari judul — dan bukan kutipan resmi.
+            Model bisa salah baca angka atau melewatkan syarat; buka PDF-nya sebelum mengambil keputusan. Ringkasan
+            disimpan supaya pengajuan yang sama tidak dibaca dua kali.
+          </p>
+        </>
+      )}
+    </div>
+  );
+};
+
 export const AnnouncementFeed: React.FC<Props> = ({ db, onSelectEmiten }) => {
   const [file, setFile] = useState<AnnouncementsFile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,6 +188,7 @@ export const AnnouncementFeed: React.FC<Props> = ({ db, onSelectEmiten }) => {
   const [query, setQuery] = useState('');
   const [hideRoutine, setHideRoutine] = useState(true);
   const [limit, setLimit] = useState(PAGE);
+  const [openKey, setOpenKey] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -311,6 +424,9 @@ export const AnnouncementFeed: React.FC<Props> = ({ db, onSelectEmiten }) => {
 
           {filtered.slice(0, limit).map((a, i) => {
             const em = db.byCode.get(a.code);
+            // The PDF path identifies the document; the index is only a
+            // fallback so a filing with no attachment still gets a stable key.
+            const rowKey = a.pdfUrl || `${a.code}-${a.date}-${i}`;
             return (
               <article
                 key={`${a.code}-${a.date}-${i}`}
@@ -330,13 +446,30 @@ export const AnnouncementFeed: React.FC<Props> = ({ db, onSelectEmiten }) => {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="text-[12px] leading-snug text-slate-200">{a.title}</p>
+                  <button
+                    type="button"
+                    onClick={() => setOpenKey(rowKey === openKey ? null : rowKey)}
+                    aria-expanded={rowKey === openKey}
+                    className="cursor-pointer text-left text-[12px] leading-snug text-slate-200 hover:text-amber-200"
+                  >
+                    {a.title}
+                  </button>
                   <div className="mt-1.5 flex flex-wrap items-center gap-2">
                     <Pill tone={TONE_PILL[a.meta.tone] ?? 'neutral'} title={a.meta.hint}>
                       {a.meta.label}
                     </Pill>
                     {em && <span className="truncate text-[10px] text-slate-500">{em.name} · {em.sector}</span>}
+                    <button
+                      type="button"
+                      onClick={() => setOpenKey(rowKey === openKey ? null : rowKey)}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-violet-300 hover:border-violet-700 hover:text-violet-200"
+                    >
+                      <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
+                      Detail & ringkasan AI
+                      {rowKey === openKey ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
+                    </button>
                   </div>
+                  {rowKey === openKey && <SummaryBlock announcement={a} />}
                 </div>
 
                 {a.pdfUrl ? (

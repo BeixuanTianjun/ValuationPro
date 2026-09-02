@@ -29,15 +29,34 @@
  *
  * ── WHAT IS SEARCHED ──────────────────────────────────────────────────────
  *
- *   8 triggers  × 37 filter combinations × 72 exits = 21,312 rule sets
+ *   12 triggers × 67 filter combinations × 72 exits = 57,888 rule sets
  *
  * A trigger is a fresh EVENT (a crossing, a breakout) — never a standing state,
  * or the same position would re-enter every session. Filters are standing
- * conditions AND-ed onto it, drawn 0, 1 or 2 at a time from a pool of 8; this
+ * conditions AND-ed onto it, drawn 0, 1 or 2 at a time from a pool of 11; this
  * is the "dikombinasikan" part, and it is where most of the improvement comes
  * from: a moving-average cross with no context is a coin flip, the same cross
  * filtered to stocks above their 100-day average with foreign money buying is
- * a different animal.
+ * a different animal. (The counts above are what the constants below currently
+ * produce; the run prints the real numbers, which is what to trust.)
+ *
+ * ── BUYING WEAKNESS IS SEARCHED TOO, NOT JUST STRENGTH ────────────────────
+ *
+ * Every original trigger fired on strength: a cross up, a breakout, a reclaim.
+ * That made the whole leaderboard incapable of saying anything about the two
+ * setups the screener now runs — buying a dip while the long trend holds, and
+ * buying a stock that stood still while its index ran. Four triggers and three
+ * filters were added for them (`dipBelowMa20`, `rsiDown40`, `drawdown10`,
+ * `laggardGap`; `belowMa20`, `indexUp10`, `lagging10`), so the two new screens
+ * are measured on sessions they were never fitted to rather than shipped on the
+ * strength of the idea. If they do not survive the gates, that is the finding,
+ * and it belongs on the same board as everything else.
+ *
+ * THE INDEX SERIES IS READ BY DATE. `db.indexSeries` sits on `db.indexDates`
+ * while a stock's series sits on `db.dates`, and those two arrays are NOT
+ * interchangeable — that mismatch is the exact shape of the macro alignment bug
+ * in HANDOVER. Every index used here is re-projected onto the price grid by
+ * date and forward-filled before a single return is computed.
  *
  * ── WHAT IS STILL NOT TESTED ──────────────────────────────────────────────
  *
@@ -56,6 +75,8 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { loadMarketDatabaseFromDisk } from '../src/server/marketFromDisk';
 import { rsi, atr } from '../src/models/factorEngine';
+import { SECTOR_TO_INDEX } from '../src/data/idxIndexCatalog';
+import { MarketDatabase } from '../src/data/marketRepository';
 import { PriceSeries } from '../src/types/market';
 
 const DATA_DIR = join(process.cwd(), 'public', 'data', 'idx');
@@ -117,7 +138,28 @@ interface Ind {
   flow20: Float64Array;
   /** Highest close over the 20 sessions BEFORE i — for breakout detection. */
   priorHigh20: Float64Array;
+  /** Highest close over the 60 sessions ending at i — for drawdown detection. */
+  high60: Float64Array;
+  /** The stock's own return over the last GAP_WINDOW sessions. */
+  ret60: Float64Array;
+  /** Its reference index's return over the same window, aligned by date. */
+  idxRet60: Float64Array;
+  /** Index return minus stock return, as a FRACTION (0.10 = 10 percentage points). */
+  gap60: Float64Array;
+  /** Lowest close over the 60 sessions ending at i. */
+  low60: Float64Array;
+  /** Return from that low — how much of the move has ALREADY happened. */
+  runup60: Float64Array;
+  /** Distance above the 20-session mean in ATR units — how stretched it is. */
+  extAtr: Float64Array;
+  /** Lowest ATR% over the trailing 60 sessions — the squeeze reference. */
+  atrPctFloor60: Float64Array;
+  /** Highest close over the 10 sessions BEFORE i. */
+  priorHigh10: Float64Array;
 }
+
+/** Sessions the laggard comparison looks back over — matches the screener. */
+const GAP_WINDOW = 60;
 
 function rollingSma(src: Float64Array, period: number): Float64Array {
   const n = src.length;
@@ -175,6 +217,81 @@ function rollingSum(src: Float64Array, period: number): Float64Array {
   return out;
 }
 
+/** Min of the `period` values ending AT i (inclusive), ignoring non-positive. */
+function rollingMin(src: Float64Array, period: number): Float64Array {
+  const n = src.length;
+  const out = new Float64Array(n).fill(NaN);
+  for (let i = 0; i < n; i++) {
+    let lo = Infinity;
+    for (let j = Math.max(0, i - period + 1); j <= i; j++) {
+      const v = src[j];
+      if (Number.isFinite(v) && v > 0 && v < lo) lo = v;
+    }
+    out[i] = lo === Infinity ? NaN : lo;
+  }
+  return out;
+}
+
+/** Max of the `period` values ending AT i (inclusive). */
+function rollingMax(src: Float64Array, period: number): Float64Array {
+  const n = src.length;
+  const out = new Float64Array(n).fill(NaN);
+  for (let i = 0; i < n; i++) {
+    let hi = -Infinity;
+    for (let j = Math.max(0, i - period + 1); j <= i; j++) {
+      const v = src[j];
+      if (Number.isFinite(v) && v > hi) hi = v;
+    }
+    out[i] = hi === -Infinity ? NaN : hi;
+  }
+  return out;
+}
+
+/** Return over `period` sessions, forward-filled so a halt does not read as 0%. */
+function rollingReturn(src: Float64Array, period: number): Float64Array {
+  const n = src.length;
+  const out = new Float64Array(n).fill(NaN);
+  const ff = new Float64Array(n).fill(NaN);
+  let last = NaN;
+  for (let i = 0; i < n; i++) {
+    if (Number.isFinite(src[i]) && src[i] > 0) last = src[i];
+    ff[i] = last;
+  }
+  for (let i = period; i < n; i++) {
+    const then = ff[i - period];
+    const now = ff[i];
+    if (Number.isFinite(then) && then > 0 && Number.isFinite(now)) out[i] = now / then - 1;
+  }
+  return out;
+}
+
+/**
+ * Every index re-projected onto the PRICE grid, by date.
+ *
+ * `db.indexSeries` is indexed by `db.indexDates`; a stock's series is indexed by
+ * `db.dates`. Reading one with the other's offsets is the alignment bug this
+ * repo has already paid for once — see the file header. Missing sessions are
+ * forward-filled, and the leading run before the index has any value at all
+ * stays NaN so nothing downstream invents a return out of it.
+ */
+function alignIndicesToPriceGrid(db: MarketDatabase): Map<string, Float64Array> {
+  const pos = new Map<string, number>();
+  db.indexDates.forEach((d, i) => pos.set(d, i));
+
+  const out = new Map<string, Float64Array>();
+  for (const [code, series] of db.indexSeries) {
+    const arr = new Float64Array(db.dates.length).fill(NaN);
+    let last = NaN;
+    for (let i = 0; i < db.dates.length; i++) {
+      const p = pos.get(db.dates[i]);
+      if (p !== undefined && Number.isFinite(series.close[p]) && series.close[p] > 0) last = series.close[p];
+      arr[i] = last;
+    }
+    out.set(code, arr);
+  }
+  return out;
+}
+
 /** Max of the `period` values ending at i-1 (strictly before i). */
 function priorRollingMax(src: Float64Array, period: number): Float64Array {
   const n = src.length;
@@ -204,7 +321,7 @@ function median(values: number[]): number {
  * live screens use. A divergence there would be the worst kind of bug: a
  * backtest that validates a signal the app does not actually compute.
  */
-function buildIndicators(code: string, s: PriceSeries): Ind {
+function buildIndicators(code: string, s: PriceSeries, indexClose: Float64Array | null): Ind {
   const n = s.close.length;
   const sma = new Map<number, Float64Array>();
   for (const p of SMA_PERIODS) sma.set(p, rollingSma(s.close, p));
@@ -225,6 +342,26 @@ function buildIndicators(code: string, s: PriceSeries): Ind {
     volSurge[i] = volAvg20[i] > 0 && Number.isFinite(s.volume[i]) ? s.volume[i] / volAvg20[i] : NaN;
   }
 
+  const ret60 = rollingReturn(s.close, GAP_WINDOW);
+  const idxRet60 = indexClose ? rollingReturn(indexClose, GAP_WINDOW) : new Float64Array(n).fill(NaN);
+  const gap60 = new Float64Array(n).fill(NaN);
+  for (let i = 0; i < n; i++) {
+    if (Number.isFinite(ret60[i]) && Number.isFinite(idxRet60[i])) gap60[i] = idxRet60[i] - ret60[i];
+  }
+
+  const low60 = rollingMin(s.close, GAP_WINDOW);
+  const runup60 = new Float64Array(n).fill(NaN);
+  const extAtr = new Float64Array(n).fill(NaN);
+  const sma20 = sma.get(20)!;
+  for (let i = 0; i < n; i++) {
+    if (Number.isFinite(low60[i]) && low60[i] > 0 && Number.isFinite(s.close[i])) {
+      runup60[i] = s.close[i] / low60[i] - 1;
+    }
+    if (Number.isFinite(atr14[i]) && atr14[i] > 0 && Number.isFinite(sma20[i]) && Number.isFinite(s.close[i])) {
+      extAtr[i] = (s.close[i] - sma20[i]) / atr14[i];
+    }
+  }
+
   return {
     code,
     n,
@@ -239,6 +376,15 @@ function buildIndicators(code: string, s: PriceSeries): Ind {
     flow5: rollingSum(s.foreignNet, 5),
     flow20: rollingSum(s.foreignNet, 20),
     priorHigh20: priorRollingMax(s.close, 20),
+    high60: rollingMax(s.close, GAP_WINDOW),
+    ret60,
+    idxRet60,
+    gap60,
+    low60,
+    runup60,
+    extAtr,
+    atrPctFloor60: rollingMin(atrPct, GAP_WINDOW),
+    priorHigh10: priorRollingMax(s.close, 10),
   };
 }
 
@@ -247,7 +393,7 @@ function buildIndicators(code: string, s: PriceSeries): Ind {
 interface Trigger {
   id: string;
   label: string;
-  family: 'trend' | 'momentum' | 'breakout' | 'pullback';
+  family: 'trend' | 'momentum' | 'breakout' | 'pullback' | 'dip' | 'laggard' | 'early';
   fires(d: Ind, i: number): boolean;
 }
 
@@ -308,6 +454,119 @@ const TRIGGERS: Trigger[] = [
       return d.close[i - 1] <= m20[i - 1] && d.close[i] > m20[i];
     },
   },
+
+  // ── buying weakness ──────────────────────────────────────────────────────
+  //
+  // `pullback20` above waits for the price to come BACK. These three enter
+  // while it is still falling, which is what the screener's "antre beli" mode
+  // actually lists, and they are here to find out whether that is a worse
+  // trade — not to be assumed either way. Pair them with `aboveMa100` in the
+  // filter pool to get the screener's structure rule.
+  {
+    id: 'dipBelowMa20',
+    label: 'Harga jatuh ke bawah MA20 untuk pertama kalinya',
+    family: 'dip',
+    fires(d, i) {
+      const m20 = d.sma.get(20)!;
+      if (!Number.isFinite(m20[i]) || !Number.isFinite(m20[i - 1])) return false;
+      return d.close[i - 1] >= m20[i - 1] && d.close[i] < m20[i];
+    },
+  },
+  {
+    id: 'rsiDown40',
+    label: 'RSI14 memotong ke bawah 40',
+    family: 'dip',
+    fires(d, i) {
+      const r = d.rsi14[i];
+      const p = d.rsi14[i - 1];
+      return Number.isFinite(r) && Number.isFinite(p) && p >= 40 && r < 40;
+    },
+  },
+  {
+    id: 'drawdown10',
+    label: `Harga turun 10% dari puncak ${GAP_WINDOW} sesi untuk pertama kalinya`,
+    family: 'dip',
+    fires(d, i) {
+      const nowHi = d.high60[i];
+      const prevHi = d.high60[i - 1];
+      if (!Number.isFinite(nowHi) || !Number.isFinite(prevHi) || !(nowHi > 0) || !(prevHi > 0)) return false;
+      if (!Number.isFinite(d.close[i]) || !Number.isFinite(d.close[i - 1])) return false;
+      // Fresh event only: 10% below the high today, not yet 10% below yesterday.
+      return d.close[i] / nowHi - 1 <= -0.1 && d.close[i - 1] / prevHi - 1 > -0.1;
+    },
+  },
+  {
+    id: 'laggardGap',
+    label: `Indeks acuannya naik ≥10% dalam ${GAP_WINDOW} sesi sementara sahamnya ≤2%`,
+    family: 'laggard',
+    fires(d, i) {
+      const held = (k: number) =>
+        Number.isFinite(d.idxRet60[k]) && Number.isFinite(d.ret60[k]) && d.idxRet60[k] >= 0.1 && d.ret60[k] <= 0.02;
+      // The condition is a STATE, so only the session it becomes true counts.
+      // Without the i-1 check this would re-enter every session for weeks and
+      // report one long divergence as a hundred independent wins.
+      return held(i) && !held(i - 1);
+    },
+  },
+
+  // ── entering EARLY ───────────────────────────────────────────────────────
+  //
+  // Every trigger above this line, including the dip ones, needs the price to
+  // have already done something before it can fire — a cross needs the move
+  // that caused it, a breakout needs the level to be taken out. Measured on
+  // this history, the average signal arrives after the stock is already 30-50%
+  // off its 60-session low (the `avgRunupAtEntry` column in the run output).
+  //
+  // These three fire on a condition that can be true BEFORE the price moves:
+  // volatility compressing, volume arriving while the price is still flat, and
+  // foreign money accumulating into a stock that is going nowhere. Whether that
+  // is worth anything is exactly the question the out-of-sample gates exist to
+  // answer, and the answer is allowed to be no.
+  {
+    id: 'squeezeBreak',
+    label: 'Volatilitas termampat ke titik terendah 60 sesi lalu harga menembus tertinggi 10 sesi',
+    family: 'early',
+    fires(d, i) {
+      const floor = d.atrPctFloor60[i - 1];
+      const prevAtr = d.atrPct[i - 1];
+      if (!Number.isFinite(floor) || !Number.isFinite(prevAtr)) return false;
+      // "Compressed" = yesterday's range was within 15% of the quietest it has
+      // been in 60 sessions. Requiring an exact equality would fire on almost
+      // nothing; requiring less would stop meaning compression at all.
+      if (!(prevAtr <= floor * 1.15)) return false;
+      const h = d.priorHigh10[i];
+      return Number.isFinite(h) && Number.isFinite(d.close[i]) && d.close[i] > h;
+    },
+  },
+  {
+    id: 'volumeLead',
+    label: 'Volume ≥2,5× rata-rata sementara harga masih menempel MA20',
+    family: 'early',
+    fires(d, i) {
+      const m20 = d.sma.get(20)!;
+      if (!Number.isFinite(m20[i]) || !(m20[i] > 0) || !Number.isFinite(d.close[i])) return false;
+      // Still at its own mean: the volume showed up before the price did.
+      if (Math.abs(d.close[i] / m20[i] - 1) > 0.03) return false;
+      const now = d.volSurge[i];
+      const prev = d.volSurge[i - 1];
+      return Number.isFinite(now) && Number.isFinite(prev) && prev < 2.5 && now >= 2.5;
+    },
+  },
+  {
+    id: 'flowLead',
+    label: 'Asing net beli 5 sesi sementara harga 20 sesi masih di bawah +3%',
+    family: 'early',
+    fires(d, i) {
+      const m20 = d.sma.get(20)!;
+      const flat = (k: number) => {
+        const then = d.close[k - 20];
+        const now = d.close[k];
+        return Number.isFinite(then) && then > 0 && Number.isFinite(now) && now / then - 1 < 0.03;
+      };
+      const held = (k: number) => Number.isFinite(d.flow5[k]) && d.flow5[k] > 0 && Number.isFinite(m20[k]) && flat(k);
+      return held(i) && !held(i - 1);
+    },
+  },
 ];
 
 // ──────────────────────────────────────────────────────────────── filters ──
@@ -340,6 +599,38 @@ const FILTERS: Filter[] = [
       const m = d.sma.get(50)!;
       return Number.isFinite(m[i]) && Number.isFinite(m[i - 5]) && m[i] > m[i - 5];
     },
+  },
+  {
+    id: 'belowMa20',
+    label: 'harga di bawah MA20',
+    holds: (d, i) => {
+      const m = d.sma.get(20)![i];
+      return Number.isFinite(m) && d.close[i] < m;
+    },
+  },
+  {
+    id: 'indexUp10',
+    label: `indeks acuannya naik ≥10% dalam ${GAP_WINDOW} sesi`,
+    holds: (d, i) => Number.isFinite(d.idxRet60[i]) && d.idxRet60[i] >= 0.1,
+  },
+  {
+    id: 'lagging10',
+    label: `tertinggal ≥10 pp dari indeks acuannya dalam ${GAP_WINDOW} sesi`,
+    holds: (d, i) => Number.isFinite(d.gap60[i]) && d.gap60[i] >= 0.1,
+  },
+  // The two filters that say "and do not be late". They can be AND-ed onto any
+  // trigger in the grid, including the old crossings, which is the point: it
+  // asks whether the SAME rule improves when it refuses the extended entries,
+  // instead of only asking whether a brand-new early trigger works.
+  {
+    id: 'notExtended',
+    label: 'harga <1,5 ATR di atas MA20',
+    holds: (d, i) => Number.isFinite(d.extAtr[i]) && d.extAtr[i] < 1.5,
+  },
+  {
+    id: 'earlyRunup',
+    label: `belum naik 25% dari dasar ${GAP_WINDOW} sesi`,
+    holds: (d, i) => Number.isFinite(d.runup60[i]) && d.runup60[i] < 0.25,
   },
 ];
 
@@ -444,6 +735,20 @@ async function main() {
   const t0 = Date.now();
   const db = await loadMarketDatabaseFromDisk(DATA_DIR);
 
+  const alignedIndices = alignIndicesToPriceGrid(db);
+  /**
+   * The reference index for one emiten — its own IDX-IC sector index where IDX
+   * publishes one, IHSG where it does not. Defined once and used by BOTH the
+   * search pass and the drawdown re-run: the two must build byte-identical
+   * indicators or the finalists' drawdowns describe a different rule than the
+   * one that was selected. `scripts/` is outside tsconfig's `include`, so a
+   * mismatched call here is not a compile error — it is a silent NaN.
+   */
+  const refIndexFor = (sector: string): Float64Array | null => {
+    const code = SECTOR_TO_INDEX[sector];
+    return (code ? alignedIndices.get(code) : undefined) ?? alignedIndices.get('COMPOSITE') ?? null;
+  };
+
   const combos = buildFilterCombos();
   const exits = buildExits();
   const nT = TRIGGERS.length;
@@ -477,6 +782,15 @@ async function main() {
   let signalsFired = 0;
   let tradesSimulated = 0;
 
+  // How LATE each trigger is, accumulated over every signal it ever fires —
+  // not just the ones that survive the gates. This is the number the whole
+  // "the stock had already flown by the time we caught it" complaint is about,
+  // and it did not exist before: the board could tell you a rule's win rate
+  // and could not tell you that the rule only ever fires after a 50% move.
+  const runupSum = new Float64Array(nT);
+  const extSum = new Float64Array(nT);
+  const lateN = new Float64Array(nT);
+
   for (const e of db.emiten) {
     const s = db.series.get(e.code);
     if (!s || s.close.length < WARMUP + 30) continue;
@@ -490,7 +804,9 @@ async function main() {
     if (!(median(vals) >= MIN_MEDIAN_TURNOVER_IDR_MN)) continue;
     stocksUsed++;
 
-    const d = buildIndicators(e.code, s);
+    // The same reference the screener's laggard mode uses, so a rule validated
+    // here is a rule about the list the screen actually produces.
+    const d = buildIndicators(e.code, s, refIndexFor(e.sector));
 
     // Filter states as a bitmask per session — computed once, reused by every
     // trigger and every combination.
@@ -506,6 +822,12 @@ async function main() {
       for (let i = WARMUP; i < d.n - 1; i++) {
         if (!trig.fires(d, i)) continue;
         signalsFired++;
+
+        if (Number.isFinite(d.runup60[i]) && Number.isFinite(d.extAtr[i])) {
+          runupSum[t] += d.runup60[i];
+          extSum[t] += d.extAtr[i];
+          lateN[t]++;
+        }
 
         // The exit outcome depends only on (stock, entry session, exit rule) —
         // never on which filters selected the entry. Simulating once here and
@@ -570,6 +892,34 @@ async function main() {
   // matter how pretty the headline number is.
   const STRESS_WR_HAIRCUT = 0.1;
 
+  /**
+   * Why a trigger failed, not just that it did.
+   *
+   * "Zero survivors" is two completely different findings wearing one number:
+   * a trigger whose rule sets LOSE money, and a trigger that makes money at a
+   * 55% win rate against a gate that demands 65%. The first says the idea is
+   * wrong; the second says the gate was written for a different kind of trade.
+   * Both are worth publishing and they lead to opposite decisions, so the best
+   * win rate and the best expectancy among rule sets with enough trades are
+   * recorded per trigger BEFORE any gate is applied.
+   */
+  interface TriggerDiag {
+    enoughTrades: number;
+    passedWinRate: number;
+    passedTrainWinRate: number;
+    passedExpectancy: number;
+    bestTestWinRate: number;
+    bestTestExpectancyR: number;
+  }
+  const diag: TriggerDiag[] = TRIGGERS.map(() => ({
+    enoughTrades: 0,
+    passedWinRate: 0,
+    passedTrainWinRate: 0,
+    passedExpectancy: 0,
+    bestTestWinRate: -Infinity,
+    bestTestExpectancyR: -Infinity,
+  }));
+
   const survivors: { k: number; stressed: number }[] = [];
   for (let k = 0; k < buckets; k++) {
     const trn = trN[k];
@@ -577,11 +927,20 @@ async function main() {
     if (trn < MIN_TRADES_TRAIN || ten < MIN_TRADES_TEST || trn + ten < MIN_TRADES_TOTAL) continue;
 
     const testWr = teWin[k] / ten;
+    const testExp = teSum[k] / ten;
+    const dg = diag[Math.floor(k / (nC * nE))];
+    dg.enoughTrades++;
+    if (testWr > dg.bestTestWinRate) dg.bestTestWinRate = testWr;
+    if (testExp > dg.bestTestExpectancyR) dg.bestTestExpectancyR = testExp;
+
     if (testWr < MIN_TEST_WIN_RATE) continue;
+    dg.passedWinRate++;
     if (trWin[k] / trn < MIN_TRAIN_WIN_RATE) continue;
+    dg.passedTrainWinRate++;
 
     const expectancy = teSum[k] / ten;
     if (expectancy < MIN_TEST_EXPECTANCY) continue;
+    dg.passedExpectancy++;
 
     const losses = ten - teWin[k];
     const avgWin = teWin[k] > 0 ? teGain[k] / teWin[k] : 0;
@@ -619,7 +978,7 @@ async function main() {
       }
       if (!(median(vals) >= MIN_MEDIAN_TURNOVER_IDR_MN)) continue;
 
-      const d = buildIndicators(e.code, s);
+      const d = buildIndicators(e.code, s, refIndexFor(e.sector));
       const masks = new Int32Array(d.n);
       for (let i = WARMUP; i < d.n; i++) {
         let m = 0;
@@ -657,6 +1016,7 @@ async function main() {
   }
 
   const stressedByBucket = new Map(chosen.map((c) => [c.k, c.stressed]));
+  const survivorStress = new Map(survivors.map((c) => [c.k, c.stressed]));
 
   const strategies: RankedStrategy[] = chosen.map(({ k }) => {
     const x = k % nE;
@@ -699,6 +1059,53 @@ async function main() {
     };
   });
 
+  /**
+   * Survivors per trigger, whether or not they made the top 25.
+   *
+   * Without this the board answers "what is the best rule" and nothing else,
+   * and a whole family can fail every gate while the leaderboard looks healthy
+   * — which is exactly the question asked when the dip and laggard triggers
+   * were added. A family with zero survivors is a finding and gets published as
+   * one; the alternative is silence that reads like it was never tried.
+   */
+  const perTrigger = TRIGGERS.map((trig, t) => {
+    let tested = 0;
+    let passed = 0;
+    let best = -Infinity;
+    for (let c = 0; c < nC; c++) {
+      for (let x = 0; x < nE; x++) {
+        tested++;
+        const k = (t * nC + c) * nE + x;
+        const s = survivorStress.get(k);
+        if (s === undefined) continue;
+        passed++;
+        if (s > best) best = s;
+      }
+    }
+    const dg = diag[t];
+    return {
+      id: trig.id,
+      family: trig.family,
+      label: trig.label,
+      ruleSetsTested: tested,
+      /** Rule sets with enough trades to be judged at all. */
+      ruleSetsWithEnoughTrades: dg.enoughTrades,
+      /** Of those, how many cleared the win-rate bar. */
+      passedWinRate: dg.passedWinRate,
+      /** Of those, how many ALSO held up in train, then on expectancy. */
+      passedTrainWinRate: dg.passedTrainWinRate,
+      passedExpectancy: dg.passedExpectancy,
+      survivors: passed,
+      /** Mean % the stock had already risen from its 60-session low at entry. */
+      avgRunupAtEntry: lateN[t] > 0 ? runupSum[t] / lateN[t] : null,
+      /** Mean distance above the 20-session mean at entry, in ATR. */
+      avgExtensionAtr: lateN[t] > 0 ? extSum[t] / lateN[t] : null,
+      bestTestWinRate: Number.isFinite(dg.bestTestWinRate) ? dg.bestTestWinRate : null,
+      bestTestExpectancyR: Number.isFinite(dg.bestTestExpectancyR) ? dg.bestTestExpectancyR : null,
+      bestStressedExpectancyR: Number.isFinite(best) ? best : null,
+    };
+  }).sort((a, b) => b.survivors - a.survivors);
+
   const out = {
     generatedAt: new Date().toISOString(),
     sessions: db.dates.length,
@@ -723,6 +1130,7 @@ async function main() {
       stressWinRateHaircut: STRESS_WR_HAIRCUT,
     },
     survivors: survivors.length,
+    perTrigger,
     strategies,
   };
 
@@ -751,6 +1159,32 @@ async function main() {
       `  setelah winrate dipotong 10pp: ${b.stressedExpectancyR >= 0 ? '+' : ''}${b.stressedExpectancyR.toFixed(2)}R — masih positif, itu syaratnya`
     );
   }
+  console.log('');
+  console.log('lolos gerbang per trigger (nol pun dilaporkan):');
+  for (const p of perTrigger) {
+    const best = p.bestStressedExpectancyR;
+    const wr = p.bestTestWinRate === null ? '–' : `${(p.bestTestWinRate * 100).toFixed(0)}%`;
+    const exp =
+      p.bestTestExpectancyR === null
+        ? '–'
+        : `${p.bestTestExpectancyR >= 0 ? '+' : ''}${p.bestTestExpectancyR.toFixed(2)}R`;
+    const late =
+      p.avgRunupAtEntry === null
+        ? '   –'
+        : `${(p.avgRunupAtEntry * 100).toFixed(0).padStart(3)}%`;
+    console.log(
+      `  ${p.family.padEnd(8)} ${p.id.padEnd(14)} masuk setelah naik ${late} · dinilai ${p.ruleSetsWithEnoughTrades.toString().padStart(4)} → WR ${p.passedWinRate
+        .toString()
+        .padStart(4)} → train ${p.passedTrainWinRate.toString().padStart(4)} → expectancy ${p.passedExpectancy
+        .toString()
+        .padStart(4)} → tahan stres ${p.survivors.toString().padStart(3)} · WR terbaik ${wr.padStart(
+        4
+      )} · expectancy terbaik ${exp.padStart(6)}`
+    );
+  }
+  console.log(
+    '  (corong gerbang, kiri ke kanan. Angka terakhir nol padahal expectancy terbaiknya positif berarti idenya menghasilkan uang tapi tidak pada rule set yang sama yang lolos winrate — winrate-nya yang menanggung semuanya, dan itu justru yang dicari gerbang stres.)'
+  );
 }
 
 main().catch((err) => {

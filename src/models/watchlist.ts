@@ -10,8 +10,14 @@
 //      and is it the member that has not moved yet? Scored, not required —
 //      most emiten belong to no group, and that is not a mark against them.
 //   3. PRICE ACTION.  Does the tape agree? Foreign flow, volume, the average
-//      ticket size trading in it, the slow KSEI ownership shift, and the same
-//      three hard rules the screener applies.
+//      ticket size trading in it, the slow KSEI ownership shift, and the hard
+//      screener rules — all THREE sets of them, not just the momentum one.
+//      "The tape agrees" is not the same claim as "the price is going up": a
+//      stock 15% off its high with its long trend intact, or one standing still
+//      while its sector index ran 20%, is a tape worth acting on too, and the
+//      momentum-only version of this stage scored both of them zero. It now
+//      takes the BEST of the three setups, so nothing that used to qualify can
+//      stop qualifying — the stage can only find more, never less.
 //   4. CHART.  Not scored here. The UI hands the finished candidate to a
 //      TradingView chart, because the last step of this workflow is a human
 //      looking at a chart, and pretending an algorithm did that would be a lie.
@@ -39,7 +45,7 @@ import { AnnouncementsFile, NarrativeSignal, buildNarrativeSignals } from './ann
 import { NARRATIVE_THEMES, NarrativeTheme, THEMES_BY_CODE, ThemeMember, themeWeight } from '../data/narratives';
 import { GroupRotation, computeAllGroupRotations } from './conglomerateRotation';
 import { OwnershipFile, computeOwnershipProfile } from './ownershipFlow';
-import { ScreenerRow, ScreenerSettings, runStockScreener } from './stockScreener';
+import { SCREENER_MODES, ScreenerMode, ScreenerRow, ScreenerSettings, runStockScreener } from './stockScreener';
 
 const IDR_BN = 1e9;
 
@@ -107,9 +113,23 @@ export interface RotationStage {
 
 export interface PriceActionStage {
   score: number;
-  /** The three hard screener rules, evaluated on the same session. */
+  /** The hard screener rules, evaluated on the same session. */
   screener: ScreenerRow | null;
+  /** True when the MOMENTUM rules pass — kept under its original name. */
   passesScreener: boolean;
+  /**
+   * Which screener setups this emiten satisfies today, in registry order.
+   *
+   * Empty is a real answer and is left empty: it means the narrative is there
+   * and the tape has not confirmed it in any of the three ways we can check.
+   */
+  setups: ScreenerMode[];
+  /** Close against its 60-session high, as a fraction — the pullback reading. */
+  dipFromHigh: number;
+  /** Reference index return minus the stock's own, in percentage points. */
+  gapToIndexPp: number;
+  /** Which index that gap was measured against. */
+  indexCode: string;
   foreignNetIdrBn: number;
   volumeSurge: number;
   /** Value ÷ frequency today, in IDR — the per-stock average ticket size. */
@@ -236,7 +256,18 @@ export function buildWatchlist({
   for (const g of rotations) for (const m of g.members) rotationByCode.set(m.code, { group: g, member: m });
 
   // ---- stage 3: price action ---------------------------------------------
-  const screen = runStockScreener(db, screenerSettings);
+  //
+  // All three screens are run, not just the momentum one. The readings on a row
+  // (dip, gap, volume, MA distances) are identical across modes — only the
+  // rule verdicts differ — so `screen` stays the momentum result for every
+  // number the rest of this function reads, and the other two are consulted
+  // solely for their pass/fail.
+  const screens: Record<ScreenerMode, ReturnType<typeof runStockScreener>> = {
+    momentum: runStockScreener(db, { ...screenerSettings, mode: 'momentum' }),
+    pullback: runStockScreener(db, { ...screenerSettings, mode: 'pullback' }),
+    laggard: runStockScreener(db, { ...screenerSettings, mode: 'laggard' }),
+  };
+  const screen = screens.momentum;
 
   // Every traded emiten's average ticket today, sorted, so a candidate's ticket
   // can be placed in the market's own distribution rather than against an
@@ -302,10 +333,23 @@ export function buildWatchlist({
     const returnOverHorizon =
       profile.lookbackSessions <= 5 ? (f?.return1w ?? NaN) : (f?.return1m ?? NaN);
 
+    // Which of the three setups the tape satisfies today.
+    const setups: ScreenerMode[] = [];
+    for (const m of SCREENER_MODES) if (screens[m.id].all.get(e.code)?.passAll) setups.push(m.id);
+
     const flowScore = clamp01((quote.foreignNet / IDR_BN) / 10) * 0.35;
     const surgeScore = clamp01(((row?.volumeSurge ?? 1) - 1) / 1.2) * 0.2;
     const ticketScore = clamp01((valueSurge - 1) / 2) * 0.1 + clamp01((ticketPercentile - 0.5) / 0.4) * 0.05;
-    const trendScore = (row?.passMa ? 0.15 : 0) + (row?.passAll ? 0.05 : 0);
+    // The setup term takes the BEST of the three, and the momentum branch is
+    // byte-for-byte what it always was. That is deliberate: adding the two new
+    // setups must not be able to REMOVE a name from a list somebody has been
+    // reading for months, so no existing candidate's tape score can fall. A
+    // pullback or a laggard scores just under a clean momentum pass, because a
+    // stock that is already moving has answered one question these two have
+    // only posed.
+    const momentumTape = (row?.passMa ? 0.15 : 0) + (row?.passAll ? 0.05 : 0);
+    const alternativeTape = setups.some((m) => m !== 'momentum') ? 0.16 : 0;
+    const trendScore = Math.max(momentumTape, alternativeTape);
     const ownershipScore = Number.isFinite(institutionalDeltaPp) ? clamp01(institutionalDeltaPp / 2) * 0.1 : 0;
     const priceActionScore = clamp01(flowScore + surgeScore + ticketScore + trendScore + ownershipScore);
 
@@ -357,6 +401,16 @@ export function buildWatchlist({
     if (Number.isFinite(institutionalDeltaPp) && institutionalDeltaPp > 0.5) {
       reasons.push(`Porsi institusi di register KSEI naik ${institutionalDeltaPp.toFixed(2)} pp dalam 3 bulan.`);
     }
+    if (setups.includes('pullback') && row) {
+      reasons.push(
+        `Zona antre beli: ${(-row.dipFromHigh * 100).toFixed(1)}% di bawah puncak ${screen.settings.dipWindow} sesi, tapi masih di atas MA${screen.settings.trendMa} — trennya belum patah.`
+      );
+    }
+    if (setups.includes('laggard') && row) {
+      reasons.push(
+        `Tertinggal ${row.gapToIndexPp.toFixed(1)} pp dari ${row.indexCode}: indeksnya ${(row.indexReturn * 100).toFixed(1)}% dalam ${screen.settings.gapWindow} sesi, sahamnya ${(row.stockReturn * 100).toFixed(1)}%.`
+      );
+    }
 
     if (signal?.underExchangeAttention) {
       cautions.push('Bursa sudah meminta penjelasan atas pergerakan harga atau pemberitaan — baca pengumumannya sebelum masuk.');
@@ -364,13 +418,22 @@ export function buildWatchlist({
     if (themes.some((h) => !h.theme.source.trim())) {
       cautions.push('Sebagian tema yang menopang emiten ini belum punya tautan sumber; bobotnya sudah dipotong setengah.');
     }
-    if (row && !row.passAll) {
+    // Only a candidate that fits NONE of the three setups gets the warning. A
+    // pullback that fails the momentum rules is not a failure, it is the setup
+    // working as intended, and printing "tidak lolos screener" under a reason
+    // that just explained why the price is down would contradict itself.
+    if (row && !setups.length) {
       const failed = [
         !row.passMa && `belum di atas MA${screen.settings.maShort}/MA${screen.settings.maLong}`,
         !row.passVolume && 'volume di bawah ambang',
         !row.passValue && 'nilai transaksi di bawah ambang',
       ].filter(Boolean);
-      cautions.push(`Tidak lolos screener: ${failed.join(', ')}.`);
+      cautions.push(`Tidak lolos satu pun setup screener: ${failed.join(', ')}.`);
+    }
+    if (setups.length === 1 && setups[0] === 'laggard' && row && row.stockReturn < 0) {
+      cautions.push(
+        `Sahamnya sendiri ${(row.stockReturn * 100).toFixed(1)}% dalam ${screen.settings.gapWindow} sesi — jarak ke indeks bisa berarti salah harga, bisa juga berarti pasar tahu sesuatu. Layar ini tidak bisa membedakannya.`
+      );
     }
     if (rot && rot.group.verdict.level === 'tidak-valid') {
       cautions.push(`Anggota ${rot.group.group.name}, tetapi grup itu tidak bergerak bersama — jangan hitung sebagai rotasi.`);
@@ -413,6 +476,10 @@ export function buildWatchlist({
         score: priceActionScore,
         screener: row,
         passesScreener: Boolean(row?.passAll),
+        setups,
+        dipFromHigh: row?.dipFromHigh ?? NaN,
+        gapToIndexPp: row?.gapToIndexPp ?? NaN,
+        indexCode: row?.indexCode ?? '',
         foreignNetIdrBn: quote.foreignNet / IDR_BN,
         volumeSurge: row?.volumeSurge ?? NaN,
         avgTicketIdr,
@@ -453,7 +520,7 @@ export function buildWatchlist({
       id: 'price',
       label: '3. Price action',
       remaining: withTape,
-      note: 'Di antaranya, yang tape-nya ikut mengonfirmasi: arus asing, lonjakan nilai, ukuran tiket, dan aturan screener.',
+      note: 'Di antaranya, yang tape-nya ikut mengonfirmasi: arus asing, lonjakan nilai, ukuran tiket, dan aturan screener — ketiga setup-nya sekaligus (momentum, antre beli, tertinggal), bukan hanya yang sedang naik.',
     },
     {
       id: 'chart',

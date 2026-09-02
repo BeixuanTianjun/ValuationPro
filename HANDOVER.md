@@ -41,13 +41,14 @@ peluncur yang sama — itu satu-satunya jalan ke daftar lengkap fungsi dari HP.
 
 ## Kondisi data saat serah terima
 
-962 emiten · **714 sesi (2023-08-28 → 2026-08-31)** · 45 indeks · 72 hari libur
+962 emiten · **715 sesi (2023-08-28 → 2026-09-01)** · 45 indeks · 72 hari libur
 4.002 pengajuan keterbukaan informasi dari 940 emiten (2026-07-18 → 2026-09-01)
 962 kuotasi (100 pelapor non-IDR) · 88 anggota bursa
 962 emiten × 24 bulan register KSEI (2024-09 → **2026-08**)
 29 instrumen makro · 28 selat dunia + kejadian disrupsi
 110 berita 5 kantor + 113 agenda kalender ekonomi · 6 proksi tanker + 12 emiten pelayaran
-21.312 rule set di-backtest, 101 lolos gerbang out-of-sample
+99.360 rule set di-backtest, 361 lolos gerbang out-of-sample (15 trigger; 4
+membeli KELEMAHAN dan nol lolos, 3 masuk LEBIH AWAL dan dua di antaranya lolos)
 total ~27 MB di `public/data/idx/`
 
 **Seri resmi IDX sudah TIDAK tertinggal lagi.** Handover sebelumnya mencatat
@@ -370,6 +371,297 @@ menilai pasar yang pengajuan tersegarnya sudah berumur 17 hari. Sekarang skrip
 menolak menulis kalau baris meleset >5% dari `ResultCount` atau kalau pengajuan
 terbaru lebih tua dari 5 hari.
 
+**Ringkasan AI yang hanya membaca JUDUL akan terdengar benar dan mengarang
+seluruhnya.** Semua yang menyentuh pengumuman di aplikasi ini bekerja dari
+judul — taksonomi, skor narasi, chip kategori — dan layarnya mengatakan itu
+terang-terangan. Itu batas yang jujur untuk sebuah pengklasifikasi, dan batas
+yang TIDAK jujur untuk sesuatu yang diberi label "ringkasan": model yang cuma
+diberi "Penambahan Modal Tanpa HMETD" akan menulis paragraf lancar tentang apa
+yang biasanya ada di pengajuan semacam itu, dan tiap kalimatnya karangan yang
+berpakaian seperti hasil membaca. Jadi `disclosureSummary.ts` mengambil PDF
+aslinya lewat curl (fetch bawaan Node tetap ditolak IDX) dan mengirim byte-nya
+ke Claude sebagai document block — tanpa pustaka ekstraksi teks sama sekali,
+dan tetap jalan untuk pengajuan hasil pindaian yang tidak punya lapisan teks.
+Bedanya terukur: untuk ASBI, ringkasannya keluar membawa Rp 400 juta per bulan
+selama minimal 2,5 tahun, nomor laporan polisi, pelaporan ke OJK lewat APOLO,
+dan inisial terlapor — tidak satu pun ada di judulnya.
+
+Dua hal yang ketahuan dari pemanggilan LIVE pertama, bukan dari membaca ulang
+prompt: model tetap membuka dengan heading markdown padahal prompt melarang
+judul (UI merender teks polos, jadi `#` tampil apa adanya), dan ia menyalin
+`5,789999961853027%` mentah-mentah dari PDF karena prompt menyuruh membawa angka
+persis seperti tertulis. Sekarang promptnya memberi satu-satunya izin mengubah
+angka — merapikan ekor desimal yang jelas artefak, tanpa menggeser nilainya —
+dan `tidy()` tetap membersihkan markdown yang lolos. Meminta dan membersihkan,
+bukan salah satunya.
+
+Ringkasannya di-cache selamanya per path PDF. Pengajuan itu tidak berubah
+setelah terbit, jadi meringkasnya ulang hanya membakar biaya untuk menghasilkan
+parafrase berbeda dari paragraf yang sama — dan dua orang yang membuka pengajuan
+yang sama akan melihat ringkasan yang berbeda. Rutenya POST, dan itu penjaganya:
+satu-satunya rute di aplikasi ini yang membelanjakan uang per panggilan tidak
+boleh bisa dipicu prefetch, crawler, atau refresh halaman.
+
+**Jurnal pick: mengukur daftar yang BENAR-BENAR dicetak, bukan aturannya.**
+Papan strategi sudah menguji aturan mekanis atas 715 sesi dan untuk pertanyaan
+"apakah aturan ini bekerja" ia bukti yang lebih kuat. Ia tidak bisa menjawab
+apakah daftar yang terminal ini CETAK, dalam urutan yang dipakainya, dengan
+ambang yang benar-benar dikirim, menghasilkan uang — lapisan narasi Watchlist
+membaca pengajuan yang hanya ada 45 hari ke belakang, urutan conviction yang
+menentukan lima nama mana yang dilihat orang, dan ambang screener berubah begitu
+ada yang menyuntingnya di layar. `.data/picks.json` mencatat sepuluh teratas
+tiap layar tiap sesi, ditulis penjadwal pada `post-close`, dan dinilai maju
+memakai stop/target ATR yang sama dengan yang dicetak layar.
+
+Empat keputusan yang menentukan apakah angkanya berarti:
+
+1. **Penjadwal yang mencatat, bukan UI.** Mencatat saat orang membuka layar akan
+   membuat jurnalnya jadi catatan PERHATIAN, bukan catatan keluaran: hari yang
+   tidak dibuka lenyap, dan sampelnya condong ke hari yang pasarnya menarik.
+   Winrate dari sampel seperti itu mengukur kebiasaan browsing.
+2. **Menolak sesi yang masih berjalan.** Harga intraday itu nyata tapi bergerak:
+   pick yang sama dicatat 09:30 dan 14:00 menghasilkan dua entry, dua stop ATR,
+   dan akhirnya dua vonis berbeda. `--force` ada untuk pengujian dan menandai
+   barisnya `entryIsFinalClose: false`; baris itu DIKECUALIKAN dari tiap statistik
+   dan tetap disimpan di berkas — mengecualikan baris dari statistik tidak sama
+   dengan menghapusnya, dan yang kedua memusnahkan bukti.
+3. **Baris sementara digantikan, bukan diblokir.** Cacat yang baru kelihatan saat
+   diuji: id-nya `sesi:sumber:kode`, jadi run paksa siang hari mengklaim tiap id
+   yang akan ditulis run post-close, dan pencatatan resmi hari itu akan
+   dilewati diam-diam sebagai duplikat. Sekarang baris non-final sesi itu dibuang
+   begitu ada pencatatan final.
+4. **Winrate ditahan di bawah 20 pick selesai**, dan posisi terbuka tidak pernah
+   dihitung sebagai setengah kemenangan. Di awal periode hampir semuanya
+   terbuka, dan yang selesai paling cepat justru yang paling volatil.
+
+**TIDAK ada backfill, dan itu keputusan, bukan kemalasan.** Merekonstruksi dua
+tahun "apa yang akan dikatakan screener" tersedia dan ditolak: rumus conviction
+berubah 2 September 2026, arsip pengajuan cuma 45 hari, register KSEI mulai
+2024. Pick 2024 hasil rekonstruksi akan dinilai memakai masukan yang tidak
+pernah ia miliki — menghasilkan winrate dengan angka nyata dan tanpa makna, yang
+lebih buruk daripada tabel kosong yang berkata "datanya belum cukup".
+
+**Invariant look-ahead-nya sudah diuji menggigit.** Pick yang dicatat pada sesi
+TERAKHIR wajib berstatus `open`, karena tidak ada sesi sesudahnya. Mengubah loop
+penilaian dari `h = 1` jadi `h = 0` — satu karakter — langsung memerahkan
+backtest. Ditambah: hasil `stop` wajib R = −1 persis, `target` wajib
+R = 2,5/1,5, `expired` wajib tepat 63 sesi, dan ringkasan tidak boleh mencetak
+winrate saat nol pick selesai.
+
+**Kata kunci layar baru ketahuan hilang dalam hitungan menit.** JRN ditulis
+dengan `hint` yang tidak memuat kata "jurnal" — namanya bahasa Inggris ("Pick
+Journal"), dan `searchFunctions` mencocokkan ketikan Indonesia ke `hint`. Daftar
+kata wajib di backtest menangkapnya sebelum sempat tayang. Ini kali ketiga
+penjaga itu membayar dirinya sendiri.
+
+**Tiga percobaan dengan crumb yang SAMA bukan tiga percobaan.**
+`ingest-intraday.mjs` sudah mengulang tiap batch 3x, tapi semuanya memakai satu
+crumb. Pada 2026-09-02 09:24 WIB Yahoo mengembalikan **0 dari 962**, run jatuh
+ke fallback Google yang dibatasi 120 nama, dan berkasnya ditulis dengan exit 0 —
+12% semesta, terlihat sehat. `getCrumb()` sendiri BERHASIL; crumb-nya
+well-formed, cuma tidak dihormati lagi oleh endpoint kuotasi, jadi tidak ada
+yang mengeluh di mana pun. Menjalankan perintah yang sama sekali lagi langsung
+mengembalikan 962/962, karena proses baru mengambil cookie jar baru. Sekarang
+kalau satu sapuan kehilangan lebih dari separuh semesta, skrip mengambil sesi
+BARU (jar lama dihapus) dan menyapu sekali lagi sebelum menyerah ke Google.
+Diuji dengan memaksa crumb pertama palsu: `0/962 → sesi baru → 962/962`.
+
+**`Number.isFinite(0)` bernilai true, dan itu memasukkan harga NOL ke terminal.**
+Ditemukan pada hari yang sama: Yahoo menjawab SCPI dengan `price 0, prevClose 0`
+berstempel 2024-07-19, sementara penutupan resmi terakhirnya Rp 29.000. Penjaga
+di ingest memakai `Number.isFinite(q.regularMarketPrice)`, dan nol lolos —
+overlay membawa SCPI di Rp 0, −100%. Tidak melempar, tidak NaN, cuma angka yang
+terlihat seperti harga. Sekarang syaratnya `> 0`.
+
+**Kuotasi berstempel lama yang harganya BEDA menciptakan gerakan hantu.** FASW
+dikutip 5.450 berstempel 2025-01-30 sementara IDX terakhir menutupnya di 5.275,
+jadi overlay mengarang kenaikan +3,3% untuk saham yang tidak bertransaksi
+sembilan belas bulan — dan tiap hitungan breadth, atribusi indeks, dan daftar
+"penggerak terbesar" mempercayainya. Yang dibuang HANYA yang harganya berbeda:
+membuang semua kuotasi basi juga akan mengosongkan berkas pada run akhir pekan
+atau hari libur, di mana justru harga terakhir ITULAH harga yang berlaku —
+perubahan perilaku yang jauh lebih besar daripada bug yang diperbaiki.
+
+**Tes yang membagi dengan gerak indeks harian akan pecah sendiri pada pasar
+datar, dan itu BUKAN alasan melonggarkan toleransi.** "Residual di bawah 10%
+dari gerak" adalah pertanyaan yang benar pada hari normal dan tidak bermakna 30
+menit setelah pembukaan: 2026-09-02 pukul 09:22 IHSG baru bergerak 2,92 poin di
+level 6.602 (0,04%) sementara residual 3,19 poin — 109% dari gerak, tapi 0,048%
+dari level. Penyebutnya yang menuju nol, bukan errornya yang membesar. Pintu
+darurat lama (`residual < 1 poin`) tidak pernah teruji karena tiap run
+sebelumnya punya overlay yang identik dengan penutupan resmi, yang rekonsiliasi
+di 0,00 persis.
+
+Yang WAJIB dikerjakan sebelum menyentuh tes semacam ini — dan dikerjakan di sini
+— adalah menghabiskan dulu penjelasan lain: mesinnya (published-vs-published
+tetap menutup di bawah 0,01 poin), baseline-nya (`prevClose` ^JKSE Yahoo
+6599,943 lawan penutupan resmi IDX 6599,943, sama sampai digit terakhir — klaim
+lama di dokumen ini diperiksa ulang dan ternyata benar), dan konstituennya (dua
+kuotasi memang beracun, keduanya diperbaiki, dan residualnya TIDAK bergerak —
+itu yang membuktikan sisanya skew feed). Baru setelah itu tesnya diubah: rasio
+ketat tetap berlaku kalau indeks benar-benar bergerak (≥20 poin), dan di bawah
+itu rasionya tidak dievaluasi sama sekali, diganti batas terhadap LEVEL indeks
+(0,1%) yang tidak runtuh. Cabang ketatnya diuji masih menggigit dengan memaksa
+ambangnya ke nol: langsung merah.
+
+**`laggardGap` meloloskan 2 rule set setelah satu sesi tambahan, naik dari 0.**
+Jangan dibaca sebagai "setup tertinggal akhirnya terbukti". Dua dari 6.048 rule
+set adalah tepi kebisingan, bukan penemuan; angkanya berpindah karena datanya
+bertambah satu hari, bukan karena idenya menguat.
+
+**Kolom bernama "conviction" ternyata mengurutkan KETERLAMBATAN, dan itu
+persis keluhan yang dilaporkan.** "Sahamnya sudah terbang, kita baru nangkep"
+bukan komentar tentang pasar — itu deskripsi akurat tentang
+`momentumConviction()`. Tiga dari tujuh sukunya, 35% bobot, membayar LEBIH
+mahal justru ketika kita makin telat: `trend` (jarak di atas MA panjang),
+`persistence` (sudah berapa lama di atasnya), `relStrength` (keunggulan 3
+bulan). Diukur pada sesi 2026-09-01, sepuluh teratasnya adalah persis apa yang
+diminta suku-suku itu — TAPG +60%, SINI +91%, KKES +120%, SGER +148% dalam 60
+sesi. Median sepuluh teratas: **sudah naik 71% dari dasar 60 sesi, meregang 3,4
+ATR dari MA20**. Layar ini tidak telat karena kebetulan; ia DIURUTKAN menurut
+keterlambatan, di kolom yang namanya terbaca seperti penilaian kualitas.
+
+Sekarang bobot itu diganti `freshness` (1 sesi di atas MA panjang = nilai
+penuh, 6+ sesi = nol) dan `room` (jarak ke MA20 dalam satuan ATR, 0 = penuh,
+3 ATR = nol). Median sepuluh teratas menjadi **naik 19%, regangan −0,1 ATR, 1
+sesi di atas MA** — CPIN, HEAL, BRIS, BUKA, yang semuanya baru menembus hari
+itu. **ATURAN KERASNYA TIDAK DISENTUH**: 227 emiten yang sama tetap lolos.
+Pelajarannya berlaku umum di repo ini: gerbang salah menghasilkan daftar yang
+salah dan itu ketahuan, sedangkan peringkat salah menghasilkan daftar yang
+BENAR dalam urutan yang salah — dan karena layar ini menampilkan lima teratas
+secara bawaan, urutan itulah yang sebenarnya dibaca orang.
+
+**Regangan harus dinormalkan ATR, bukan persen.** 8% di atas MA20 adalah hari
+Selasa biasa untuk saham yang bergerak 6% sehari, dan regangan ekstrem untuk
+yang bergerak 1%. Memakai persentase mentah akan mencap tiap saham volatil
+selamanya telat dan tiap saham tenang selamanya awal — bukan mengukur apa pun
+kecuali volatilitas.
+
+**Trigger paling telat adalah yang paling tidak berguna, dan sekarang ada
+angkanya.** Papan strategi tidak pernah bisa menjawab "seberapa telat aturan
+ini masuk" karena angkanya memang tidak pernah dihitung. Sekarang tiap trigger
+melaporkan `avgRunupAtEntry` — rata-rata kenaikan yang SUDAH terjadi dari dasar
+60 sesi pada saat ia menyala, di seluruh sinyalnya, bukan cuma yang lolos:
+
+    breakout20    masuk setelah naik 87%  →  0 survivor dari 5.688
+    drawdown10                        52%  →  0
+    pullback20                        45%  →  7
+    ma50x100                          43%  →  109
+    volumeLead                        20%  →  82
+    laggardGap                        12%  →  0
+
+Tembus-tertinggi-20-sesi masuk paling telat DAN tidak meloloskan apa pun; jarak
+ke indeks masuk paling awal dan juga tidak meloloskan apa pun. **Masuk lebih
+awal itu syarat perlu, bukan syarat cukup** — jangan membaca tabel ini sebagai
+"makin awal makin bagus".
+
+Tiga trigger baru yang bisa menyala SEBELUM harga bergerak ikut diuji:
+`volumeLead` (volume ≥2,5× sementara harga masih menempel MA20), `flowLead`
+(asing net beli 5 sesi sementara harga 20 sesi masih datar), `squeezeBreak`
+(volatilitas termampat lalu menembus). Dua yang pertama lolos gerbang —
+`volumeLead` dengan **82 survivor**, terbanyak kedua setelah ma50x100. Plus dua
+filter keterlambatan (`notExtended` <1,5 ATR di atas MA20, `earlyRunup` belum
+naik 25%) yang bisa di-AND-kan ke trigger LAMA — dan itu yang paling berhasil:
+**9 dari 25 papan teratas sekarang memakainya**, dengan pola berulang
+`MA50 memotong MA100 + harga di bawah MA20 + belum naik 25%` (WR uji 80% dari
+40 trade, +0,22R setelah potongan). Artinya tren panjang yang baru berbalik
+naik TAPI harganya belum ikut — bukan menunggu sampai semuanya sudah jelas.
+
+**Invariant yang salah memerahkan run atas 489 emiten yang semuanya benar.**
+Pemeriksaan "runup dan diskon harus konsisten" ditulis sebagai
+`runup + dip >= 0`, yang bukan identitas sama sekali: `close/low + close/high
+>= 2` salah untuk saham mana pun yang duduk di antara dasar dan puncaknya.
+Yang benar `runup >= dip` (karena `low <= high`). Ini kebalikan dari mode
+kegagalan biasa di repo ini — biasanya kodenya salah dan pemeriksaannya benar.
+Kalau backtest memerahkan ratusan emiten sekaligus dengan pola yang rapi,
+curigai dulu invariannya.
+
+**Suara mengucapkan teks balasan, jadi "suaranya bahasa Inggris" bukan setelan
+melainkan sumber teks.** Hook hanya punya balasan yang sudah ditulis, dan
+balasan di sini berbahasa Indonesia. Menerjemahkannya lewat model ditolak:
+butuh `ANTHROPIC_API_KEY` yang TIDAK ada di environment ini (ia hidup di dalam
+`.env` satu proyek, dan hook global yang merogoh rahasia satu proyek akan patah
+hari folder itu pindah), menaruh satu round trip jaringan di depan tiap giliran,
+dan tetap saja menerjemahkan 700 karakter prosa yang memang tidak layak
+didengarkan. Sekarang balasannya menominasikan sendiri kalimat yang diucapkan:
+baris yang diawali 🔊, bahasa Inggris, satu-dua kalimat. Yang TERAKHIR yang
+dipakai. Tanpa penanda, hook kembali ke perilaku lama (membacakan prosa) —
+lupa menulis penanda berarti satu kalimat Indonesia, bukan kesunyian. Aturannya
+ada di `~/.claude/CLAUDE.md` supaya ikut sesi berikutnya. Kalimat alert di
+`speak-alert.mjs` dan `record()` di `src/server/index.ts` sudah Inggris
+langsung — itu string tetap, tidak perlu mesin apa pun.
+
+**Screener yang hanya bisa menjawab satu pertanyaan menyembunyikan setengah
+pasar, dan ketidakhadirannya tidak kelihatan.** Aturan lamanya — close di atas
+MA3 DAN MA5 — secara konstruksi tidak akan pernah mengembalikan saham yang
+sedang turun. Jadi dua setup yang benar-benar dipakai pemilik repo tidak
+punya layar sama sekali: saham bagus yang sedang diskon (antre beli/buyback),
+dan saham yang diam sementara indeks sektornya sudah lari (PTBA tertinggal 20 pp
+dari IDXENERGY, PGAS 30 pp). Yang membuatnya mahal: layar itu tidak pernah
+terlihat rusak. Ia mengembalikan 227 baris yang semuanya benar, dan yang hilang
+tidak muncul di mana pun untuk dihitung. Sekarang `ScreenerMode` punya tiga
+nilai dengan aturan keras masing-masing, corong sendiri, dan conviction sendiri.
+
+**Conviction momentum TIDAK BOLEH dipakai untuk mengurutkan daftar diskon.**
+Ia memberi nilai atas jarak DI ATAS MA panjang dan lamanya bertahan di sana;
+kandidat antre beli berada di bawah MA pendeknya menurut definisi. Hasilnya
+bukan skor rendah yang seragam — hasilnya daftar yang diurutkan terbalik:
+diskon paling DANGKAL naik ke urutan teratas, persis kebalikan dari gunanya
+layar itu. Tiap mode punya fungsi skornya sendiri sekarang, dan alasan itu
+ditulis di atas fungsinya.
+
+**Membeli kelemahan lolos gerbang winrate lalu mati di gerbang expectancy —
+keempat trigger barunya, nol survivor.** Papan strategi diperluas supaya dua
+setup baru itu diuji, bukan sekadar ditayangkan: `dipBelowMa20`, `rsiDown40`,
+`drawdown10`, `laggardGap`, plus filter `belowMa20`, `indexUp10`, `lagging10`.
+Hasil out-of-sample-nya jelas dan negatif. Masing-masing menghasilkan 700-1.150
+rule set yang lolos winrate uji ≥65% — dan NOL yang juga lolos expectancy
+≥0,15R. Artinya winrate itu dibeli dengan target kecil melawan stop lebar,
+persis kerapuhan yang gerbang stres dibuat untuk menangkapnya. `breakout20`
+yang sudah lama ada gugur dengan pola yang sama. Kesimpulannya: ketiga layar
+screener tetap alat riset, tapi hanya keluarga momentum/trend yang punya aturan
+mekanis terbukti di belakangnya, dan papan strategi sekarang MENERBITKAN
+kegagalan itu per trigger (`perTrigger` di `strategies.json`, tabel "Tiap
+trigger, termasuk yang gugur" di layar WL). Papan yang hanya memuat pemenang
+membuat "sudah dicoba dan gagal" tidak bisa dibedakan dari "tidak pernah
+dicoba".
+
+**`scripts/` TIDAK ikut diperiksa `tsc`.** `tsconfig.json` memuat
+`"include": ["src", "api"]` saja, dan `npm run backtest`/`strategy:lab` dibundel
+esbuild yang tidak mengecek tipe. Konsekuensi nyata di sesi ini: menambah
+parameter WAJIB ke `buildIndicators` meninggalkan satu pemanggil lama dengan dua
+argumen, dan itu BUKAN error kompilasi — `indexClose` jadi `undefined`, seluruh
+seri indeks jadi NaN, dan drawdown finalis laggard dihitung dari trigger yang
+tidak pernah menyala. `npx tsc --noEmit` bersih selama itu terjadi. Kalau
+mengubah tanda tangan fungsi yang dipakai `scripts/`, cari pemanggilnya dengan
+grep — kompilernya tidak akan menolong.
+
+**Mengetik `konglomerasi` tidak pernah menemukan CNG, padahal dokumen ini
+menjadikannya alasan `hint` wajib berbahasa Indonesia.** Klaimnya salah sejak
+awal: `hint` CNG berbunyi "31 grup pengendali…" dan kata "konglomerasi" tidak
+ada di code, name, maupun hint-nya, jadi `searchFunctions('konglomerasi')`
+mengembalikan kosong. Ditemukan bukan dengan membaca, tapi karena backtest
+sekarang punya daftar kata yang WAJIB menemukan layarnya (`diskon`,
+`tertinggal`, `antre beli`, `buyback`, `salah harga`, `momentum` → SCR;
+`konglomerasi` → CNG). Layar yang tidak bisa dicari sama saja dengan layar yang
+tidak pernah di-deploy, dan satu-satunya pemeriksaan yang bisa melihatnya adalah
+yang benar-benar mengetikkan katanya.
+
+**Suara Fish Audio berganti-ganti orang karena `reference_id` tidak pernah
+dikirim.** `FISH_AUDIO_VOICE_ID` opsional dan tidak pernah diset, jadi tiap
+request keluar TANPA voice dan Fish Audio menjawab dengan default-nya saat itu —
+penutur berbeda dari satu giliran ke giliran berikutnya. Tidak ada yang gagal:
+200 OK, audio sungguhan, orang yang salah. Sekarang dipatok ke
+`b9698f640357419494bacb46ddcae040` ("Digital System Assistant", My Voices milik
+pemilik repo) sebagai default di `~/.claude/hooks/tts.mjs`; env var masih bisa
+menimpanya, tapi string kosong TIDAK melepas patokan. Diverifikasi ke API
+sebelum dipatok: `GET /model/<id>` menjawab 200 state "trained", dan id palsu
+dijawab **400** — jadi 200 berarti suara itu yang benar-benar dipakai.
+Ditambahkan juga `tts-last-error.log` (ditimpa, tidak pernah tumbuh) supaya
+penolakan HTTP tidak lagi lenyap tanpa jejak: 401 kunci mati, 402 kredit habis,
+400 voice id tidak resolve — tiga sebab yang selama ini sama-sama terdengar
+sebagai "suaranya diam saja".
+
 **Aturan volume dan aturan nilai di screener bukan aturan yang sama dua kali.**
 Volume > 1 juta lembar dan nilai > Rp 1 miliar mengikat di ujung harga yang
 berbeda, dan keduanya perlu ada. `daily.volume` dalam LEMBAR, sedangkan
@@ -508,7 +800,9 @@ scripts/          ingest via curl: idx, intraday, quotes, fundamentals,
 src/models/       dcfEngine, lboEngine, factorEngine,
                   indexAttribution, conglomerateRotation, autoValuation,
                   brokerFlow, ownershipFlow, announcements (taksonomi judul),
-                  stockScreener (aturan keras), watchlist (corong 4 tahap),
+                  stockScreener (aturan keras, TIGA mode: momentum / pullback /
+                  laggard — masing-masing punya corong + conviction sendiri),
+                  watchlist (corong 4 tahap, tahap 3 membaca ketiga mode),
                   emitenQueryEngine, idxCompanyBridge
 src/data/         marketRepository (isomorfik: browser + Node), fundamentals,
                   conglomerates (kurasi, 31 grup), narratives (tema kebijakan
@@ -518,6 +812,10 @@ src/server/       index (HTTP + scheduler), schedule (WIB), auth (scrypt),
 src/components/   landing, layout, market, analytics, chat, auth, dcf, lbo
 src/components/market/AnnouncementFeed.tsx   layar CN — arsip keterbukaan
                   informasi, kategori + filter + tautan PDF asli
+src/models/pickJournal.ts    penilaian pick maju + ringkasan winrate
+src/models/pickReport.ts     laporan Excel bulanan jurnal pick
+src/server/pickRecorder.ts   penulis .data/picks.json, dipanggil post-close
+src/server/disclosureSummary.ts  ambil PDF IDX + ringkas lewat Claude, di-cache
 src/theme/chart.ts   warna Recharts (satu-satunya hex di luar tailwind.config)
 src/components/common/ui.tsx   primitif bersama: Panel, Segmented, Stat,
                   TableScroll, EmptyState — semua aturan responsif ada di sini.
@@ -549,6 +847,9 @@ scripts/ingest-gdelt.mjs      irisan Indonesia dari berkas mentah GDELT 2.0
                               (15 menit/slice) -> gdelt.json, retensi 45 hari
 scripts/ingest-risk.mjs       komponen tekanan bersumber publik + komposit
                               yang metodenya dicetak di dalam berkasnya -> risk.json
+scripts/strategy-lab.ts       12 trigger x 67 kombinasi filter x 72 exit,
+                              out-of-sample; menerbitkan `perTrigger` supaya
+                              keluarga yang GAGAL tetap terlihat, bukan hilang
 scripts/backtest.ts           sapuan invariant seluruh semesta, lokal
 scripts/backtest-live.ts      sapuan invariant terhadap deployment
 scripts/preview-dossier.ts    cetak dossier chatbot tanpa memanggil API
@@ -873,7 +1174,9 @@ dikerjakan duluan.
 ```bash
 npx tsc --noEmit         # harus bersih
 npm test                 # 34/34  (16 DCF + 18 atribusi/konglomerasi)
-npm run backtest -- 5    # ~108k pemeriksaan, nol temuan
+npm run backtest -- 5    # ~396k pemeriksaan, nol temuan (90.774 per pass)
+npm run picks:record     # catat pick sesi ini (menolak kalau pasar masih buka)
+npm run picks:report     # nilai jurnal tanpa mencatat apa pun
 npm run backtest:live    # 50 pemeriksaan terhadap deployment, nol temuan
 ```
 
@@ -891,11 +1194,61 @@ mendekati batas waktu, dan chatbot yang diam-diam jatuh ke parser browser.
 
 ## Kondisi saat serah terima ini ditulis
 
-Semua ter-commit dan ter-push ke `main`; Vercel produksi mengikuti `main`.
-Verifikasi lokal hijau: `tsc` bersih, 16/16 + 18/18 uji, backtest **38.961
-pemeriksaan nol temuan**, build produksi sukses.
+**BELUM ter-commit.** Perubahan sesi terakhir (screener tiga mode, watchlist
+yang membacanya, papan strategi yang mengujinya, dan patokan suara di luar repo)
+ada di working tree dan belum di-push; Vercel produksi masih menyajikan versi
+sebelumnya. Verifikasi lokal hijau: `tsc` bersih, 16/16 + 18/18 uji, backtest
+**237.774 pemeriksaan nol temuan atas 3 pass**, `strategy:lab` 365 lolos,
+build produksi sukses, dan ketiga mode screener diperiksa di browser pada 375px
+maupun desktop.
 
-Yang berubah sesi ini, singkat:
+Yang berubah di sesi terakhir:
+- **Screener punya tiga setup**, bukan satu (`ScreenerMode`): `momentum` (aturan
+  lama, tidak berubah satu byte pun), `pullback`/Antre Beli (di atas MA200,
+  jatuh di bawah MA20, diskon 8–35% dari puncak 60 sesi), `laggard`/Tertinggal
+  (indeks acuannya ≥ +10% dalam 60 sesi, sahamnya ≤ +2%, tidak turun >25%).
+  Tiap mode punya corong, kolom, ambang yang bisa disetel, penjelasan kegagalan
+  per emiten, dan fungsi conviction-nya sendiri.
+- **Watchlist tahap 3 membaca ketiganya.** Skor tape mengambil yang terbaik di
+  antara tiga setup, dan cabang momentumnya identik dengan sebelumnya — jadi
+  tidak ada kandidat lama yang bisa TURUN skornya, tahap itu hanya bisa
+  menemukan lebih banyak. Kandidat diberi label setup yang dipenuhinya, dan
+  peringatan "tidak lolos screener" hanya muncul kalau tidak satu pun setup
+  terpenuhi.
+- **Papan strategi menguji setup baru itu**, dan menerbitkan kegagalannya —
+  lihat entri "membeli kelemahan" di atas. 12 trigger × 67 kombinasi filter × 72
+  exit = 57.888 rule set, 207 lolos.
+- **Backtest menyapu ketiga mode** dan menghitung ulang aritmetika tiap aturan
+  dari angka yang dicetak barisnya sendiri. Invariannya sudah DIUJI memerahkan
+  run: membalik tanda `gapToIndexPp` menghasilkan 3.371 temuan.
+- **Daftar kata yang wajib menemukan layarnya** di backtest — yang langsung
+  menangkap `konglomerasi` → CNG yang selama ini kosong.
+- **Suara Fish Audio dipatok** ke satu voice id, plus jejak kegagalan HTTP.
+- **Conviction momentum berhenti mengurutkan keterlambatan** — dua suku yang
+  membayar makin telat diganti `freshness` + `room`. Aturan kerasnya tidak
+  berubah, jadi emiten yang lolos tetap 227; yang berubah urutannya.
+- **Kolom "Sudah naik" dan "Regangan"** di tiap baris screener, plus dua urutan
+  baru (paling baru menembus, paling belum meregang).
+- **Papan strategi mengukur keterlambatan tiap trigger** (`avgRunupAtEntry`),
+  menambah 3 trigger yang bisa menyala sebelum harga bergerak dan 2 filter
+  anti-telat. 15 trigger × 92 kombinasi × 72 exit = 99.360 rule set, 361 lolos.
+- **Suara berbahasa Inggris** lewat baris bertanda 🔊 di tiap balasan; aturannya
+  di `~/.claude/CLAUDE.md`, kalimat alert diterjemahkan langsung di sumbernya.
+- **Ingest intraday: satu retry dengan sesi Yahoo BARU** sebelum jatuh ke
+  fallback Google, harga `<= 0` ditolak, dan kuotasi berstempel lama yang
+  harganya berbeda dari penutupan resmi dibuang. 960/962 hari ini — dua yang
+  hilang (SCPI, FASW) memang tidak punya harga hari ini.
+- **Tes overlay live tidak lagi membagi dengan penyebut yang menuju nol**;
+  rasio ketatnya utuh dan terbukti masih menggigit.
+- **Ringkasan AI keterbukaan informasi** (`CN`): klik satu pengajuan, PDF-nya
+  ditarik dari IDX lewat curl dan dibaca Claude Haiku sebagai document block.
+  Di-cache per path PDF; rutenya POST supaya tidak bisa dipicu prefetch.
+- **Jurnal Pick** (`JRN`) — sepuluh teratas tiap layar dicatat penjadwal tiap
+  `post-close` ke `.data/picks.json`, dinilai maju 63 sesi dengan stop/target
+  ATR, plus laporan Excel 4 sheet (Ringkasan, Detail, Per Bulan, Metode).
+  Pencatatan dimulai 2026-09-02.
+
+Yang berubah di sesi sebelumnya, singkat:
 - Screener & Watchlist default **5 teratas** menurut conviction, bisa dibuka penuh
 - **Trade setup** entry/stop/target berbasis ATR di tiap baris
 - **Papan strategi** out-of-sample: 21.312 rule set, 101 lolos, WR uji 65-73%
@@ -912,9 +1265,30 @@ Yang berubah sesi ini, singkat:
 - Tier mingguan CI dijadwalkan dua kali: Sabtu DAN Minggu
 
 `backtest:live` BELUM dijalankan terhadap deployment sesi ini — jalankan dari
-mesin lokal sebelum mengandalkan apa pun tentang situs live.
+mesin lokal sebelum mengandalkan apa pun tentang situs live. Untuk sesi terakhir
+ia belum relevan: perubahannya belum di-push, jadi yang disajikan situs live
+masih bundel lama.
 
-Tiga hal yang sengaja ditinggalkan terbuka:
+Yang sengaja ditinggalkan terbuka:
+- **Mode antre beli dan tertinggal TIDAK punya aturan mekanis terbukti di
+  belakangnya.** Keduanya lolos sebagai penyaring riset — corongnya jujur, tiap
+  penolakan bisa dijelaskan — tetapi papan strategi menolak semua trigger yang
+  membeli kelemahan pada gerbang expectancy. Jangan menutup jarak itu dengan
+  melonggarkan gerbang sampai angkanya bagus; kalau setup ini mau dibuktikan,
+  yang dibutuhkan adalah aturan exit yang berbeda (target lebih lebar, hold
+  lebih panjang, atau exit berbasis reclaim MA20 alih-alih ATR), bukan ambang
+  yang lebih longgar.
+- **Ambang keterlambatan (6 sesi, 3 ATR, 25% runup, 1,5 ATR) juga konvensi.**
+  Dipilih supaya terbaca, bukan di-fit. Yang PUNYA bukti out-of-sample cuma
+  `earlyRunup` dan `notExtended` sebagai filter papan strategi; ambang yang
+  dipakai suku `freshness`/`room` di conviction belum diuji terhadap apa pun,
+  dan conviction memang bukan gerbang — ia hanya mengurutkan yang sudah lolos.
+- **`maxDeclinePercent` 25% dan pita diskon 8-35% adalah konvensi, bukan hasil
+  optimasi.** Dipilih supaya terbaca dan bisa disetel dari layar Ambang. Tidak
+  ada satu pun angka di sana yang di-fit ke data ini, dan itu disengaja —
+  mem-fit-nya akan membuat corongnya terlihat lebih pintar tanpa menjadi lebih
+  benar.
+
 - **Tier mingguan CI belum terbukti pulih.** Sudah ada timeout per langkah DAN
   percobaan kedua hari Minggu (`0 1 * * 0`), tapi belum ada satu pun run nyata
   yang membuktikannya — perbaikannya struktural, bukan terverifikasi. Cara

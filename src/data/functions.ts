@@ -35,7 +35,27 @@ export interface TerminalFunction {
    * hand is a badge that stays on screen for a year.
    */
   added?: string;
+  /**
+   * Availability, stated in the registry rather than discovered on arrival.
+   *
+   * WHY THIS IS NOT LEFT TO THE SCREEN'S OWN ERROR STATE. A screen that only
+   * explains itself AFTER you open it and its fetch fails is indistinguishable
+   * from a broken screen, and the deployed site is where most people meet these
+   * first. Two of them genuinely cannot work on Vercel — the pick journal needs
+   * a permanent disk and a scheduler, the disclosure summary needs curl to get
+   * past IDX's TLS fingerprinting — so the launcher says so before the click,
+   * not after.
+   *
+   *   `lokal`   works only against the local service (npm run auto)
+   *   `progres` shipped but not finished for the deployed site
+   */
+  availability?: 'lokal' | 'progres';
 }
+
+export const AVAILABILITY_LABEL: Record<'lokal' | 'progres', string> = {
+  lokal: 'lokal saja',
+  progres: 'dalam pengerjaan',
+};
 
 export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
   // --- market
@@ -51,7 +71,7 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
   {
     code: 'SCR',
     name: 'Stock Screener',
-    hint: 'Tiga aturan keras: di atas MA3 & MA5, volume > 1 juta lembar, nilai > Rp 1 miliar.',
+    hint: 'Tiga setup aturan keras: momentum di atas MA3 & MA5, antre beli saat saham bagus turun diskon dari puncaknya untuk buyback, dan saham tertinggal yang salah harga saat indeks sektornya sudah naik. Semua wajib volume > 1 juta lembar, nilai > Rp 1 miliar.',
     group: 'Market',
     area: 'market',
     sub: 'screener',
@@ -69,6 +89,28 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
   {
     // PORT is Bloomberg's own mnemonic for a portfolio screen, so it is the
     // keystroke anybody arriving from a real terminal will already try.
+    // JRN, not PJ or WR: three letters, and the one a terminal user would
+    // guess for a journal. It sits next to PORT because both answer "how am I
+    // actually doing" rather than "what is the market doing".
+    code: 'JRN',
+    name: 'Pick Journal',
+    // "jurnal" and "catatan" are in here because the NAME is English (menu
+    // labels are) and `searchFunctions` matches Indonesian typing against the
+    // hint. Without them, typing the most obvious Indonesian word for this
+    // screen returned nothing — the backtest caught it within a minute of the
+    // screen being written, which is the third time that guard has paid.
+    hint: 'Jurnal dan catatan winrate kita sendiri: tiap pick screener dan watchlist dicatat harian pada harga penutupan lalu dinilai maju 1-3 bulan dengan stop dan target ATR. Ada laporan Excel bulanan. Bukan backtest — ini catatan hasil daftar yang benar-benar dicetak.',
+    group: 'Market',
+    area: 'market',
+    sub: 'journal',
+    tone: 'text-violet-300',
+    added: '2026-09-02',
+    // Local only, and permanently so: the journal is written by the scheduler
+    // to a file on this machine. Serverless has neither the disk nor a process
+    // that is alive at 16:15 WIB every day.
+    availability: 'lokal',
+  },
+  {
     code: 'PORT',
     name: 'Portofolio',
     hint: 'Posisi Anda sendiri: jumlah lot dan harga beli rata-rata, dihargai live, dibaca dengan aturan mekanis yang sama — termasuk stop ATR yang dihitung dari harga beli Anda. Tersimpan di browser, tidak dikirim ke server.',
@@ -85,12 +127,16 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
     // prefix match, so `CN` opens this and `CNG` opens the conglomerate screen.
     code: 'CN',
     name: 'Company Disclosures',
-    hint: 'Arsip pengajuan resmi emiten ke bursa, dikategorikan; PDF asli satu klik.',
+    hint: 'Arsip pengajuan resmi emiten ke bursa, dikategorikan; PDF asli satu klik. Ringkasan AI dari isi PDF masih dalam pengerjaan untuk versi online — di layanan lokal sudah jalan.',
     group: 'Market',
     area: 'market',
     sub: 'news',
     tone: 'text-emerald-300',
     added: '2026-08-28',
+    // The archive itself is fully deployed; only the AI summary inside it needs
+    // curl, which Vercel does not have. Flagged rather than hidden, because the
+    // screen is worth opening for the filings alone.
+    availability: 'progres',
   },
   {
     code: 'DES',
@@ -124,7 +170,11 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
   {
     code: 'CNG',
     name: 'Conglomerate Rotation',
-    hint: '31 grup pengendali, papan pemimpin, dan kohesi terukur tiap grup.',
+    // "konglomerasi" is in here deliberately. HANDOVER cites this screen as the
+    // reason hints must stay Indonesian — and the word it names was never
+    // actually present, so typing it returned nothing for as long as the screen
+    // has existed. The backtest now asserts it.
+    hint: 'Rotasi konglomerasi: 31 grup pengendali, papan pemimpin, dan kohesi terukur tiap grup.',
     group: 'Analytics',
     area: 'analytics',
     sub: 'conglo',

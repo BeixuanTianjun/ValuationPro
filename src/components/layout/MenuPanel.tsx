@@ -5,6 +5,7 @@ import {
   FUNCTION_GROUPS,
   TERMINAL_FUNCTIONS,
   TerminalFunction,
+  AVAILABILITY_LABEL,
   isRecentlyAdded,
   searchFunctions,
 } from '../../data/functions';
@@ -278,6 +279,26 @@ const Row: React.FC<{
         {active && (
           <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300">
             di layar
+          </span>
+        )}
+        {/* Said BEFORE the click, not after the fetch fails. A screen that only
+            explains its own limits once it is open and empty is
+            indistinguishable from a broken one. */}
+        {fn.availability && (
+          <span
+            title={
+              fn.availability === 'lokal'
+                ? 'Layar ini membaca layanan lokal (npm run auto). Di situs terdeploy ia tidak punya datanya — bukan rusak, memang tidak bisa jalan di serverless.'
+                : 'Sebagian isi layar ini belum jalan di situs terdeploy dan masih dikerjakan. Di layanan lokal sudah berfungsi.'
+            }
+            className={cx(
+              'rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider',
+              fn.availability === 'lokal'
+                ? 'bg-violet-500/15 text-violet-300'
+                : 'bg-cyan-500/15 text-cyan-300'
+            )}
+          >
+            {AVAILABILITY_LABEL[fn.availability]}
           </span>
         )}
       </span>

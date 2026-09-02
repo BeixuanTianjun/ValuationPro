@@ -15,7 +15,7 @@
  *
  * Writes public/data/idx/intraday.json
  */
-import { mkdir, writeFile, readFile, stat } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, stat, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -47,8 +47,20 @@ function curl(args) {
   });
 }
 
-async function getCrumb() {
+/**
+ * A Yahoo cookie + crumb pair.
+ *
+ * `fresh` DELETES the stored jar before asking for a new one, and that is the
+ * whole point of the option rather than a tidy-up. A crumb is validated here
+ * only for SHAPE — non-empty, short, no HTML — and a perfectly well-formed
+ * crumb paired with a stale cookie is still rejected by the quote endpoint with
+ * an empty result rather than an error. Reusing the jar in that state produces
+ * a second crumb bound to the same dead session, so the retry would fail
+ * exactly like the first attempt. See the caller for how that showed up.
+ */
+async function getCrumb({ fresh = false } = {}) {
   await mkdir(dirname(COOKIE_JAR), { recursive: true });
+  if (fresh) await rm(COOKIE_JAR, { force: true }).catch(() => {});
   // fc.yahoo.com answers with an error page but sets the session cookie we need.
   // No `-o /dev/null` — Windows curl.exe cannot write there and exits 23.
   await curl(['-s', '-m', '25', '-A', UA, '-c', COOKIE_JAR, 'https://fc.yahoo.com']).catch(() => '');
@@ -132,39 +144,79 @@ export async function buildIntradaySnapshot() {
     // produce a usable snapshot for the names that matter.
     log(`Gagal mendapat crumb Yahoo (${err.message}) — mengandalkan fallback.`);
   }
-  const batches = [];
-  for (let i = 0; i < codes.length; i += BATCH) batches.push(codes.slice(i, i + BATCH));
-
   const quotes = {};
   let marketState = 'UNKNOWN';
   let newestTime = 0;
 
-  await mapPool(batches, 2, async (batch) => {
-    let rows = [];
-    for (let attempt = 0; attempt < 3 && !rows.length; attempt++) {
-      try {
-        rows = await fetchBatch(batch.map((c) => `${c}.JK`), crumb);
-      } catch {
-        await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+  /** One full sweep of the universe with a given crumb. Fills `quotes`. */
+  const sweep = async (activeCrumb) => {
+    const wanted = codes.filter((c) => !quotes[c]);
+    const passes = [];
+    for (let i = 0; i < wanted.length; i += BATCH) passes.push(wanted.slice(i, i + BATCH));
+
+    await mapPool(passes, 2, async (batch) => {
+      let rows = [];
+      for (let attempt = 0; attempt < 3 && !rows.length; attempt++) {
+        try {
+          rows = await fetchBatch(batch.map((c) => `${c}.JK`), activeCrumb);
+        } catch {
+          await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+        }
       }
+      for (const q of rows) {
+        const code = String(q.symbol || '').replace('.JK', '');
+        // > 0, NOT Number.isFinite. Zero is finite, and Yahoo answers a
+        // delisted or long-suspended ticker with an all-zeros quote: on
+        // 2026-09-02 SCPI came back price 0, prevClose 0, stamped 2024-07-19,
+        // against a last committed close of Rp 29.000. The finite check let it
+        // straight into the overlay, so the terminal carried SCPI at Rp 0 and
+        // -100% — no throw, no NaN, just a number that looks like a price.
+        if (!code || !(q.regularMarketPrice > 0)) continue;
+        if (q.marketState) marketState = q.marketState;
+        if (q.regularMarketTime > newestTime) newestTime = q.regularMarketTime;
+        quotes[code] = {
+          price: num(q.regularMarketPrice),
+          prevClose: num(q.regularMarketPreviousClose),
+          open: num(q.regularMarketOpen),
+          high: num(q.regularMarketDayHigh),
+          low: num(q.regularMarketDayLow),
+          volume: num(q.regularMarketVolume),
+          changePercent: num(q.regularMarketChangePercent),
+          time: num(q.regularMarketTime),
+        };
+      }
+    });
+  };
+
+  await sweep(crumb);
+
+  // ---- ONE RETRY WITH A NEW SESSION, BEFORE GIVING UP ON YAHOO ------------
+  //
+  // Observed on 2026-09-02 09:24 WIB: Yahoo returned 0 of 962, the run fell
+  // straight through to the bounded Google fallback and wrote a healthy-looking
+  // file covering 120 emiten — 12% of the universe — with exit 0 and nothing in
+  // the log that reads as a failure. Running the SAME command again immediately
+  // returned 962/962.
+  //
+  // The three attempts inside the sweep above did not help and never could:
+  // they all reuse one crumb, so a session Yahoo has stopped honouring fails
+  // three identical times. `getCrumb()` had succeeded — the crumb was
+  // well-formed — which is why nothing upstream complained. Only a NEW cookie
+  // jar fixes it, which is precisely what re-running the process did by hand.
+  //
+  // Gated on losing more than half the universe so an ordinary handful of
+  // untraded tickers never pays for a second sweep.
+  if (codes.filter((c) => !quotes[c]).length > codes.length * 0.5) {
+    const got = Object.keys(quotes).length;
+    log(`Yahoo baru mengisi ${got}/${codes.length} — ambil sesi baru dan coba sekali lagi.`);
+    try {
+      crumb = await getCrumb({ fresh: true });
+      await sweep(crumb);
+      log(`Setelah sesi baru: ${Object.keys(quotes).length}/${codes.length}.`);
+    } catch (err) {
+      log(`Sesi baru juga gagal (${err.message}) — mengandalkan fallback.`);
     }
-    for (const q of rows) {
-      const code = String(q.symbol || '').replace('.JK', '');
-      if (!code || !Number.isFinite(q.regularMarketPrice)) continue;
-      if (q.marketState) marketState = q.marketState;
-      if (q.regularMarketTime > newestTime) newestTime = q.regularMarketTime;
-      quotes[code] = {
-        price: num(q.regularMarketPrice),
-        prevClose: num(q.regularMarketPreviousClose),
-        open: num(q.regularMarketOpen),
-        high: num(q.regularMarketDayHigh),
-        low: num(q.regularMarketDayLow),
-        volume: num(q.regularMarketVolume),
-        changePercent: num(q.regularMarketChangePercent),
-        time: num(q.regularMarketTime),
-      };
-    }
-  });
+  }
 
   // ---- fallback -----------------------------------------------------------
   //
@@ -229,6 +281,40 @@ export async function buildIntradaySnapshot() {
 
   const phase = sessionPhase();
   const tradingDate = newestTime ? wibParts(new Date(newestTime * 1000)).date : phase.date;
+
+  // ---- PHANTOM MOVES FROM STALE QUOTES ------------------------------------
+  //
+  // A quote stamped before today is not a quote for today. For most suspended
+  // tickers that is harmless — Yahoo repeats the same price the exchange last
+  // published, so folding it in changes nothing. It stops being harmless when
+  // the two disagree: FASW is stamped 2025-01-30 at 5.450 while IDX last closed
+  // it at 5.275, so the overlay invents a +3,3% move for a stock that has not
+  // traded in nineteen months, and every breadth count, index attribution and
+  // "biggest gainer" list downstream believes it.
+  //
+  // ONLY the disagreeing ones are dropped, deliberately. Removing every stale
+  // quote would also empty the file on a holiday or a weekend run, where the
+  // whole point is that the last price IS the current price — a much larger
+  // behaviour change than the bug being fixed. A dropped quote falls back to
+  // the last committed close, which is what the terminal shows for any emiten
+  // it has no live price for.
+  let phantom = 0;
+  try {
+    const daily = JSON.parse(await readFile(join(OUT_DIR, 'daily.json'), 'utf8'));
+    const lastClose = new Map(daily.stocks.map((r) => [r.code, r.close]));
+    for (const [code, q] of Object.entries(quotes)) {
+      if (!Number.isFinite(q.time)) continue;
+      if (wibParts(new Date(q.time * 1000)).date >= tradingDate) continue;
+      const prev = lastClose.get(code);
+      if (!(prev > 0) || !(q.price > 0)) continue;
+      if (Math.abs(q.price / prev - 1) < 1e-9) continue;
+      delete quotes[code];
+      phantom++;
+    }
+  } catch {
+    /* no committed session to compare against yet — leave the quotes alone */
+  }
+  if (phantom) log(`${phantom} kuotasi basi dibuang: stempelnya sebelum ${tradingDate} dan harganya beda dari penutupan resmi.`);
 
   return {
     generatedAt: new Date().toISOString(),

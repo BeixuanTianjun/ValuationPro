@@ -18,7 +18,9 @@
  *   - nothing throws
  *   - no NaN or Infinity reaches a field the UI will print
  *   - no percentage that should be bounded escapes its bounds
- *   - the screener's three rules agree with the raw numbers they claim to read
+ *   - every screener mode's rules agree with the raw numbers they claim to read,
+ *     including the two that select on WEAKNESS, where an inverted comparison
+ *     returns a plausible list that is exactly backwards
  *   - a foreign-currency reporter is either translated or flagged, never both
  *     silent and stamped in rupiah
  *
@@ -30,8 +32,17 @@
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { computeAllFactors } from '../src/models/factorEngine';
-import { runStockScreener } from '../src/models/stockScreener';
+import { convictionScore, runStockScreener } from '../src/models/stockScreener';
 import { buildWatchlist } from '../src/models/watchlist';
+import {
+  EvaluatedPick,
+  MAX_HOLD_SESSIONS,
+  Pick,
+  buildPickSummaries,
+  evaluatePick,
+  levelsFor,
+} from '../src/models/pickJournal';
+import { STOP_ATR_MULT, TARGET_ATR_MULT } from '../src/models/tradeSetup';
 import { runAutoValuation } from '../src/models/autoValuation';
 import { buildEmitenModel } from '../src/models/idxCompanyBridge';
 import { computeAttribution } from '../src/models/indexAttribution';
@@ -139,6 +150,46 @@ async function main() {
         fail('navigasi', `${fn.code} masih ditandai baru 400 hari setelah rilis`);
       }
     }
+
+    // A capability nobody can search for is a capability nobody has. The RISK
+    // screen shipped without the word "risiko" anywhere in its hint, so typing
+    // the single most obvious Indonesian word for it returned nothing — and
+    // `searchFunctions` matches against `hint`, which is precisely why that
+    // field must stay Indonesian. The two new screener setups are the same
+    // shape of risk: somebody looking for them will type "diskon" or
+    // "tertinggal", not "SCR".
+    const MUST_FIND: [string, string][] = [
+      ['diskon', 'SCR'],
+      ['tertinggal', 'SCR'],
+      ['antre beli', 'SCR'],
+      ['buyback', 'SCR'],
+      ['salah harga', 'SCR'],
+      ['momentum', 'SCR'],
+      ['konglomerasi', 'CNG'],
+      ['winrate', 'JRN'],
+      ['jurnal', 'JRN'],
+      ['catatan', 'JRN'],
+      ['excel', 'JRN'],
+    ];
+    for (const [word, code] of MUST_FIND) {
+      checks++;
+      if (!searchFunctions(word).some((f) => f.code === code)) {
+        fail('navigasi', `mengetik "${word}" tidak menemukan ${code}`);
+      }
+    }
+
+    // A screen that cannot work on the deployed site must SAY so in the
+    // launcher. Without this the only warning is an empty panel after the
+    // click, which reads as a broken feature rather than a deliberate one —
+    // and the two screens carrying this flag are the two most likely to be
+    // opened first by somebody visiting the live URL.
+    const LOCAL_ONLY = ['JRN'];
+    for (const code of LOCAL_ONLY) {
+      checks++;
+      if (findFunction(code)?.availability !== 'lokal') {
+        fail('navigasi', `${code} butuh layanan lokal tapi tidak ditandai availability: 'lokal'`);
+      }
+    }
   }
 
   const signatures: string[] = [];
@@ -167,17 +218,289 @@ async function main() {
       }
     }
 
-    // ---- screener: do the three rules agree with the numbers they read? -----
+    // ---- screener: do the rules agree with the numbers they read? -----------
+    //
+    // Every mode is swept, not just momentum. The two newer ones are where a
+    // silent inversion is easiest to write and hardest to see: a dip screen
+    // that quietly returns the SHALLOWEST names, or a laggard screen whose gap
+    // is measured the wrong way round, produces a list that looks entirely
+    // plausible and is exactly backwards. So the arithmetic each rule claims to
+    // read is recomputed here from the row's own published numbers.
     const screen = runStockScreener(db);
-    for (const [code, row] of screen.all) {
+    for (const mode of ['momentum', 'pullback', 'laggard'] as const) {
+      const s = runStockScreener(db, { mode });
+      const cfg = s.settings;
+
       checks++;
-      const maShouldPass = row.close > row.maShort && row.close > row.maLong;
-      if (Number.isFinite(row.maShort) && Number.isFinite(row.maLong) && row.passMa !== maShouldPass) {
-        fail('screener', `${code} passMa=${row.passMa} tetapi close=${row.close} MA=${row.maShort}/${row.maLong}`);
+      if (s.mode !== mode) fail('screener', `mode ${mode} mengembalikan hasil bermode ${s.mode}`);
+
+      // The funnel is a funnel: no stage may hold more than the one before it.
+      for (let i = 1; i < s.funnel.length; i++) {
+        checks++;
+        if (s.funnel[i].remaining > s.funnel[i - 1].remaining) {
+          fail(
+            'screener',
+            `${mode} corong naik di "${s.funnel[i].label}": ${s.funnel[i - 1].remaining} -> ${s.funnel[i].remaining}`
+          );
+        }
       }
-      assertFinite('screener', code, { close: row.close, volumeShares: row.volumeShares });
+
+      // Every passing row must appear in `rows`, and nothing else may.
+      let passing = 0;
+      for (const row of s.all.values()) if (row.passAll) passing++;
       checks++;
-      if (row.volumeShares < 0) fail('screener', `${code} volume negatif: ${row.volumeShares}`);
+      if (passing !== s.rows.length) fail('screener', `${mode} ${passing} baris lolos tetapi rows memuat ${s.rows.length}`);
+      checks++;
+      if (s.rows.length !== s.funnel[s.funnel.length - 1].remaining) {
+        fail('screener', `${mode} corong berakhir di ${s.funnel[s.funnel.length - 1].remaining}, rows ${s.rows.length}`);
+      }
+
+      for (const [code, row] of s.all) {
+        const f = factors.get(code);
+
+        checks++;
+        const conviction = convictionScore(row, f, mode);
+        if (!(conviction >= 0 && conviction <= 1)) fail('screener', `${mode} ${code} conviction di luar 0-1: ${conviction}`);
+
+        assertFinite(`screener ${mode}`, code, { close: row.close, volumeShares: row.volumeShares });
+        checks++;
+        if (row.volumeShares < 0) fail('screener', `${mode} ${code} volume negatif: ${row.volumeShares}`);
+
+        checks++;
+        const maShouldPass = row.close > row.maShort && row.close > row.maLong;
+        if (Number.isFinite(row.maShort) && Number.isFinite(row.maLong) && row.passMa !== maShouldPass) {
+          fail('screener', `${code} passMa=${row.passMa} tetapi close=${row.close} MA=${row.maShort}/${row.maLong}`);
+        }
+
+        // -- pullback arithmetic
+        if (Number.isFinite(row.highInWindow) && Number.isFinite(row.dipFromHigh)) {
+          checks++;
+          // The dip is a distance BELOW a high, so it can never be positive.
+          if (row.dipFromHigh > 1e-9) {
+            fail('screener', `${code} dipFromHigh positif: ${row.dipFromHigh} (puncak ${row.highInWindow})`);
+          }
+          checks++;
+          const inBand = row.dipFromHigh <= -cfg.minDipPercent && row.dipFromHigh >= -cfg.maxDipPercent;
+          if (row.passDepth !== inBand) {
+            fail('screener', `${code} passDepth=${row.passDepth} tetapi diskon ${row.dipFromHigh} di luar/di dalam pita`);
+          }
+        }
+        checks++;
+        if (row.passTrend && !(Number.isFinite(row.maTrend) && row.maTrend > 0)) {
+          fail('screener', `${code} passTrend tanpa MA${cfg.trendMa} yang terdefinisi`);
+        }
+        checks++;
+        if (row.passDip && row.passTrend && Number.isFinite(row.maDip) && Number.isFinite(row.maTrend)) {
+          // Both readings must come from the same close, so a row cannot be
+          // simultaneously above and below the SAME average.
+          if (cfg.dipMa === cfg.trendMa) fail('screener', `${code} lolos di atas dan di bawah MA yang sama`);
+        }
+
+        // -- laggard arithmetic
+        if (Number.isFinite(row.indexReturn) && Number.isFinite(row.stockReturn)) {
+          checks++;
+          const gap = (row.indexReturn - row.stockReturn) * 100;
+          if (Math.abs(gap - row.gapToIndexPp) > 1e-6) {
+            fail('screener', `${code} gapToIndexPp=${row.gapToIndexPp} tetapi indeks−saham=${gap}`);
+          }
+          checks++;
+          if (row.passIndexUp !== row.indexReturn >= cfg.minIndexGainPercent) {
+            fail('screener', `${code} passIndexUp=${row.passIndexUp} tetapi indeks ${row.indexReturn}`);
+          }
+          checks++;
+          if (row.passLag !== row.stockReturn <= cfg.maxStockGainPercent) {
+            fail('screener', `${code} passLag=${row.passLag} tetapi return saham ${row.stockReturn}`);
+          }
+          checks++;
+          // A row that passed both halves of the laggard claim MUST show a gap
+          // at least as wide as the two thresholds imply. If it does not, the
+          // subtraction is the wrong way round.
+          if (row.passIndexUp && row.passLag) {
+            const minGap = (cfg.minIndexGainPercent - cfg.maxStockGainPercent) * 100;
+            if (row.gapToIndexPp < minGap - 1e-9) {
+              fail('screener', `${code} lolos indeks+lag tetapi jarak hanya ${row.gapToIndexPp}pp (minimal ${minGap}pp)`);
+            }
+          }
+        }
+        checks++;
+        if (row.indexCode !== 'COMPOSITE' && !db.indexSeries.has(row.indexCode)) {
+          fail('screener', `${code} memakai indeks acuan yang tidak ada: ${row.indexCode}`);
+        }
+
+        // -- lateness arithmetic
+        //
+        // Both readings come from the same 60 closes, so two things must hold:
+        // the run-up from that window's LOW is never negative, and it is never
+        // below the drop from that window's HIGH, because low <= high makes
+        // close/low >= close/high. Swapping the min and the max produces two
+        // columns of entirely plausible percentages that say the opposite of
+        // the truth, and nothing else here would notice.
+        //
+        // (The first version of this check asserted runup + dip >= 0, which is
+        // not an identity at all — close/low + close/high >= 2 is simply false
+        // for a stock sitting between the two. It failed on 489 emiten that
+        // were all correct. The invariant was wrong, not the engine.)
+        if (Number.isFinite(row.runupFromLow)) {
+          checks++;
+          if (row.runupFromLow < -1e-9) {
+            fail('screener', `${code} runupFromLow negatif: ${row.runupFromLow}`);
+          }
+          checks++;
+          if (Number.isFinite(row.dipFromHigh) && row.runupFromLow < row.dipFromHigh - 1e-9) {
+            fail(
+              'screener',
+              `${code} runup ${row.runupFromLow} di bawah diskon ${row.dipFromHigh} — puncak dan dasar tertukar`
+            );
+          }
+        }
+        checks++;
+        if (Number.isFinite(row.atr14) && row.atr14 < 0) fail('screener', `${code} ATR14 negatif: ${row.atr14}`);
+        checks++;
+        if (Number.isFinite(row.extensionAtr) && Number.isFinite(row.maDip) && Number.isFinite(row.atr14) && row.atr14 > 0) {
+          // The row must be extended in the same DIRECTION the price sits: above
+          // its own MA20 means a positive extension, and vice versa. A sign flip
+          // here would invert the whole "sudah terbang" column.
+          const above = row.close > row.maDip;
+          if (above !== row.extensionAtr > 0 && Math.abs(row.extensionAtr) > 0.01) {
+            fail(
+              'screener',
+              `${code} regangan ${row.extensionAtr} berlawanan arah dengan harga ${row.close} vs MA ${row.maDip}`
+            );
+          }
+        }
+      }
+
+      // The mode has to actually change the verdict, or the switch is cosmetic.
+      // Not asserted on `rows.length` (a quiet market may legitimately empty a
+      // mode) but on the rule flags, which are computed for every emiten.
+      checks++;
+      const anyModeRule = [...s.all.values()].some((r) => r.passTrend || r.passDip || r.passIndexUp || r.passLag);
+      if (!anyModeRule) fail('screener', `${mode} tidak satu pun aturan mode terpenuhi di seluruh semesta`);
+    }
+
+    // ---- pick journal: does a recorded pick grade correctly? ---------------
+    //
+    // The journal is the only engine here whose whole value is that it is
+    // honest about the FUTURE, so the checks are about look-ahead and about the
+    // grading arithmetic. Synthetic picks are built on a session far enough back
+    // that most of them have had time to resolve, plus one on the very last
+    // session — which must come back `open`, because nothing after it exists.
+    {
+      const anchorIdx = Math.max(0, db.dates.length - 200);
+      const anchor = db.dates[anchorIdx];
+      const last = db.dates[db.dates.length - 1];
+      const rr = TARGET_ATR_MULT / STOP_ATR_MULT;
+
+      const synth = (code: string, session: string): Pick | null => {
+        const idx = db.dates.indexOf(session);
+        const s = db.series.get(code);
+        const f = factors.get(code);
+        if (!s || !f || idx < 0) return null;
+        const entry = s.close[idx];
+        const levels = levelsFor(entry, f.atr14);
+        if (!levels) return null;
+        return {
+          id: `${session}:screener:momentum:${code}`,
+          recordedAt: new Date().toISOString(),
+          session,
+          source: 'screener:momentum',
+          code,
+          name: code,
+          sector: '',
+          rank: 1,
+          score: 0.5,
+          entry,
+          stop: levels.stop,
+          target: levels.target,
+          atr14: f.atr14,
+          runupFromLow: NaN,
+          extensionAtr: NaN,
+          gapToIndexPp: NaN,
+          dipFromHigh: NaN,
+          entryIsFinalClose: true,
+        };
+      };
+
+      const codes = db.emiten.slice(0, 400).map((e) => e.code);
+      let graded = 0;
+      for (const code of codes) {
+        const p = synth(code, anchor);
+        if (!p) continue;
+        const r = evaluatePick(p, db);
+        checks++;
+        if (!r) {
+          fail('jurnal pick', `${code} tidak bisa dinilai pada sesi ${anchor}`);
+          continue;
+        }
+        graded++;
+
+        assertFinite('jurnal pick', code, { rMultiple: r.rMultiple, returnPercent: r.returnPercent });
+
+        checks++;
+        // A pick can never be graded against a session at or before its own.
+        if (r.exitSession < p.session) fail('jurnal pick', `${code} keluar di ${r.exitSession} sebelum masuk ${p.session}`);
+        checks++;
+        if (r.sessionsHeld < 0 || r.sessionsHeld > MAX_HOLD_SESSIONS) {
+          fail('jurnal pick', `${code} sessionsHeld di luar 0-${MAX_HOLD_SESSIONS}: ${r.sessionsHeld}`);
+        }
+        checks++;
+        if (r.outcome === 'stop' && Math.abs(r.rMultiple + 1) > 1e-9) {
+          fail('jurnal pick', `${code} kena stop tapi R = ${r.rMultiple}, seharusnya -1`);
+        }
+        checks++;
+        if (r.outcome === 'target' && Math.abs(r.rMultiple - rr) > 1e-9) {
+          fail('jurnal pick', `${code} kena target tapi R = ${r.rMultiple}, seharusnya ${rr}`);
+        }
+        checks++;
+        if (r.outcome === 'expired' && r.sessionsHeld !== MAX_HOLD_SESSIONS) {
+          fail('jurnal pick', `${code} kedaluwarsa di sesi ke-${r.sessionsHeld}, bukan ${MAX_HOLD_SESSIONS}`);
+        }
+        checks++;
+        // 200 sessions of runway is more than the 63-session cap, so nothing
+        // anchored back there may still be open. An `open` here means the walk
+        // forward stopped early — the exact bug that would freeze the win rate.
+        if (r.outcome === 'open') fail('jurnal pick', `${code} masih terbuka padahal 200 sesi sudah lewat`);
+        checks++;
+        if (r.resolved !== (r.outcome !== 'open')) fail('jurnal pick', `${code} flag resolved tidak konsisten`);
+      }
+      checks++;
+      if (graded < 50) fail('jurnal pick', `hanya ${graded} pick sintetis bisa dinilai — terlalu sedikit untuk menjaga apa pun`);
+
+      // THE LOOK-AHEAD GUARD. A pick made on the newest session has no future
+      // to be graded against, so anything other than `open` means the evaluator
+      // is reading a bar that does not exist yet.
+      for (const code of codes.slice(0, 40)) {
+        const p = synth(code, last);
+        if (!p) continue;
+        const r = evaluatePick(p, db);
+        checks++;
+        if (r && r.outcome !== 'open') {
+          fail('jurnal pick', `${code} dicatat pada sesi terakhir ${last} tapi sudah berstatus ${r.outcome}`);
+        }
+      }
+
+      // Summaries must never invent a win rate out of nothing, and must never
+      // count an open position as resolved.
+      const rows = codes
+        .map((c) => synth(c, anchor))
+        .filter((p): p is Pick => p !== null)
+        .map((p) => evaluatePick(p, db))
+        .filter((r): r is EvaluatedPick => r !== null);
+      const { summaries } = buildPickSummaries(rows);
+      for (const s of summaries) {
+        checks++;
+        if (s.resolved + s.open !== s.picks) fail('jurnal pick', `${s.label}: ${s.resolved}+${s.open} != ${s.picks}`);
+        checks++;
+        if (s.wins + s.losses !== s.resolved) fail('jurnal pick', `${s.label}: menang+kalah != selesai`);
+        checks++;
+        if (Number.isFinite(s.winRate) && (s.winRate < 0 || s.winRate > 1)) {
+          fail('jurnal pick', `${s.label}: winrate di luar 0-1: ${s.winRate}`);
+        }
+        checks++;
+        if (s.resolved === 0 && Number.isFinite(s.winRate)) {
+          fail('jurnal pick', `${s.label}: winrate dicetak padahal nol pick selesai`);
+        }
+      }
     }
 
     // ---- watchlist, both horizons -----------------------------------------

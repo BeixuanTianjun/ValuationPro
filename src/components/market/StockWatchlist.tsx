@@ -21,8 +21,9 @@ import { FactorSnapshot } from '../../types/market';
 import { AnnouncementsFile, summariseAnnouncements } from '../../models/announcements';
 import { OwnershipFile } from '../../models/ownershipFlow';
 import { Horizon, WatchlistCandidate, buildWatchlist } from '../../models/watchlist';
+import { SCREENER_MODES, ScreenerMode } from '../../models/stockScreener';
 import { buildTradeSetup } from '../../models/tradeSetup';
-import { StrategyFile, loadStrategyFile } from '../../models/strategyLab';
+import { StrategyFile, TriggerDiagnostic, loadStrategyFile } from '../../models/strategyLab';
 import { NARRATIVE_THEMES } from '../../data/narratives';
 import { TradingViewChart } from './TradingViewChart';
 import {
@@ -53,6 +54,12 @@ const TONE_PILL: Record<string, 'up' | 'down' | 'neutral' | 'warn' | 'muted'> = 
   risiko: 'warn',
   netral: 'neutral',
 };
+
+/** Setup names, read from the screener registry so the two screens agree. */
+const SETUP_LABEL: Record<ScreenerMode, string> = SCREENER_MODES.reduce(
+  (acc, m) => ({ ...acc, [m.id]: m.label.toLowerCase() }),
+  {} as Record<ScreenerMode, string>
+);
 
 const HORIZON_OPTIONS = [
   { id: 'mingguan' as const, label: 'Watchlist mingguan', shortLabel: 'Mingguan' },
@@ -124,7 +131,10 @@ export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten })
   const annSummary = useMemo(() => (announcements ? summariseAnnouncements(announcements) : null), [announcements]);
 
   const filtered = useMemo(
-    () => (onlyScreened ? result.candidates.filter((c) => c.priceAction.passesScreener) : result.candidates),
+    // "Lolos screener" now means ANY of the three setups, not the momentum one
+    // alone. Keeping it on momentum would have hidden every pullback and every
+    // laggard behind a filter whose label does not say so.
+    () => (onlyScreened ? result.candidates.filter((c) => c.priceAction.setups.length > 0) : result.candidates),
     [result.candidates, onlyScreened]
   );
 
@@ -198,7 +208,7 @@ export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten })
                 : 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800'
             )}
           >
-            Hanya yang lolos screener
+            Hanya yang lolos salah satu setup
           </button>
           {filtered.length > DEFAULT_SHOWN && (
             <button
@@ -248,7 +258,7 @@ export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten })
       {shown.length === 0 ? (
         <EmptyState icon={Newspaper} title="Belum ada kandidat">
           {onlyScreened
-            ? 'Tidak ada kandidat bernarasi yang juga lolos ketiga aturan screener pada sesi ini. Matikan saringan untuk melihat yang tape-nya belum konfirmasi.'
+            ? 'Tidak ada kandidat bernarasi yang juga lolos salah satu setup screener — momentum, antre beli, maupun tertinggal — pada sesi ini. Matikan saringan untuk melihat yang tape-nya belum konfirmasi.'
             : 'Tidak ada emiten dengan pengajuan material atau tema kurasi pada jendela ini.'}
         </EmptyState>
       ) : (
@@ -312,7 +322,11 @@ const CandidateCard: React.FC<{
               </button>
               <span className="min-w-0 truncate text-[11px] text-slate-400">{c.name}</span>
               <Pill tone={c.changePercent >= 0 ? 'up' : 'down'}>{pct(c.changePercent)}</Pill>
-              {c.priceAction.passesScreener && <Pill tone="up">lolos screener</Pill>}
+              {c.priceAction.setups.map((s) => (
+                <Pill key={s} tone={s === 'momentum' ? 'up' : 'accent'}>
+                  {SETUP_LABEL[s]}
+                </Pill>
+              ))}
               {c.narrative.underExchangeAttention && <Pill tone="warn">perhatian bursa</Pill>}
             </div>
             <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
@@ -504,6 +518,27 @@ const CandidateDetail: React.FC<{ candidate: WatchlistCandidate; atr14: number }
 
       {c.priceAction.screener && (
         <div className="mt-3 flex flex-wrap gap-1.5">
+          {/* Which of the three setups this name fits today. Empty is a real
+              answer: the narrative is there and the tape has not confirmed it
+              in any of the three ways the screener can check. */}
+          {c.priceAction.setups.length ? (
+            c.priceAction.setups.map((s) => (
+              <Pill key={s} tone={s === 'momentum' ? 'up' : 'accent'}>
+                setup {SETUP_LABEL[s]}
+              </Pill>
+            ))
+          ) : (
+            <Pill tone="muted">tanpa setup screener</Pill>
+          )}
+          {Number.isFinite(c.priceAction.dipFromHigh) && c.priceAction.dipFromHigh < -0.05 && (
+            <Pill tone="muted">{pct(c.priceAction.dipFromHigh)} dari puncak 60 sesi</Pill>
+          )}
+          {Number.isFinite(c.priceAction.gapToIndexPp) && Math.abs(c.priceAction.gapToIndexPp) >= 5 && (
+            <Pill tone="muted">
+              {c.priceAction.gapToIndexPp >= 0 ? 'tertinggal' : 'unggul'}{' '}
+              {Math.abs(c.priceAction.gapToIndexPp).toFixed(1)} pp dari {c.priceAction.indexCode}
+            </Pill>
+          )}
           <Pill tone={c.priceAction.screener.passMa ? 'up' : 'down'}>
             MA{c.priceAction.screener.passMa ? ' ✓' : ' ✗'}
           </Pill>
@@ -699,6 +734,8 @@ const StrategyLabPanel: React.FC<{ file: StrategyFile }> = ({ file }) => {
         ))}
       </div>
 
+      {file.perTrigger && file.perTrigger.length > 0 && <TriggerLedger rows={file.perTrigger} />}
+
       <SourceNote icon={Info}>
         <strong className="text-slate-400">Winrate tinggi itu gampang dipalsukan, dan itu yang dijaga di sini.</strong>{' '}
         Target kecil dengan stop lebar bisa menang 90% dan tetap rugi, karena satu kekalahan menghapus enam kemenangan.
@@ -712,6 +749,92 @@ const StrategyLabPanel: React.FC<{ file: StrategyFile }> = ({ file }) => {
     </Panel>
   );
 };
+
+/**
+ * Every trigger the lab searched, including the ones that survived nothing.
+ *
+ * This panel exists because of what the two new screener setups turned up. Dip
+ * and laggard entries produced HUNDREDS of rule sets clearing the 65% win-rate
+ * bar and not one that also cleared expectancy — meaning the win rate was
+ * bought with tiny targets against wide stops, exactly the fragility the stress
+ * gate was added to catch. Publishing only the leaderboard would have shown a
+ * board full of moving-average crosses and said nothing at all about that,
+ * which reads as "never tried" rather than "tried and failed".
+ */
+const TriggerLedger: React.FC<{ rows: TriggerDiagnostic[] }> = ({ rows }) => (
+  <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-3.5">
+    <h5 className="text-[11px] font-bold text-slate-200">Seberapa telat tiap trigger, dan mana yang gugur</h5>
+    <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+      Kolom pertama menjawab &quot;kita selalu telat&quot;: berapa persen saham itu rata-rata SUDAH naik dari dasar 60
+      sesinya ketika trigger menyala. Tembus tertinggi 20 sesi baru masuk setelah naik 87% dan tidak meloloskan satu
+      pun rule set; jarak ke indeks masuk paling awal di 12% dan juga tidak meloloskan apa pun. Masuk lebih awal itu
+      syarat perlu, bukan syarat cukup. Sisanya corong gerbang dari kiri ke kanan: trigger dengan nol di kolom terakhir
+      sudah diuji dan gugur — itu temuan, bukan sesuatu yang tidak pernah dicoba. Kalau winrate terbaiknya tinggi
+      tetapi tidak ada yang lolos, winrate itu dibeli dengan target kecil dan stop lebar, dan gerbang rapuh
+      menolaknya.
+    </p>
+    <div className="mt-2.5 -mx-1 overflow-x-auto px-1">
+      <table className="w-full min-w-[560px] text-[10px]">
+        <thead className="border-b border-slate-800 text-slate-500">
+          <tr>
+            <th className="py-1.5 pr-2 text-left font-semibold uppercase tracking-wide">Trigger</th>
+            <th
+              className="py-1.5 px-2 text-right font-semibold uppercase tracking-wide"
+              title="Rata-rata kenaikan yang SUDAH terjadi dari dasar 60 sesi pada saat trigger ini menyala. Makin besar, makin telat."
+            >
+              Masuk stlh naik
+            </th>
+            <th className="py-1.5 px-2 text-right font-semibold uppercase tracking-wide">Dinilai</th>
+            <th className="py-1.5 px-2 text-right font-semibold uppercase tracking-wide">Lolos WR</th>
+            <th className="py-1.5 px-2 text-right font-semibold uppercase tracking-wide">Lolos expectancy</th>
+            <th className="py-1.5 px-2 text-right font-semibold uppercase tracking-wide">Tahan rapuh</th>
+            <th className="py-1.5 pl-2 text-right font-semibold uppercase tracking-wide">Expectancy terbaik</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-800/70">
+          {rows.map((r) => (
+            <tr key={r.id}>
+              <td className="py-1.5 pr-2">
+                <span className="font-bold text-slate-200">{r.id}</span>
+                <span className="ml-1.5 text-slate-600">{r.family}</span>
+              </td>
+              <td
+                className={cx(
+                  'py-1.5 px-2 text-right font-bold tabular-nums',
+                  r.avgRunupAtEntry === null
+                    ? 'text-slate-600'
+                    : r.avgRunupAtEntry >= 0.5
+                      ? 'text-rose-400'
+                      : r.avgRunupAtEntry >= 0.3
+                        ? 'text-amber-300'
+                        : 'text-emerald-300'
+                )}
+              >
+                {r.avgRunupAtEntry === null ? '–' : `+${(r.avgRunupAtEntry * 100).toFixed(0)}%`}
+              </td>
+              <td className="py-1.5 px-2 text-right tabular-nums text-slate-400">{r.ruleSetsWithEnoughTrades}</td>
+              <td className="py-1.5 px-2 text-right tabular-nums text-slate-400">{r.passedWinRate}</td>
+              <td className="py-1.5 px-2 text-right tabular-nums text-slate-400">{r.passedExpectancy}</td>
+              <td
+                className={cx(
+                  'py-1.5 px-2 text-right font-bold tabular-nums',
+                  r.survivors > 0 ? 'text-emerald-300' : 'text-rose-400'
+                )}
+              >
+                {r.survivors}
+              </td>
+              <td className="py-1.5 pl-2 text-right tabular-nums text-slate-300">
+                {r.bestTestExpectancyR === null
+                  ? '–'
+                  : `${r.bestTestExpectancyR >= 0 ? '+' : ''}${r.bestTestExpectancyR.toFixed(2)}R`}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
 
 const ThemePanel: React.FC = () => (
   <Panel>

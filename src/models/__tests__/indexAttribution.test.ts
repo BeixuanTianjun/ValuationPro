@@ -102,17 +102,58 @@ async function main() {
   const ytd = computeAttribution(published, 'ytd');
   check('ytd produces a window', !!ytd && ytd.fromDate < ytd.toDate, ytd ? `${ytd.fromDate} -> ${ytd.toDate}` : 'null');
 
-  // With the live overlay the residual should still be small in relative terms,
-  // and must always be explained to the reader.
+  // With the live overlay the residual should still be small, and must always be
+  // explained to the reader.
+  //
+  // ── WHY THIS IS NOT ONE RATIO ─────────────────────────────────────────────
+  //
+  // "Residual under 10% of the move" is the right question on a normal day and
+  // a meaningless one thirty minutes into a flat session. The denominator is a
+  // difference between two nearly-equal index levels: measured 2026-09-02 at
+  // 09:22 WIB, IHSG had moved 2.92 points on a level of 6,602 — 0.04% — while
+  // the residual was 3.19 points, or 109% of the move and 0.048% of the level.
+  // The ratio does not describe an error there, it describes a denominator
+  // approaching zero, and the old absolute escape hatch (< 1 point) was never
+  // exercised because every earlier run had an overlay identical to the
+  // committed close, which reconciles at exactly 0.00.
+  //
+  // BOTH ALTERNATIVE EXPLANATIONS WERE CHECKED AND RULED OUT before this test
+  // was touched, because widening a tolerance to make a red test green is how
+  // a real defect gets buried:
+  //
+  //   · the engine — published-vs-published reconciles to under 0.01 points
+  //     (asserted above), so the weights, the divisor and the arithmetic are
+  //     right;
+  //   · the baseline — Yahoo's ^JKSE previousClose was 6599.943 against IDX's
+  //     own published close of 6599.943, exact to the last digit, so the two
+  //     feeds are not measuring from different starting points;
+  //   · the constituents — two quotes WERE poisoning the overlay (SCPI priced
+  //     at 0, FASW stamped nineteen months stale) and both were fixed in
+  //     ingest-intraday.mjs. The residual did not move, which is what proved
+  //     it is feed skew rather than bad data.
+  //
+  // So: on a real move the strict ratio still applies. Below that, the ratio is
+  // not evaluated at all and the residual is held against the index LEVEL,
+  // which does not collapse. That second bound is a FEED-NOISE bound, not a
+  // correctness bound — correctness is proven by the published-only check.
+  const MEANINGFUL_MOVE_POINTS = 20;
+  const NOISE_FRACTION_OF_LEVEL = 0.001;
   const live = await loadMarketDatabaseFromDisk(DATA_DIR);
   const intraday = await readJson<IntradayFile>('intraday.json').catch(() => null);
   if (live.live?.applied && intraday) {
     const l = computeAttribution(live, '1d');
     const relative = l && l.indexPoints !== 0 ? Math.abs(l.reconciliation.residualPoints / l.indexPoints) : 0;
+    const movedEnough = !!l && Math.abs(l.indexPoints) >= MEANINGFUL_MOVE_POINTS;
+    const withinNoise = !!l && Math.abs(l.reconciliation.residualPoints) < l.indexNow * NOISE_FRACTION_OF_LEVEL;
     check(
-      'live overlay residual stays under 10% of the move',
-      !!l && (relative < 0.1 || Math.abs(l.reconciliation.residualPoints) < 1),
-      l ? `residual=${l.reconciliation.residualPoints.toFixed(2)} dari ${l.indexPoints.toFixed(2)} poin` : 'null'
+      movedEnough
+        ? 'live overlay residual stays under 10% of the move'
+        : 'live overlay residual stays inside feed noise (gerak indeks terlalu kecil untuk rasio)',
+      !!l && (movedEnough ? relative < 0.1 : withinNoise),
+      l
+        ? `residual=${l.reconciliation.residualPoints.toFixed(2)} dari ${l.indexPoints.toFixed(2)} poin ` +
+          `(${((Math.abs(l.reconciliation.residualPoints) / l.indexNow) * 100).toFixed(3)}% dari level ${l.indexNow.toFixed(0)})`
+        : 'null'
     );
     check(
       'live overlay residual is explained',
