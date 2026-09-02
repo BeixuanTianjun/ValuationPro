@@ -344,6 +344,20 @@ async function runJob(id: JobId, reason: string, sendAlert: boolean): Promise<st
       await step('makro global', () => runScript('ingest-macro.mjs', ['--range', '2y']));
       await step('proksi tanker', () => runScript('ingest-tanker.mjs', ['--range', '2y']));
 
+      // Tiga feed di bawah ini sebelumnya tidak ada di tier MANA PUN — bukan di
+      // penjadwal ini, bukan di .github/workflows/refresh-data.yml. Satu-satunya
+      // cara mereka pernah segar adalah kalau ada yang mengetik npm run secara
+      // manual. Diukur 2026-09-02: worldmap 122 jam, gdelt dan risk 107 jam,
+      // sementara layar MAP dan RISK terus menggambar seolah tidak ada apa-apa.
+      // Sebuah feed tanpa jadwal bukan feed, itu berkas.
+      //
+      // Ditaruh di tier mingguan, bukan harian, karena ketiganya menarik jendela
+      // panjang tiap kali jalan (120 hari, 288 jam, 90 hari) — jeda seminggu
+      // tidak meninggalkan lubang di dalam datanya sendiri.
+      await step('peta dunia & selat', () => runScript('ingest-worldmap.mjs', ['--days', '120']));
+      await step('peristiwa GDELT', () => runScript('ingest-gdelt.mjs', ['--hours', '288']));
+      await step('komposit risiko', () => runScript('ingest-risk.mjs', ['--days', '90']));
+
       return failed.length
         ? `${done.length} diperbarui (${done.join(', ')}); GAGAL: ${failed.join('; ')}`
         : `diperbarui: ${done.join(', ')}`;
