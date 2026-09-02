@@ -113,7 +113,37 @@ export interface Pick {
    * stays valid and reads as false.
    */
   backfilled?: boolean;
+  /**
+   * Versi aturan screener yang berlaku saat baris ini dibuat.
+   *
+   * Ada karena jurnal ini mengukur ATURAN, dan aturan berubah. Tanpa penanda,
+   * sebuah baris dari Juli dan sebuah baris dari September terlihat sama
+   * persis padahal "momentum" sudah berarti dua hal berbeda — dan winrate yang
+   * merata-ratakan keduanya tidak mengukur apa pun.
+   *
+   * Ketiadaan field ini berarti versi 1, sehingga baris yang ditulis sebelum
+   * penanda ini ada tetap terbaca benar.
+   */
+  rulesVersion?: number;
 }
+
+/**
+ * Versi aturan yang berlaku SEKARANG.
+ *
+ *   1  Momentum = di atas MA3 dan MA5, plus dua aturan likuiditas. Conviction
+ *      memakai suku `freshness` (sesi berturut di atas MA panjang).
+ *   2  2026-09-02. Momentum menambah gerbang keras "runup 60 sesi < 15%",
+ *      dipasang setelah gate:ablate menemukannya satu-satunya dari dua puluh
+ *      syarat yang punya dosis-respons monoton. Suku `freshness` dihapus dari
+ *      conviction karena dosis-responsnya rata dan syaratnya meloloskan 94%
+ *      keranjang. Pullback dan laggard TIDAK berubah — diukur, baris keduanya
+ *      identik sebelum dan sesudah.
+ *
+ * Naikkan angka ini setiap kali aturan keras atau conviction berubah, dan tulis
+ * apa yang berubah di daftar di atas. Baris berversi berbeda tidak boleh
+ * dijumlahkan jadi satu winrate tanpa mengatakannya.
+ */
+export const RULES_VERSION = 2;
 
 export interface PickFile {
   version: 1;

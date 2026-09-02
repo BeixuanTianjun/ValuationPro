@@ -28,7 +28,7 @@ import { dirname, join } from 'node:path';
 import { computeAllFactors } from '../models/factorEngine';
 import { runStockScreener, convictionScore, ScreenerMode } from '../models/stockScreener';
 import { buildWatchlist, Horizon } from '../models/watchlist';
-import { Pick, PickFile, PickSource, levelsFor } from '../models/pickJournal';
+import { Pick, PickFile, PickSource, RULES_VERSION, levelsFor } from '../models/pickJournal';
 import type { AnnouncementsFile } from '../models/announcements';
 import type { OwnershipFile } from '../models/ownershipFlow';
 import type { MarketDatabase } from '../data/marketRepository';
@@ -115,6 +115,7 @@ export function buildPicksForSession(input: BuildPicksInput): Pick[] {
       gapToIndexPp: NaN,
       dipFromHigh: NaN,
       entryIsFinalClose: final,
+      rulesVersion: RULES_VERSION,
       ...(backfilled ? { backfilled: true } : {}),
       ...readings,
     });

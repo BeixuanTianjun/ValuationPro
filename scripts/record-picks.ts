@@ -49,6 +49,26 @@ async function main() {
     .filter((r): r is EvaluatedPick => r !== null);
 
   console.log(`\n════════ HASIL SEMENTARA ════════`);
+  // Versi aturan yang tercampur, kalau ada. Ditulis di sini dan bukan cuma di
+  // komentar sumber, karena aturan yang tidak pernah muncul di layar adalah
+  // aturan yang akan dilupakan tepat ketika ia mulai penting.
+  const versions = new Map<number, number>();
+  for (const p of file.picks) {
+    const v = p.rulesVersion ?? 1;
+    versions.set(v, (versions.get(v) ?? 0) + 1);
+  }
+  if (versions.size > 1) {
+    const parts = [...versions.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([v, n]) => `v${v}: ${n}`)
+      .join(' · ');
+    console.log('');
+    console.log(`PERHATIAN — jurnal memuat lebih dari satu versi aturan (${parts}).`);
+    console.log('Lihat RULES_VERSION di src/models/pickJournal.ts untuk apa yang berubah di tiap');
+    console.log('versi, dan sumber mana yang terbukti identik antar-versi sehingga tetap boleh');
+    console.log('digabung.');
+  }
+
   console.log(`dicatat sejak ${file.startedOn} · ${file.picks.length} pick · ${rows.length} bisa dinilai\n`);
   console.log('sumber                    pick  selesai  terbuka   winrate  expectancy  median 1b  median 3b');
   const { summaries, backfillSummaries, provisionalExcluded } = buildPickSummaries(rows);
