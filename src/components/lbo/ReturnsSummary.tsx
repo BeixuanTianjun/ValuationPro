@@ -12,7 +12,25 @@ export const ReturnsSummaryComponent: React.FC<ReturnsSummaryProps> = ({
   summary,
   currency,
 }) => {
-  const totalValueCreation = summary.ebitdaGrowthImpact + summary.multipleExpansionImpact + summary.debtPaydownImpact;
+  // Jembatan nilai, dan ia HARUS rekonsiliasi.
+  //
+  // Versi lama menjumlahkan tiga komponen dan memakainya sebagai penyebut lebar
+  // batang. Jumlah itu bukan penciptaan nilai yang sebenarnya — ia melebihinya
+  // persis sebesar biaya transaksi, karena sponsor menyetor nilai perusahaan
+  // DITAMBAH fee sementara ketiga komponen hanya berbicara tentang nilai
+  // perusahaan. Akibatnya tiap batang tampil lebih besar daripada porsinya.
+  //
+  // Sekarang biaya muncul sebagai komponen keempat yang negatif, dan lebar
+  // batang dinormalkan terhadap jumlah NILAI MUTLAK supaya komponen negatif
+  // tidak membuat batang lain melebihi 100%.
+  const drivers = [
+    { label: '1. EBITDA Growth', value: summary.ebitdaGrowthImpact, bar: 'bg-blue-500', text: 'text-blue-400' },
+    { label: '2. Multiple Expansion', value: summary.multipleExpansionImpact, bar: 'bg-amber-500', text: 'text-amber-400' },
+    { label: '3. Debt Paydown / De-leveraging', value: summary.debtPaydownImpact, bar: 'bg-emerald-500', text: 'text-emerald-400' },
+    { label: '4. Transaction Fees', value: summary.transactionFeeImpact, bar: 'bg-rose-500', text: 'text-rose-400' },
+  ];
+  const scale = drivers.reduce((s, d) => s + Math.abs(d.value), 0) || 1;
+  const totalValueCreation = drivers.reduce((s, d) => s + d.value, 0);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -85,43 +103,26 @@ export const ReturnsSummaryComponent: React.FC<ReturnsSummaryProps> = ({
           </div>
 
           <div className="space-y-4 my-4">
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300 font-semibold">1. EBITDA Growth</span>
-                <span className="font-mono text-blue-400 font-bold">{formatCurrency(summary.ebitdaGrowthImpact, currency, 1)}</span>
+            {drivers.map((d) => (
+              <div key={d.label}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-300 font-semibold">{d.label}</span>
+                  <span className={`font-mono font-bold ${d.text}`}>{formatCurrency(d.value, currency, 1)}</span>
+                </div>
+                <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden">
+                  <div
+                    className={`${d.bar} h-full rounded-full`}
+                    style={{ width: `${Math.min((Math.abs(d.value) / scale) * 100, 100)}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden">
-                <div
-                  className="bg-blue-500 h-full rounded-full"
-                  style={{ width: `${Math.min(Math.max((summary.ebitdaGrowthImpact / (totalValueCreation || 1)) * 100, 0), 100)}%` }}
-                />
-              </div>
-            </div>
+            ))}
 
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300 font-semibold">2. Multiple Expansion</span>
-                <span className="font-mono text-amber-400 font-bold">{formatCurrency(summary.multipleExpansionImpact, currency, 1)}</span>
-              </div>
-              <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden">
-                <div
-                  className="bg-amber-500 h-full rounded-full"
-                  style={{ width: `${Math.min(Math.max((summary.multipleExpansionImpact / (totalValueCreation || 1)) * 100, 0), 100)}%` }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-300 font-semibold">3. Debt Paydown / De-leveraging</span>
-                <span className="font-mono text-emerald-400 font-bold">{formatCurrency(summary.debtPaydownImpact, currency, 1)}</span>
-              </div>
-              <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-full rounded-full"
-                  style={{ width: `${Math.min(Math.max((summary.debtPaydownImpact / (totalValueCreation || 1)) * 100, 0), 100)}%` }}
-                />
-              </div>
+            <div className="flex justify-between border-t border-slate-800 pt-3 text-xs">
+              <span className="font-semibold text-slate-200">Jumlah</span>
+              <span className="font-mono font-bold text-slate-100">
+                {formatCurrency(totalValueCreation, currency, 1)}
+              </span>
             </div>
           </div>
         </div>

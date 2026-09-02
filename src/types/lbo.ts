@@ -110,7 +110,22 @@ export interface LboReturnsSummary {
   sponsorIRR: number;  // Internal Rate of Return (e.g. 23.4%)
 
   // Attribution
+  //
+  // Keempatnya BERJUMLAH tepat ke `exitEquityValue - initialSponsorEquity`.
+  // Itu bukan kebetulan melainkan syarat: sebuah jembatan nilai yang tidak
+  // rekonsiliasi menyembunyikan selisihnya di tempat yang tidak dilihat siapa
+  // pun. Sampai 2026-09-02 komponennya hanya tiga dan meleset persis sebesar
+  // biaya transaksi — pada contoh uji, Rp 400 dari Rp 12.181 yang sebenarnya.
   ebitdaGrowthImpact: number;
   multipleExpansionImpact: number;
   debtPaydownImpact: number;
+  /**
+   * Biaya penasihat dan pembiayaan, SELALU negatif.
+   *
+   * Uang yang disetor sponsor pada penutupan tetapi tidak pernah menjadi nilai
+   * perusahaan. Ia beban permanen terhadap hasil, dan menghilangkannya dari
+   * jembatan membuat ketiga komponen lain terlihat lebih besar daripada yang
+   * benar-benar mereka hasilkan.
+   */
+  transactionFeeImpact: number;
 }

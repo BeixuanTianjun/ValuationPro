@@ -164,6 +164,15 @@ export function runLboModel(assumptions: LboAssumptions): LboReturnsSummary {
   const ebitdaGrowthImpact = (exitEbitda - initialEbitda) * entryMultiple;
   const multipleExpansionImpact = (exitMultiple - entryMultiple) * exitEbitda;
   const debtPaydownImpact = initialNetDebt - endingNetDebt;
+  // Komponen keempat, tanpa ini jembatannya tidak pernah menutup.
+  //
+  // `initialSponsorEquity` sudah memuat biaya penutupan — sponsor menyetor
+  // nilai perusahaan DITAMBAH fee — sementara ketiga komponen di atas hanya
+  // berbicara tentang nilai perusahaan. Selisihnya persis sebesar fee itu, dan
+  // sampai commit ini ia lenyap tanpa jejak: layar Value Creation Drivers
+  // menormalkan panjang batangnya terhadap jumlah tiga komponen, sehingga tiap
+  // batang tampil lebih besar daripada porsinya yang sebenarnya.
+  const transactionFeeImpact = -(su.advisoryFees + su.financingFees);
 
   return {
     sourcesAndUses: su,
@@ -180,6 +189,7 @@ export function runLboModel(assumptions: LboAssumptions): LboReturnsSummary {
     ebitdaGrowthImpact,
     multipleExpansionImpact,
     debtPaydownImpact,
+    transactionFeeImpact,
   };
 }
 
