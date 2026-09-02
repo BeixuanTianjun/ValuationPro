@@ -178,6 +178,44 @@ async function main() {
       }
     }
 
+    // ---- the front page must cover every screen, and only real ones -------
+    //
+    // THIS IS THE GUARD THE OLD FRONT PAGE NEEDED AND DID NOT HAVE. It carried a
+    // hand-written list of eleven cards that drifted for weeks: it advertised
+    // RISK, a screen that had been deleted, while six screens that had actually
+    // shipped — JRN, PORT, CN, NEWS, TNKR, AVAL — appeared nowhere. Nothing
+    // failed, nothing threw; a card for a dead screen renders exactly as nicely
+    // as a card for a live one, and a missing card renders as nothing at all.
+    //
+    // Read from the SOURCE rather than by importing the component: the landing
+    // page pulls in React and lucide-react, and dragging a JSX module into this
+    // node bundle to count strings would cost more than it proves. The regex
+    // reads the same `code:` literals the component ships with.
+    {
+      const landing = await readFile(join(process.cwd(), 'src', 'components', 'landing', 'LandingPage.tsx'), 'utf8');
+      const shown = [...landing.matchAll(/code:\s*'([A-Z]+)'/g)].map((m) => m[1]);
+      const registry = new Set(TERMINAL_FUNCTIONS.map((f) => f.code));
+
+      for (const code of shown) {
+        checks++;
+        if (!registry.has(code)) {
+          fail('halaman depan', `memajang kartu untuk ${code}, yang tidak ada di registri fungsi`);
+        }
+      }
+      for (const fn of TERMINAL_FUNCTIONS) {
+        checks++;
+        if (!shown.includes(fn.code)) {
+          fail('halaman depan', `${fn.code} (${fn.name}) tidak punya kartu — layar tanpa kartu tidak akan ditemukan`);
+        }
+      }
+      checks++;
+      // A count typed as a word or a literal goes stale silently. If either
+      // appears, somebody has re-hardcoded what the registry already knows.
+      if (/Delapan belas layar|value: '18'/.test(landing)) {
+        fail('halaman depan', 'jumlah layar ditulis manual — harus dibaca dari TERMINAL_FUNCTIONS.length');
+      }
+    }
+
     // A screen that cannot work on the deployed site must SAY so in the
     // launcher. Without this the only warning is an empty panel after the
     // click, which reads as a broken feature rather than a deliberate one —

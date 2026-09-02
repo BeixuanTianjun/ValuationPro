@@ -371,6 +371,57 @@ menilai pasar yang pengajuan tersegarnya sudah berumur 17 hari. Sekarang skrip
 menolak menulis kalau baris meleset >5% dari `ResultCount` atau kalau pengajuan
 terbaru lebih tua dari 5 hari.
 
+**Daftar fitur yang ditulis tangan SELALU melenceng, dan melencengnya tidak
+kelihatan.** Halaman depan memuat 11 kartu yang dikurasi manual. Saat diperiksa,
+ia masih mengiklankan **RISK** — layar yang sudah dihapus berminggu-minggu
+sebelumnya — sementara enam layar yang sudah rilis (JRN, PORT, CN, NEWS, TNKR,
+AVAL) tidak disebut sama sekali. Tidak ada yang error: kartu untuk layar mati
+ter-render semulus kartu untuk layar hidup, dan kartu yang hilang ter-render
+sebagai ketiadaan. Sekarang backtest membaca sumber `LandingPage.tsx` dan
+menuntut dua arah — tiap kartu harus menunjuk kode yang ada di registri, dan
+tiap kode di registri harus punya kartu. Jumlah layar dibaca dari
+`TERMINAL_FUNCTIONS.length`; menulisnya manual memerahkan run. Diuji dengan
+menyuntikkan kedua bug lamanya sekaligus, dan keduanya tertangkap.
+
+Dibaca dari SUMBER, bukan dengan mengimpor komponennya: halaman depan menarik
+React dan lucide-react, dan menyeret modul JSX ke dalam bundel node hanya untuk
+menghitung string lebih mahal daripada yang dibuktikannya.
+
+**Dua angka di satu halaman yang bertentangan itu bukan typo, itu kegagalan
+ketertelusuran.** Draf halaman depan menulis "716 sesi riwayat" di hero dan "45
+indeks" di kotak provenance, sementara kartu di bawahnya menghitung 715 dan 46
+dari `db` yang sama. Fallback kartu bahkan sempat `716` sementara prosa hero
+`715` — versi mini dari bug yang sama. Aturannya sekarang: apa pun yang bisa
+dihitung dibaca dari `db`, dan prosa yang tidak bisa menerima angka live
+berbicara kualitatif ("seluruh indeks resmi").
+
+**Copy "yang bagus" itu justru AI slop, dan pemilik repo yang menangkapnya.**
+Draf pertama halaman depan saya tulis rapi dan formal: "Kebanyakan alat saham
+menjawab lebih percaya diri daripada yang datanya izinkan", "Angka tanpa asalnya
+cuma opini yang rapi". Terbaca seperti terjemahan, bukan seperti orang. Lebih
+buruk lagi: halaman LAMA sebenarnya sudah lebih tongkrongan — ada "nggak",
+"gue", "saham gocap" di sana — jadi drafnya adalah kemunduran yang saya sendiri
+masukkan, di repo yang HANDOVER-nya sudah menulis bahwa layar baru ditulis
+dengan bahasa tongkrongan.
+
+Dua penyakitnya terpisah dan dua-duanya harus diobati. Pertama REGISTER: sekarang
+mengikuti suara yang sudah dipakai MACRO dan MAP ("Angkanya kecil-kecil, dan itu
+emang jawabannya", "Sehari doang itu noise") — bukan versi "santai" karangan
+sendiri. Kedua KEPADATAN: halaman depan bukan tempat menjelaskan metode. Yang
+dibuang antara lain penurunan divisor indeks dan rekonsiliasi 0,0003 poin,
+penyesuaian Blume dan gerbang R², serta corong empat tahap watchlist yang
+diurai satu per satu. Badan kartu turun dari rata-rata ~200 karakter jadi 94.
+Kalau sebuah kalimat menjelaskan CARA KERJA, tempatnya di dalam layarnya, bukan
+di halaman depan.
+
+**Claude tidak bisa membaca video, tapi browser bisa.** Pemilik repo mengirim
+mp4 sebagai referensi. Models API mengonfirmasi Opus 5 hanya menerima teks,
+gambar, dan PDF — tidak ada video di daftar kapabilitasnya. ffmpeg juga tidak
+terpasang di mesin ini. Jalan yang berhasil: salin mp4 ke `public/` sementara,
+buka lewat dev server yang sudah jalan dengan `<video>` plus helper seek, lalu
+SCREENSHOT frame-nya — screenshot adalah gambar, dan gambar bisa dibaca. Berkas
+sementaranya dihapus setelah selesai. Kalau nanti ada video lagi, itu resepnya.
+
 **Ringkasan AI yang hanya membaca JUDUL akan terdengar benar dan mengarang
 seluruhnya.** Semua yang menyentuh pengumuman di aplikasi ini bekerja dari
 judul — taksonomi, skor narasi, chip kategori — dan layarnya mengatakan itu
@@ -1194,15 +1245,31 @@ mendekati batas waktu, dan chatbot yang diam-diam jatuh ke parser browser.
 
 ## Kondisi saat serah terima ini ditulis
 
-**BELUM ter-commit.** Perubahan sesi terakhir (screener tiga mode, watchlist
-yang membacanya, papan strategi yang mengujinya, dan patokan suara di luar repo)
-ada di working tree dan belum di-push; Vercel produksi masih menyajikan versi
-sebelumnya. Verifikasi lokal hijau: `tsc` bersih, 16/16 + 18/18 uji, backtest
-**237.774 pemeriksaan nol temuan atas 3 pass**, `strategy:lab` 365 lolos,
-build produksi sukses, dan ketiga mode screener diperiksa di browser pada 375px
-maupun desktop.
+Commit `37067fe` sudah di-push ke `main` dan Vercel menyajikannya — screener
+tiga setup, jurnal winrate, ringkasan AI keterbukaan informasi, perbaikan ingest.
+Diverifikasi langsung di situs live: `/api/picks` dan `/api/disclosure-summary`
+menjawab 404 di sana persis seperti rancangannya, dan kedua layar menampilkan
+itu sebagai keterangan, bukan kegagalan.
+
+**Yang BELUM ter-commit: halaman depan yang ditulis ulang** (`LandingPage.tsx`)
+plus invarian cakupannya di `backtest.ts`. Verifikasi lokal hijau: `tsc` bersih,
+18/18 uji, backtest **237.812 pemeriksaan nol temuan atas 3 pass**,
+`strategy:lab` 365 lolos, build produksi sukses, dicek di 375px maupun desktop.
 
 Yang berubah di sesi terakhir:
+- **Halaman depan ditulis ulang.** Grid datar 11 kartu diganti struktur
+  bertahap: hero, empat angka, tiga blok "kenapa dibikin", perbandingan dua
+  kolom, band papan strategi, lalu 18 layar dikelompokkan jadi empat pekerjaan.
+  Referensinya halaman jualan kursus yang dikirim pemilik repo — yang diambil
+  PACING-nya, bukan funnel-nya: tidak ada angka keberhasilan, harga, atau
+  testimoni, karena tidak ada satu pun yang bisa didukung di sini.
+- **Halaman depan sekarang dijaga backtest.** Tiap kartu wajib menunjuk layar
+  yang ada di registri, tiap layar di registri wajib punya kartu, dan jumlah
+  layar tidak boleh ditulis manual. Diuji memerahkan run dengan menyuntikkan
+  dua bug lamanya sekaligus.
+- **Bahasa halaman depan dikembalikan ke tongkrongan.** Draf pertama saya justru
+  lebih formal daripada halaman yang diganti — lihat entri "AI slop" di bawah.
+
 - **Screener punya tiga setup**, bukan satu (`ScreenerMode`): `momentum` (aturan
   lama, tidak berubah satu byte pun), `pullback`/Antre Beli (di atas MA200,
   jatuh di bawah MA20, diskon 8–35% dari puncak 60 sesi), `laggard`/Tertinggal
@@ -1270,6 +1337,18 @@ ia belum relevan: perubahannya belum di-push, jadi yang disajikan situs live
 masih bundel lama.
 
 Yang sengaja ditinggalkan terbuka:
+- **Kanal "ngabarin terus" belum diputuskan.** Pemilik repo mengirim video agen
+  AI yang MENELEPON penggunanya di tengah nyetir, dan bilang butuh yang seperti
+  itu untuk update screener. Yang sudah ada: digest email 12:05 dan 16:20 WIB
+  (`emailAlert.ts`) plus suara Fish Audio di mesin lokal. Yang tidak bisa: Claude
+  tidak punya akses jaringan telepon — panggilan butuh Twilio Voice atau
+  sejenisnya, berbayar per menit. Urutan yang disarankan sebelum membangun apa
+  pun: PERIKSA DULU apakah `SMTP_*` di `.env` sudah diisi, karena alert email
+  yang tidak pernah sampai jauh lebih mungkin kurang konfigurasi daripada kurang
+  fitur. Kalau butuh kanal baru, Telegram Bot API gratis dan cukup ~30 baris;
+  telepon hanya masuk akal untuk kegagalan mendesak (ingest IDX mati), bukan
+  untuk laporan screener harian.
+
 - **Mode antre beli dan tertinggal TIDAK punya aturan mekanis terbukti di
   belakangnya.** Keduanya lolos sebagai penyaring riset — corongnya jujur, tiap
   penolakan bisa dijelaskan — tetapi papan strategi menolak semua trigger yang
