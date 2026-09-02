@@ -395,8 +395,20 @@ tanpa admin — hapus berkasnya, fiturnya mati. `service-loop.cmd` melakukan tig
 hal yang `npm run auto` polos tidak: menolak jadi salinan kedua kalau 8787 sudah
 dijawab (dua penjadwal = tiap alert terkirim dua kali), restart kalau crash
 dengan jeda 30 detik dan berhenti setelah 20 kegagalan beruntun, dan menulis
-`.data/service.log`. Kedua jalur diuji: port terpakai → keluar diam-diam dan
-mencatatnya; port kosong → layanan hidup dalam 5 detik tanpa jendela konsol.
+`.data/service.log`. Kedua jalur diuji lewat TASK yang sudah terdaftar, bukan cuma lewat
+launcher-nya: port terpakai → keluar diam-diam dan mencatatnya di
+`service-events.log`; port kosong → layanan hidup dalam 5 detik, `/api/status`
+dan aplikasi di 8787 sama-sama 200, `LastTaskResult` 267009 (masih berjalan,
+yang memang benar untuk layanan yang tidak pernah selesai).
+
+**Log yang dipegang proses lain menelan tulisan Anda, dengan exit 0.** Saat task
+dipicu selagi layanan sudah jalan, penjaga port bekerja benar dan
+`LastTaskResult` 0 — tapi `service.log` tetap 933 byte, jadi tidak ada satu pun
+jejak bahwa task itu pernah jalan. Sebabnya: `npm run auto` memegang berkas itu
+terbuka lewat redirect `>>`-nya sendiri, instance kedua ditolak Windows, dan
+cmd MENELAN errornya. Sekarang ada dua berkas — `service.log` untuk keluaran
+layanan, `service-events.log` untuk baris siklus hidup yang tidak pernah
+dipegang lama. Diuji ulang: baris penjaganya langsung mendarat.
 
 `scripts/install-task.ps1` ada untuk yang punya admin — WakeToRun (membangunkan
 laptop tidur) hanya bisa dari sana. Skripnya sengaja TIDAK menghapus apa pun dan

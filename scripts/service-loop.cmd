@@ -22,37 +22,55 @@ rem     anything already answers on 8787 this exits quietly and lets it own the
 rem     port — the same probe vite's auto-backend plugin does.
 rem  2. RESTARTS ON CRASH, with a delay. A service that dies at 03:00 and stays
 rem     dead is a missed 12:05 alert nobody finds out about until they check.
-rem  3. LOGS. Output goes to .data\service.log so a crash loop leaves evidence
-rem     instead of a silent absence.
+rem  3. LOGS, ke DUA berkas. .data\service.log memuat keluaran layanan itu
+rem     sendiri; .data\service-events.log memuat baris siklus hidup singkat.
+rem     Alasannya ada di komentar SET di bawah - berkas pertama terkunci selama
+rem     layanan jalan, jadi bukti bahwa penjaga bekerja harus mendarat di
+rem     berkas kedua.
 rem ===========================================================================
 
 set "ROOT=%~dp0.."
 cd /d "%ROOT%" || exit /b 1
 
 if not exist ".data" mkdir ".data"
+
+rem  DUA LOG, dan pemisahannya bukan gaya-gayaan.
+rem
+rem  service.log dipegang TERBUKA oleh redirect `>>` selama npm run auto jalan.
+rem  Ketika instance kedua mencoba menulis ke berkas yang sama, Windows menolak
+rem  dan cmd MENELAN errornya: exit 0, nol byte tertulis, tanpa pesan apa pun.
+rem  Diukur 2026-09-02: task dipicu manual, LastTaskResult 0, penjaga port
+rem  bekerja dengan benar - dan lognya tetap 933 byte, jadi tidak ada satu pun
+rem  jejak bahwa task itu pernah jalan.
+rem
+rem  Jadi baris siklus hidup pindah ke berkas sendiri yang tidak pernah dipegang
+rem  lama. Log yang hilang persis di saat kita butuh buktinya adalah log yang
+rem  lebih buruk daripada tidak ada log.
 set "LOG=%ROOT%\.data\service.log"
+set "EVT=%ROOT%\.data\service-events.log"
 
 rem --- do not compete with a service that is already up ---------------------
 rem PowerShell rather than netstat: netstat's output is localised, so parsing it
 rem breaks on a non-English Windows. A TCP connect either succeeds or it does not.
 powershell -NoProfile -Command "try { $c = New-Object Net.Sockets.TcpClient; $c.Connect('127.0.0.1', 8787); $c.Close(); exit 0 } catch { exit 1 }" >nul 2>&1
 if %errorlevel%==0 (
-  echo [%date% %time%] 8787 sudah dijawab proses lain - tidak menjalankan salinan kedua.>> "%LOG%"
+  echo [%date% %time%] 8787 sudah dijawab proses lain - tidak menjalankan salinan kedua.>> "%EVT%"
   exit /b 0
 )
 
 set /a ATTEMPT=0
 :loop
 set /a ATTEMPT+=1
+echo [%date% %time%] start percobaan !ATTEMPT!>> "%EVT%"
 echo.>> "%LOG%"
 echo ========== [%date% %time%] start percobaan !ATTEMPT! ==========>> "%LOG%"
 call npm run auto >> "%LOG%" 2>&1
-echo [%date% %time%] layanan berhenti dengan kode %errorlevel%>> "%LOG%"
+echo [%date% %time%] layanan berhenti dengan kode %errorlevel%>> "%EVT%"
 
 rem A service that exits instantly, over and over, is broken rather than unlucky.
 rem Backing off keeps a bad build from writing a gigabyte of log overnight.
 if !ATTEMPT! GEQ 20 (
-  echo [%date% %time%] BERHENTI - 20 kali gagal berturut-turut. Perbaiki dulu, lalu jalankan ulang task-nya.>> "%LOG%"
+  echo [%date% %time%] BERHENTI - 20 kali gagal berturut-turut. Perbaiki dulu, lalu jalankan ulang task-nya.>> "%EVT%"
   exit /b 1
 )
 timeout /t 30 /nobreak >nul
