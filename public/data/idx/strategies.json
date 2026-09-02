@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-09-02T15:12:31.132Z",
+  "generatedAt": "2026-09-03T00:44:40.953Z",
   "sessions": 716,
   "universe": 301,
-  "ruleSetsTested": 99360,
-  "signalsFired": 87578,
-  "totalTradesSimulated": 6284160,
+  "ruleSetsTested": 148104,
+  "signalsFired": 93898,
+  "totalTradesSimulated": 6738840,
   "split": {
     "trainFrom": "2023-08-28",
     "trainTo": "2025-10-07",
@@ -21,34 +21,35 @@
     "minTestExpectancyR": 0.15,
     "stressWinRateHaircut": 0.1
   },
-  "survivors": 353,
+  "survivors": 485,
+  "overallSurvivalRate": 0.003274725868308756,
   "perTrigger": [
     {
       "id": "ma50x100",
       "family": "trend",
       "label": "MA50 memotong ke atas MA100",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 4824,
-      "passedWinRate": 1391,
-      "passedTrainWinRate": 1343,
-      "passedExpectancy": 122,
-      "survivors": 117,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 6408,
+      "passedWinRate": 1856,
+      "passedTrainWinRate": 1790,
+      "passedExpectancy": 163,
+      "survivors": 157,
       "avgRunupAtEntry": 0.4265997438830492,
       "avgExtensionAtr": 1.2373487512905825,
       "bestTestWinRate": 0.9166666666666666,
       "bestTestExpectancyR": 0.9879314887121856,
-      "bestStressedExpectancyR": 0.22155561293017298
+      "bestStressedExpectancyR": 0.32392965775036364
     },
     {
       "id": "volumeLead",
       "family": "early",
       "label": "Volume ≥2,5× rata-rata sementara harga masih menempel MA20",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 6624,
-      "passedWinRate": 1995,
-      "passedTrainWinRate": 1980,
-      "passedExpectancy": 75,
-      "survivors": 70,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 8712,
+      "passedWinRate": 2652,
+      "passedTrainWinRate": 2634,
+      "passedExpectancy": 102,
+      "survivors": 94,
       "avgRunupAtEntry": 0.19749865118577564,
       "avgExtensionAtr": 0.0192741594538594,
       "bestTestWinRate": 0.9315068493150684,
@@ -56,31 +57,15 @@
       "bestStressedExpectancyR": 0.0920540581097743
     },
     {
-      "id": "ma5x20",
-      "family": "trend",
-      "label": "MA5 memotong ke atas MA20",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 6480,
-      "passedWinRate": 2048,
-      "passedTrainWinRate": 2024,
-      "passedExpectancy": 51,
-      "survivors": 47,
-      "avgRunupAtEntry": 0.29847123021505,
-      "avgExtensionAtr": 0.9584869088021497,
-      "bestTestWinRate": 0.9113924050632911,
-      "bestTestExpectancyR": 0.7338303522054381,
-      "bestStressedExpectancyR": 0.10773176733114642
-    },
-    {
       "id": "ma10x50",
       "family": "trend",
       "label": "MA10 memotong ke atas MA50",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 5832,
-      "passedWinRate": 1638,
-      "passedTrainWinRate": 1627,
-      "passedExpectancy": 50,
-      "survivors": 47,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 7848,
+      "passedWinRate": 2196,
+      "passedTrainWinRate": 2168,
+      "passedExpectancy": 69,
+      "survivors": 66,
       "avgRunupAtEntry": 0.27221787246400553,
       "avgExtensionAtr": 1.8348729406134883,
       "bestTestWinRate": 0.9682539682539683,
@@ -88,15 +73,31 @@
       "bestStressedExpectancyR": 0.1671168871945728
     },
     {
+      "id": "ma5x20",
+      "family": "trend",
+      "label": "MA5 memotong ke atas MA20",
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 8568,
+      "passedWinRate": 2708,
+      "passedTrainWinRate": 2666,
+      "passedExpectancy": 63,
+      "survivors": 59,
+      "avgRunupAtEntry": 0.29847123021505,
+      "avgExtensionAtr": 0.9584869088021497,
+      "bestTestWinRate": 0.9113924050632911,
+      "bestTestExpectancyR": 0.7338303522054381,
+      "bestStressedExpectancyR": 0.10773176733114642
+    },
+    {
       "id": "ma20x50",
       "family": "trend",
       "label": "MA20 memotong ke atas MA50",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 5904,
-      "passedWinRate": 1402,
-      "passedTrainWinRate": 1362,
-      "passedExpectancy": 30,
-      "survivors": 30,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 7920,
+      "passedWinRate": 1752,
+      "passedTrainWinRate": 1701,
+      "passedExpectancy": 31,
+      "survivors": 31,
       "avgRunupAtEntry": 0.28941949181333565,
       "avgExtensionAtr": 1.6380219999584462,
       "bestTestWinRate": 0.9384615384615385,
@@ -104,13 +105,45 @@
       "bestStressedExpectancyR": 0.09515427638647633
     },
     {
+      "id": "rsi60",
+      "family": "momentum",
+      "label": "RSI14 memotong ke atas 60",
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 8496,
+      "passedWinRate": 2182,
+      "passedTrainWinRate": 2166,
+      "passedExpectancy": 20,
+      "survivors": 20,
+      "avgRunupAtEntry": 0.3659798410949625,
+      "avgExtensionAtr": 1.3025370307939026,
+      "bestTestWinRate": 0.8809523809523809,
+      "bestTestExpectancyR": 0.4626085982963822,
+      "bestStressedExpectancyR": 0.11172182749192316
+    },
+    {
+      "id": "quietBase",
+      "family": "early",
+      "label": "Runup 60 sesi turun ke bawah 15% — baru masuk fase tenang",
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 8424,
+      "passedWinRate": 1974,
+      "passedTrainWinRate": 1971,
+      "passedExpectancy": 18,
+      "survivors": 16,
+      "avgRunupAtEntry": 0.12152953082631866,
+      "avgExtensionAtr": -0.5560393507318986,
+      "bestTestWinRate": 0.895,
+      "bestTestExpectancyR": 0.7196059055944809,
+      "bestStressedExpectancyR": 0.06469905494917166
+    },
+    {
       "id": "flowLead",
       "family": "early",
       "label": "Asing net beli 5 sesi sementara harga 20 sesi masih di bawah +3%",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 6624,
-      "passedWinRate": 1779,
-      "passedTrainWinRate": 1773,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 8712,
+      "passedWinRate": 2330,
+      "passedTrainWinRate": 2324,
       "passedExpectancy": 14,
       "survivors": 13,
       "avgRunupAtEntry": 0.22435319759100747,
@@ -120,31 +153,31 @@
       "bestStressedExpectancyR": 0.06588954433934519
     },
     {
-      "id": "rsi60",
-      "family": "momentum",
-      "label": "RSI14 memotong ke atas 60",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 6408,
-      "passedWinRate": 1665,
-      "passedTrainWinRate": 1654,
+      "id": "pullback20",
+      "family": "pullback",
+      "label": "Harga balik ke atas MA20 saat MA20 masih di atas MA50",
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 7488,
+      "passedWinRate": 1538,
+      "passedTrainWinRate": 1535,
       "passedExpectancy": 10,
       "survivors": 10,
-      "avgRunupAtEntry": 0.3659798410949625,
-      "avgExtensionAtr": 1.3025370307939026,
-      "bestTestWinRate": 0.875,
-      "bestTestExpectancyR": 0.4495483554294407,
-      "bestStressedExpectancyR": 0.11090980409442523
+      "avgRunupAtEntry": 0.451469396488586,
+      "avgExtensionAtr": 0.5600741314602413,
+      "bestTestWinRate": 0.9104477611940298,
+      "bestTestExpectancyR": 0.6866704234209927,
+      "bestStressedExpectancyR": 0.13371617055785862
     },
     {
       "id": "rsi50",
       "family": "momentum",
       "label": "RSI14 memotong ke atas 50",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 6552,
-      "passedWinRate": 1754,
-      "passedTrainWinRate": 1753,
-      "passedExpectancy": 8,
-      "survivors": 7,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 8640,
+      "passedWinRate": 2291,
+      "passedTrainWinRate": 2287,
+      "passedExpectancy": 9,
+      "survivors": 8,
       "avgRunupAtEntry": 0.26838728593087346,
       "avgExtensionAtr": 0.30839433856686777,
       "bestTestWinRate": 0.8732394366197183,
@@ -155,12 +188,12 @@
       "id": "squeezeBreak",
       "family": "early",
       "label": "Volatilitas termampat ke titik terendah 60 sesi lalu harga menembus tertinggi 10 sesi",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 5688,
-      "passedWinRate": 1635,
-      "passedTrainWinRate": 1632,
-      "passedExpectancy": 6,
-      "survivors": 6,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 7632,
+      "passedWinRate": 2152,
+      "passedTrainWinRate": 2149,
+      "passedExpectancy": 7,
+      "survivors": 7,
       "avgRunupAtEntry": 0.5460945316303422,
       "avgExtensionAtr": 2.436220184076186,
       "bestTestWinRate": 0.8814814814814815,
@@ -168,29 +201,13 @@
       "bestStressedExpectancyR": 0.10580297155127211
     },
     {
-      "id": "pullback20",
-      "family": "pullback",
-      "label": "Harga balik ke atas MA20 saat MA20 masih di atas MA50",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 5616,
-      "passedWinRate": 1216,
-      "passedTrainWinRate": 1213,
-      "passedExpectancy": 4,
-      "survivors": 4,
-      "avgRunupAtEntry": 0.451469396488586,
-      "avgExtensionAtr": 0.5600741314602413,
-      "bestTestWinRate": 0.839541547277937,
-      "bestTestExpectancyR": 0.6866704234209927,
-      "bestStressedExpectancyR": 0.028129912595107887
-    },
-    {
       "id": "laggardGap",
       "family": "laggard",
       "label": "Indeks acuannya naik ≥10% dalam 60 sesi sementara sahamnya ≤2%",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 6048,
-      "passedWinRate": 1594,
-      "passedTrainWinRate": 1575,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 8064,
+      "passedWinRate": 2086,
+      "passedTrainWinRate": 2067,
       "passedExpectancy": 2,
       "survivors": 2,
       "avgRunupAtEntry": 0.11683914750575722,
@@ -200,13 +217,29 @@
       "bestStressedExpectancyR": 0.06704563254295892
     },
     {
+      "id": "freshBreak",
+      "family": "early",
+      "label": "Menembus tertinggi 20 sesi sementara runup 60 sesi masih <15%",
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 7632,
+      "passedWinRate": 1833,
+      "passedTrainWinRate": 1823,
+      "passedExpectancy": 2,
+      "survivors": 2,
+      "avgRunupAtEntry": 0.10287351607366858,
+      "avgExtensionAtr": 1.9109201798622866,
+      "bestTestWinRate": 0.9210526315789473,
+      "bestTestExpectancyR": 0.6563717300624091,
+      "bestStressedExpectancyR": 0.03324498186738584
+    },
+    {
       "id": "breakout20",
       "family": "breakout",
       "label": "Harga menembus tertinggi 20 sesi",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 5688,
-      "passedWinRate": 1602,
-      "passedTrainWinRate": 1602,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 7632,
+      "passedWinRate": 2091,
+      "passedTrainWinRate": 2091,
       "passedExpectancy": 0,
       "survivors": 0,
       "avgRunupAtEntry": 0.8749887115970738,
@@ -219,15 +252,15 @@
       "id": "dipBelowMa20",
       "family": "dip",
       "label": "Harga jatuh ke bawah MA20 untuk pertama kalinya",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 6624,
-      "passedWinRate": 1189,
-      "passedTrainWinRate": 1189,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 8712,
+      "passedWinRate": 1660,
+      "passedTrainWinRate": 1660,
       "passedExpectancy": 0,
       "survivors": 0,
       "avgRunupAtEntry": 0.27773705607709426,
       "avgExtensionAtr": -0.4360476426392609,
-      "bestTestWinRate": 0.841642228739003,
+      "bestTestWinRate": 0.8490322580645161,
       "bestTestExpectancyR": 0.6127993160193549,
       "bestStressedExpectancyR": null
     },
@@ -235,10 +268,10 @@
       "id": "rsiDown40",
       "family": "dip",
       "label": "RSI14 memotong ke bawah 40",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 6552,
-      "passedWinRate": 1207,
-      "passedTrainWinRate": 1207,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 8640,
+      "passedWinRate": 1672,
+      "passedTrainWinRate": 1672,
       "passedExpectancy": 0,
       "survivors": 0,
       "avgRunupAtEntry": 0.21368602237346265,
@@ -251,10 +284,10 @@
       "id": "drawdown10",
       "family": "dip",
       "label": "Harga turun 10% dari puncak 60 sesi untuk pertama kalinya",
-      "ruleSetsTested": 6624,
-      "ruleSetsWithEnoughTrades": 6624,
-      "passedWinRate": 950,
-      "passedTrainWinRate": 949,
+      "ruleSetsTested": 8712,
+      "ruleSetsWithEnoughTrades": 8712,
+      "passedWinRate": 1292,
+      "passedTrainWinRate": 1291,
       "passedExpectancy": 0,
       "survivors": 0,
       "avgRunupAtEntry": 0.5243449383414893,
@@ -264,7 +297,205 @@
       "bestStressedExpectancyR": null
     }
   ],
+  "perFilter": [
+    {
+      "id": "belowMa20",
+      "label": "harga di bawah MA20",
+      "ruleSetsTested": 18360,
+      "survivors": 147,
+      "survivalRate": 0.008006535947712418,
+      "lift": 2.444948453608247
+    },
+    {
+      "id": "vol25",
+      "label": "volume ≥2,5× rata-rata 20 sesi",
+      "ruleSetsTested": 18360,
+      "survivors": 118,
+      "survivalRate": 0.006427015250544663,
+      "lift": 1.9626116838487973
+    },
+    {
+      "id": "lagging10",
+      "label": "tertinggal ≥10 pp dari indeks acuannya dalam 60 sesi",
+      "ruleSetsTested": 18360,
+      "survivors": 118,
+      "survivalRate": 0.006427015250544663,
+      "lift": 1.9626116838487973
+    },
+    {
+      "id": "earlyRunup15",
+      "label": "belum naik 15% dari dasar 60 sesi",
+      "ruleSetsTested": 18360,
+      "survivors": 87,
+      "survivalRate": 0.004738562091503268,
+      "lift": 1.4470103092783504
+    },
+    {
+      "id": "vol15",
+      "label": "volume ≥1,5× rata-rata 20 sesi",
+      "ruleSetsTested": 18360,
+      "survivors": 79,
+      "survivalRate": 0.004302832244008715,
+      "lift": 1.3139518900343643
+    },
+    {
+      "id": "calm",
+      "label": "ATR harian <5% harga",
+      "ruleSetsTested": 18360,
+      "survivors": 59,
+      "survivalRate": 0.0032135076252723313,
+      "lift": 0.9813058419243986
+    },
+    {
+      "id": "flow5pos",
+      "label": "asing net beli 5 sesi",
+      "ruleSetsTested": 18360,
+      "survivors": 51,
+      "survivalRate": 0.002777777777777778,
+      "lift": 0.8482474226804124
+    },
+    {
+      "id": "ma50up",
+      "label": "MA50 sedang naik",
+      "ruleSetsTested": 18360,
+      "survivors": 50,
+      "survivalRate": 0.0027233115468409588,
+      "lift": 0.8316151202749141
+    },
+    {
+      "id": "indexUp10",
+      "label": "indeks acuannya naik ≥10% dalam 60 sesi",
+      "ruleSetsTested": 18360,
+      "survivors": 47,
+      "survivalRate": 0.002559912854030501,
+      "lift": 0.7817182130584192
+    },
+    {
+      "id": "earlyRunup",
+      "label": "belum naik 25% dari dasar 60 sesi",
+      "ruleSetsTested": 18360,
+      "survivors": 43,
+      "survivalRate": 0.0023420479302832245,
+      "lift": 0.7151890034364261
+    },
+    {
+      "id": "notExtended",
+      "label": "harga <1,5 ATR di atas MA20",
+      "ruleSetsTested": 18360,
+      "survivors": 41,
+      "survivalRate": 0.0022331154684095862,
+      "lift": 0.6819243986254296
+    },
+    {
+      "id": "flow20pos",
+      "label": "asing net beli 20 sesi",
+      "ruleSetsTested": 18360,
+      "survivors": 36,
+      "survivalRate": 0.00196078431372549,
+      "lift": 0.5987628865979381
+    },
+    {
+      "id": "notFlown",
+      "label": "belum naik 50% dari dasar 60 sesi",
+      "ruleSetsTested": 18360,
+      "survivors": 27,
+      "survivalRate": 0.0014705882352941176,
+      "lift": 0.4490721649484536
+    },
+    {
+      "id": "aboveMa100",
+      "label": "harga di atas MA100",
+      "ruleSetsTested": 18360,
+      "survivors": 26,
+      "survivalRate": 0.0014161220043572985,
+      "lift": 0.4324398625429553
+    },
+    {
+      "id": "notOverbought",
+      "label": "RSI14 <70",
+      "ruleSetsTested": 18360,
+      "survivors": 18,
+      "survivalRate": 0.000980392156862745,
+      "lift": 0.29938144329896904
+    }
+  ],
   "strategies": [
+    {
+      "id": "ma50x100+belowMa20+earlyRunup15__s2t1.5h20",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "harga di bawah MA20",
+        "belum naik 15% dari dasar 60 sesi"
+      ],
+      "exitLabel": "stop 2×ATR, target 1.5×ATR, maksimal 20 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 2,
+        "targetMult": 1.5,
+        "maxHold": 20
+      },
+      "trades": 117,
+      "winRate": 0.6324786324786325,
+      "expectancyR": 0.1523840128795443,
+      "profitFactor": 4.629749666628769,
+      "maxDrawdownR": 5.705963242541257,
+      "rewardRisk": 0.75,
+      "stressedExpectancyR": 0.32392965775036364,
+      "train": {
+        "trades": 82,
+        "winRate": 0.573170731707317,
+        "expectancyR": 0.023814830497693586
+      },
+      "test": {
+        "trades": 35,
+        "winRate": 0.7714285714285715,
+        "expectancyR": 0.4536032401741661,
+        "profitFactor": 4.629749666628769,
+        "avgWinR": 0.7500000000000006,
+        "avgLossR": 0.546735824238025
+      }
+    },
+    {
+      "id": "ma50x100+belowMa20+notFlown__s2t1.5h20",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "harga di bawah MA20",
+        "belum naik 50% dari dasar 60 sesi"
+      ],
+      "exitLabel": "stop 2×ATR, target 1.5×ATR, maksimal 20 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 2,
+        "targetMult": 1.5,
+        "maxHold": 20
+      },
+      "trades": 201,
+      "winRate": 0.6019900497512438,
+      "expectancyR": 0.13077116751357748,
+      "profitFactor": 3.757005758954628,
+      "maxDrawdownR": 6.765928414446433,
+      "rewardRisk": 0.75,
+      "stressedExpectancyR": 0.2704724556922552,
+      "train": {
+        "trades": 148,
+        "winRate": 0.5540540540540541,
+        "expectancyR": 0.03463663926195065
+      },
+      "test": {
+        "trades": 53,
+        "winRate": 0.7358490566037735,
+        "expectancyR": 0.39922230300868633,
+        "profitFactor": 3.757005758954628,
+        "avgWinR": 0.7393162393162396,
+        "avgLossR": 0.5481822338480696
+      }
+    },
     {
       "id": "ma50x100+belowMa20+earlyRunup__s3t1.5h20",
       "family": "trend",
@@ -418,6 +649,44 @@
       }
     },
     {
+      "id": "ma50x100+belowMa20+earlyRunup15__s2t1h10",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "harga di bawah MA20",
+        "belum naik 15% dari dasar 60 sesi"
+      ],
+      "exitLabel": "stop 2×ATR, target 1×ATR, maksimal 10 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 2,
+        "targetMult": 1,
+        "maxHold": 10
+      },
+      "trades": 117,
+      "winRate": 0.6581196581196581,
+      "expectancyR": 0.11564228354009519,
+      "profitFactor": 4.096465698735557,
+      "maxDrawdownR": 2.9479906169779557,
+      "rewardRisk": 0.5,
+      "stressedExpectancyR": 0.20036241742318064,
+      "train": {
+        "trades": 82,
+        "winRate": 0.6097560975609756,
+        "expectancyR": 0.04055696248643425
+      },
+      "test": {
+        "trades": 35,
+        "winRate": 0.7714285714285715,
+        "expectancyR": 0.29155646429438653,
+        "profitFactor": 4.096465698735557,
+        "avgWinR": 0.5000000000000004,
+        "avgLossR": 0.4119404687120599
+      }
+    },
+    {
       "id": "ma50x100+vol15+flow5pos__s2t2.5h5",
       "family": "trend",
       "triggerLabel": "MA50 memotong ke atas MA100",
@@ -453,6 +722,82 @@
         "profitFactor": 2.3259403445287825,
         "avgWinR": 1.050649386348692,
         "avgLossR": 0.838889100405668
+      }
+    },
+    {
+      "id": "ma50x100+belowMa20+earlyRunup15__s3t1.5h20",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "harga di bawah MA20",
+        "belum naik 15% dari dasar 60 sesi"
+      ],
+      "exitLabel": "stop 3×ATR, target 1.5×ATR, maksimal 20 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 3,
+        "targetMult": 1.5,
+        "maxHold": 20
+      },
+      "trades": 117,
+      "winRate": 0.6752136752136753,
+      "expectancyR": 0.09488855547055618,
+      "profitFactor": 3.9413944941384136,
+      "maxDrawdownR": 4.667245449473925,
+      "rewardRisk": 0.5,
+      "stressedExpectancyR": 0.19503709987590376,
+      "train": {
+        "trades": 82,
+        "winRate": 0.6341463414634146,
+        "expectancyR": 0.012526154210371452
+      },
+      "test": {
+        "trades": 35,
+        "winRate": 0.7714285714285715,
+        "expectancyR": 0.2878518955658461,
+        "profitFactor": 3.9413944941384136,
+        "avgWinR": 0.5000000000000003,
+        "avgLossR": 0.42814795689942414
+      }
+    },
+    {
+      "id": "ma50x100+belowMa20+earlyRunup15__s1.5t1h10",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "harga di bawah MA20",
+        "belum naik 15% dari dasar 60 sesi"
+      ],
+      "exitLabel": "stop 1.5×ATR, target 1×ATR, maksimal 10 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 1.5,
+        "targetMult": 1,
+        "maxHold": 10
+      },
+      "trades": 117,
+      "winRate": 0.6410256410256411,
+      "expectancyR": 0.14948099842709694,
+      "profitFactor": 2.928348510652339,
+      "maxDrawdownR": 3.5973208226372755,
+      "rewardRisk": 0.6666666666666666,
+      "stressedExpectancyR": 0.19368453402025312,
+      "train": {
+        "trades": 82,
+        "winRate": 0.5975609756097561,
+        "expectancyR": 0.07408650274788575
+      },
+      "test": {
+        "trades": 35,
+        "winRate": 0.7428571428571429,
+        "expectancyR": 0.32611953116124887,
+        "profitFactor": 2.928348510652339,
+        "avgWinR": 0.6666666666666669,
+        "avgLossR": 0.6576833047432917
       }
     },
     {
@@ -607,6 +952,82 @@
       }
     },
     {
+      "id": "ma50x100+belowMa20+earlyRunup15__s2t1h20",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "harga di bawah MA20",
+        "belum naik 15% dari dasar 60 sesi"
+      ],
+      "exitLabel": "stop 2×ATR, target 1×ATR, maksimal 20 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 2,
+        "targetMult": 1,
+        "maxHold": 20
+      },
+      "trades": 117,
+      "winRate": 0.717948717948718,
+      "expectancyR": 0.11633264711359775,
+      "profitFactor": 3.542330990909703,
+      "maxDrawdownR": 3.951754385964911,
+      "rewardRisk": 0.5,
+      "stressedExpectancyR": 0.1806200065607325,
+      "train": {
+        "trades": 82,
+        "winRate": 0.6829268292682927,
+        "expectancyR": 0.043452677551307044
+      },
+      "test": {
+        "trades": 35,
+        "winRate": 0.8,
+        "expectancyR": 0.2870800043738217,
+        "profitFactor": 3.542330990909703,
+        "avgWinR": 0.5000000000000003,
+        "avgLossR": 0.5645999781308927
+      }
+    },
+    {
+      "id": "ma50x100+belowMa20+earlyRunup15__s1.5t1h20",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "harga di bawah MA20",
+        "belum naik 15% dari dasar 60 sesi"
+      ],
+      "exitLabel": "stop 1.5×ATR, target 1×ATR, maksimal 20 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 1.5,
+        "targetMult": 1,
+        "maxHold": 20
+      },
+      "trades": 117,
+      "winRate": 0.6837606837606838,
+      "expectancyR": 0.15327794847292986,
+      "profitFactor": 2.687899617548471,
+      "maxDrawdownR": 5.003088244956965,
+      "rewardRisk": 0.6666666666666666,
+      "stressedExpectancyR": 0.1725768885074705,
+      "train": {
+        "trades": 82,
+        "winRate": 0.6463414634146342,
+        "expectancyR": 0.08085608082881099
+      },
+      "test": {
+        "trades": 35,
+        "winRate": 0.7714285714285715,
+        "expectancyR": 0.32295203838200837,
+        "profitFactor": 2.687899617548471,
+        "avgWinR": 0.6666666666666669,
+        "avgLossR": 0.8370848320787136
+      }
+    },
+    {
       "id": "ma50x100+belowMa20+earlyRunup__s1.5t1h20",
       "family": "trend",
       "triggerLabel": "MA50 memotong ke atas MA100",
@@ -645,6 +1066,44 @@
       }
     },
     {
+      "id": "ma50x100+belowMa20+notFlown__s2t1h20",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "harga di bawah MA20",
+        "belum naik 50% dari dasar 60 sesi"
+      ],
+      "exitLabel": "stop 2×ATR, target 1×ATR, maksimal 20 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 2,
+        "targetMult": 1,
+        "maxHold": 20
+      },
+      "trades": 201,
+      "winRate": 0.7114427860696517,
+      "expectancyR": 0.11138360434483796,
+      "profitFactor": 3.311138627927534,
+      "maxDrawdownR": 4.951754385964911,
+      "rewardRisk": 0.5,
+      "stressedExpectancyR": 0.1689050848874789,
+      "train": {
+        "trades": 148,
+        "winRate": 0.6824324324324325,
+        "expectancyR": 0.0522319840928504
+      },
+      "test": {
+        "trades": 53,
+        "winRate": 0.7924528301886793,
+        "expectancyR": 0.2765617137277466,
+        "profitFactor": 3.311138627927534,
+        "avgWinR": 0.5000000000000002,
+        "avgLossR": 0.5765662884026768
+      }
+    },
+    {
       "id": "ma10x50+vol25+flow20pos__s3t2.5h20",
       "family": "trend",
       "triggerLabel": "MA10 memotong ke atas MA50",
@@ -680,6 +1139,44 @@
         "profitFactor": 2.414989346538896,
         "avgWinR": 0.7833005703892982,
         "avgLossR": 0.7519010976385161
+      }
+    },
+    {
+      "id": "ma50x100+belowMa20+notFlown__s2t1h10",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "harga di bawah MA20",
+        "belum naik 50% dari dasar 60 sesi"
+      ],
+      "exitLabel": "stop 2×ATR, target 1×ATR, maksimal 10 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 2,
+        "targetMult": 1,
+        "maxHold": 10
+      },
+      "trades": 201,
+      "winRate": 0.6467661691542289,
+      "expectancyR": 0.10473365952037524,
+      "profitFactor": 3.3582336331224627,
+      "maxDrawdownR": 3.6952096247661643,
+      "rewardRisk": 0.5,
+      "stressedExpectancyR": 0.1668896992819653,
+      "train": {
+        "trades": 148,
+        "winRate": 0.6148648648648649,
+        "expectancyR": 0.049716821352112174
+      },
+      "test": {
+        "trades": 53,
+        "winRate": 0.7358490566037735,
+        "expectancyR": 0.2583655849713739,
+        "profitFactor": 3.3582336331224627,
+        "avgWinR": 0.5000000000000002,
+        "avgLossR": 0.4147588568940853
       }
     },
     {
@@ -797,6 +1294,44 @@
       }
     },
     {
+      "id": "ma50x100+belowMa20+notFlown__s3t1.5h20",
+      "family": "trend",
+      "triggerLabel": "MA50 memotong ke atas MA100",
+      "filterLabels": [
+        "harga di bawah MA20",
+        "belum naik 50% dari dasar 60 sesi"
+      ],
+      "exitLabel": "stop 3×ATR, target 1.5×ATR, maksimal 20 sesi",
+      "entryParams": {
+        "filters": 2
+      },
+      "exitParams": {
+        "stopMult": 3,
+        "targetMult": 1.5,
+        "maxHold": 20
+      },
+      "trades": 201,
+      "winRate": 0.6467661691542289,
+      "expectancyR": 0.10114867517477666,
+      "profitFactor": 3.234182514373612,
+      "maxDrawdownR": 3.993755383290269,
+      "rewardRisk": 0.5,
+      "stressedExpectancyR": 0.15880174643072786,
+      "train": {
+        "trades": 148,
+        "winRate": 0.6148648648648649,
+        "expectancyR": 0.04764944405707297
+      },
+      "test": {
+        "trades": 53,
+        "winRate": 0.7358490566037735,
+        "expectancyR": 0.2505427545223266,
+        "profitFactor": 3.234182514373612,
+        "avgWinR": 0.49287749287749305,
+        "avgLossR": 0.4245325880384941
+      }
+    },
+    {
       "id": "ma50x100+belowMa20+earlyRunup__s1t1h10",
       "family": "trend",
       "triggerLabel": "MA50 memotong ke atas MA100",
@@ -832,385 +1367,6 @@
         "profitFactor": 2.134870507708032,
         "avgWinR": 1.0000000000000002,
         "avgLossR": 0.8699089010024598
-      }
-    },
-    {
-      "id": "ma50x100+belowMa20+earlyRunup__s2t0.75h20",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "harga di bawah MA20",
-        "belum naik 25% dari dasar 60 sesi"
-      ],
-      "exitLabel": "stop 2×ATR, target 0.75×ATR, maksimal 20 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 2,
-        "targetMult": 0.75,
-        "maxHold": 20
-      },
-      "trades": 155,
-      "winRate": 0.7354838709677419,
-      "expectancyR": 0.04574427425290503,
-      "profitFactor": 4.318813312492425,
-      "maxDrawdownR": 5.3854504220284385,
-      "rewardRisk": 0.375,
-      "stressedExpectancyR": 0.15824167304515618,
-      "train": {
-        "trades": 115,
-        "winRate": 0.6956521739130435,
-        "expectancyR": -0.023542936033769248
-      },
-      "test": {
-        "trades": 40,
-        "winRate": 0.85,
-        "expectancyR": 0.24494500382709358,
-        "profitFactor": 4.318813312492425,
-        "avgWinR": 0.37499999999999983,
-        "avgLossR": 0.49203330781937477
-      }
-    },
-    {
-      "id": "ma50x100+calm+belowMa20__s2t1h10",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "ATR harian <5% harga",
-        "harga di bawah MA20"
-      ],
-      "exitLabel": "stop 2×ATR, target 1×ATR, maksimal 10 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 2,
-        "targetMult": 1,
-        "maxHold": 10
-      },
-      "trades": 151,
-      "winRate": 0.6158940397350994,
-      "expectancyR": 0.05941470075275896,
-      "profitFactor": 2.9943774551460125,
-      "maxDrawdownR": 7.419780630771818,
-      "rewardRisk": 0.5,
-      "stressedExpectancyR": 0.1479303776959819,
-      "train": {
-        "trades": 114,
-        "winRate": 0.5789473684210527,
-        "expectancyR": -0.0001748292356773306
-      },
-      "test": {
-        "trades": 37,
-        "winRate": 0.7297297297297297,
-        "expectancyR": 0.24301487423064375,
-        "profitFactor": 2.9943774551460125,
-        "avgWinR": 0.5000000000000006,
-        "avgLossR": 0.4508449653466191
-      }
-    },
-    {
-      "id": "ma10x50+vol25+flow20pos__s3t2.5h10",
-      "family": "trend",
-      "triggerLabel": "MA10 memotong ke atas MA50",
-      "filterLabels": [
-        "volume ≥2,5× rata-rata 20 sesi",
-        "asing net beli 20 sesi"
-      ],
-      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 10 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 2.5,
-        "maxHold": 10
-      },
-      "trades": 188,
-      "winRate": 0.6170212765957447,
-      "expectancyR": 0.2163478932814511,
-      "profitFactor": 2.280144626614397,
-      "maxDrawdownR": 3.7969393212268043,
-      "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.14022366600516495,
-      "train": {
-        "trades": 115,
-        "winRate": 0.5739130434782609,
-        "expectancyR": 0.17277004648417288
-      },
-      "test": {
-        "trades": 73,
-        "winRate": 0.684931506849315,
-        "expectancyR": 0.2849979259073003,
-        "profitFactor": 2.280144626614397,
-        "avgWinR": 0.7411360050510152,
-        "avgLossR": 0.7066065939703401
-      }
-    },
-    {
-      "id": "ma50x100+vol15__s3t2.5h20",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥1,5× rata-rata 20 sesi"
-      ],
-      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
-      "entryParams": {
-        "filters": 1
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 2.5,
-        "maxHold": 20
-      },
-      "trades": 206,
-      "winRate": 0.6456310679611651,
-      "expectancyR": 0.23584008736660353,
-      "profitFactor": 2.1749568485888853,
-      "maxDrawdownR": 5.357221045791164,
-      "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.1364308647386543,
-      "train": {
-        "trades": 144,
-        "winRate": 0.625,
-        "expectancyR": 0.2083866095870863
-      },
-      "test": {
-        "trades": 62,
-        "winRate": 0.6935483870967742,
-        "expectancyR": 0.2996030034996758,
-        "profitFactor": 2.1749568485888853,
-        "avgWinR": 0.7996466545415155,
-        "avgLossR": 0.8320747330686988
-      }
-    },
-    {
-      "id": "ma50x100+belowMa20+earlyRunup__s2t0.75h10",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "harga di bawah MA20",
-        "belum naik 25% dari dasar 60 sesi"
-      ],
-      "exitLabel": "stop 2×ATR, target 0.75×ATR, maksimal 10 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 2,
-        "targetMult": 0.75,
-        "maxHold": 10
-      },
-      "trades": 155,
-      "winRate": 0.6709677419354839,
-      "expectancyR": 0.04349294053313455,
-      "profitFactor": 3.3634681657412124,
-      "maxDrawdownR": 5.002249107898326,
-      "rewardRisk": 0.375,
-      "stressedExpectancyR": 0.1287095260530486,
-      "train": {
-        "trades": 115,
-        "winRate": 0.6260869565217392,
-        "expectancyR": -0.014703028221264652
-      },
-      "test": {
-        "trades": 40,
-        "winRate": 0.8,
-        "expectancyR": 0.21080635070203227,
-        "profitFactor": 3.3634681657412124,
-        "avgWinR": 0.37499999999999983,
-        "avgLossR": 0.4459682464898377
-      }
-    },
-    {
-      "id": "ma50x100+vol15+aboveMa100__s3t2.5h20",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥1,5× rata-rata 20 sesi",
-        "harga di atas MA100"
-      ],
-      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 2.5,
-        "maxHold": 20
-      },
-      "trades": 193,
-      "winRate": 0.6580310880829016,
-      "expectancyR": 0.2546489701178682,
-      "profitFactor": 2.1222456588607077,
-      "maxDrawdownR": 5.199999999999989,
-      "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.12776139357847333,
-      "train": {
-        "trades": 132,
-        "winRate": 0.6439393939393939,
-        "expectancyR": 0.23791816931137874
-      },
-      "test": {
-        "trades": 61,
-        "winRate": 0.6885245901639344,
-        "expectancyR": 0.2908533259614191,
-        "profitFactor": 2.1222456588607077,
-        "avgWinR": 0.7988445907607581,
-        "avgLossR": 0.8320747330686988
-      }
-    },
-    {
-      "id": "ma50x100+vol15+ma50up__s3t2.5h20",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥1,5× rata-rata 20 sesi",
-        "MA50 sedang naik"
-      ],
-      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 2.5,
-        "maxHold": 20
-      },
-      "trades": 196,
-      "winRate": 0.6581632653061225,
-      "expectancyR": 0.253753962620629,
-      "profitFactor": 2.1222456588607073,
-      "maxDrawdownR": 6.033333333333324,
-      "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.12776139357847321,
-      "train": {
-        "trades": 135,
-        "winRate": 0.6444444444444445,
-        "expectancyR": 0.23699054659256827
-      },
-      "test": {
-        "trades": 61,
-        "winRate": 0.6885245901639344,
-        "expectancyR": 0.2908533259614191,
-        "profitFactor": 2.1222456588607073,
-        "avgWinR": 0.7988445907607579,
-        "avgLossR": 0.8320747330686988
-      }
-    },
-    {
-      "id": "ma10x50+vol25+indexUp10__s3t2.5h10",
-      "family": "trend",
-      "triggerLabel": "MA10 memotong ke atas MA50",
-      "filterLabels": [
-        "volume ≥2,5× rata-rata 20 sesi",
-        "indeks acuannya naik ≥10% dalam 60 sesi"
-      ],
-      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 10 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 2.5,
-        "maxHold": 10
-      },
-      "trades": 139,
-      "winRate": 0.6474820143884892,
-      "expectancyR": 0.24325207809801278,
-      "profitFactor": 2.1609477481473176,
-      "maxDrawdownR": 4.349576271186439,
-      "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.12437242691950073,
-      "train": {
-        "trades": 76,
-        "winRate": 0.6447368421052632,
-        "expectancyR": 0.22428019405761898
-      },
-      "test": {
-        "trades": 63,
-        "winRate": 0.6507936507936508,
-        "expectancyR": 0.266138795353091,
-        "profitFactor": 2.1609477481473176,
-        "avgWinR": 0.7611959549624534,
-        "avgLossR": 0.6564677293734483
-      }
-    },
-    {
-      "id": "ma50x100+vol15+calm__s3t2.5h20",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "volume ≥1,5× rata-rata 20 sesi",
-        "ATR harian <5% harga"
-      ],
-      "exitLabel": "stop 3×ATR, target 2.5×ATR, maksimal 20 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 3,
-        "targetMult": 2.5,
-        "maxHold": 20
-      },
-      "trades": 136,
-      "winRate": 0.6102941176470589,
-      "expectancyR": 0.17213093126843163,
-      "profitFactor": 2.1072194195292493,
-      "maxDrawdownR": 5.991453965942522,
-      "rewardRisk": 0.8333333333333334,
-      "stressedExpectancyR": 0.12383674482838469,
-      "train": {
-        "trades": 97,
-        "winRate": 0.5773195876288659,
-        "expectancyR": 0.12596881907965565
-      },
-      "test": {
-        "trades": 39,
-        "winRate": 0.6923076923076923,
-        "expectancyR": 0.28694438978923337,
-        "profitFactor": 2.1072194195292493,
-        "avgWinR": 0.7888140665918439,
-        "avgLossR": 0.842262383016641
-      }
-    },
-    {
-      "id": "ma50x100+calm+belowMa20__s1.5t1h20",
-      "family": "trend",
-      "triggerLabel": "MA50 memotong ke atas MA100",
-      "filterLabels": [
-        "ATR harian <5% harga",
-        "harga di bawah MA20"
-      ],
-      "exitLabel": "stop 1.5×ATR, target 1×ATR, maksimal 20 sesi",
-      "entryParams": {
-        "filters": 2
-      },
-      "exitParams": {
-        "stopMult": 1.5,
-        "targetMult": 1,
-        "maxHold": 20
-      },
-      "trades": 151,
-      "winRate": 0.6291390728476821,
-      "expectancyR": 0.07368857260018553,
-      "profitFactor": 2.2506318858759045,
-      "maxDrawdownR": 10.003088244956956,
-      "rewardRisk": 0.6666666666666666,
-      "stressedExpectancyR": 0.12368676906678566,
-      "train": {
-        "trades": 114,
-        "winRate": 0.5964912280701754,
-        "expectancyR": 0.009866038491885293
-      },
-      "test": {
-        "trades": 37,
-        "winRate": 0.7297297297297297,
-        "expectancyR": 0.2703309749879214,
-        "profitFactor": 2.2506318858759045,
-        "avgWinR": 0.666666666666667,
-        "avgLossR": 0.7997753925446914
       }
     }
   ]

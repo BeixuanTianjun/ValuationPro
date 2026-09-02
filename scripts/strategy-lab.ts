@@ -567,6 +567,45 @@ const TRIGGERS: Trigger[] = [
       return held(i) && !held(i - 1);
     },
   },
+  // ── DUA PEMICU DARI TEMUAN gate:ablate ─────────────────────────────────
+  //
+  // Ablasi menemukan hal yang tidak nyaman: dari dua puluh syarat yang diuji
+  // sendiri-sendiri, hanya runup 60 sesi yang memuat sinyal, dan menambahkan
+  // aturan MA di atasnya justru MENGURANGI hasilnya sambil memangkas keranjang
+  // dari 60% ke 20%. Keduanya di bawah ini menerjemahkan itu jadi pemicu yang
+  // bisa diuji lab, dan sengaja dibuat setipis mungkin: kalau sebuah aturan
+  // hanya bekerja ketika ditumpuki syarat lain, yang bekerja bukan aturan itu.
+  //
+  // Perlu diingat saat membaca hasilnya: ablasi mengukur MEMEGANG dari sesi
+  // mana pun yang syaratnya berlaku, sedangkan lab butuh peristiwa masuk yang
+  // diskret. Terjemahan ini tidak pernah bisa persis, jadi kalau keduanya gagal
+  // di sini, itu belum tentu membantah ablasinya — bisa juga berarti sinyal
+  // lintas-emiten tidak bisa dinyatakan sebagai pemicu deret waktu.
+  {
+    id: 'quietBase',
+    label: `Runup ${GAP_WINDOW} sesi turun ke bawah 15% — baru masuk fase tenang`,
+    family: 'early',
+    fires(d, i) {
+      const now = d.runup60[i];
+      const prev = d.runup60[i - 1];
+      return Number.isFinite(now) && Number.isFinite(prev) && prev >= 0.15 && now < 0.15;
+    },
+  },
+  {
+    id: 'freshBreak',
+    label: `Menembus tertinggi 20 sesi sementara runup ${GAP_WINDOW} sesi masih <15%`,
+    family: 'early',
+    fires(d, i) {
+      const h = d.priorHigh20[i];
+      const c = d.close[i];
+      const p = d.close[i - 1];
+      if (!Number.isFinite(h) || !Number.isFinite(c) || !Number.isFinite(p)) return false;
+      // Tembusnya harus peristiwa hari ini, bukan keadaan yang sudah berlangsung.
+      if (!(p <= h && c > h)) return false;
+      const r = d.runup60[i];
+      return Number.isFinite(r) && r < 0.15;
+    },
+  },
 ];
 
 // ──────────────────────────────────────────────────────────────── filters ──
@@ -631,6 +670,27 @@ const FILTERS: Filter[] = [
     id: 'earlyRunup',
     label: `belum naik 25% dari dasar ${GAP_WINDOW} sesi`,
     holds: (d, i) => Number.isFinite(d.runup60[i]) && d.runup60[i] < 0.25,
+  },
+  // Dua ambang yang lebih ketat, ditambahkan sesudah gate:ablate menemukan
+  // dosis-respons runup yang monoton di sepuluh desil: desil terendah +1,40pp
+  // pada tiga bulan, desil tertinggi -8,63pp, bertahan di kedua paruh waktu.
+  //
+  // JUJUR SOAL DARI MANA ANGKANYA: keduanya dipilih setelah melihat data yang
+  // JUGA memuat jendela test lab ini, jadi lolosnya gerbang di sini bukan
+  // konfirmasi out-of-sample yang bersih. Yang menyelamatkan sedikit: yang
+  // dipakai bukan ambang runcing hasil pencarian, melainkan titik pada hubungan
+  // yang monoton sepanjang rentangnya — mana pun potongannya di paruh bawah
+  // memberi arah yang sama. Kalau ada yang menambah data baru, jalankan ulang
+  // dan yang berlaku adalah hasil di situ, bukan catatan ini.
+  {
+    id: 'earlyRunup15',
+    label: `belum naik 15% dari dasar ${GAP_WINDOW} sesi`,
+    holds: (d, i) => Number.isFinite(d.runup60[i]) && d.runup60[i] < 0.15,
+  },
+  {
+    id: 'notFlown',
+    label: `belum naik 50% dari dasar ${GAP_WINDOW} sesi`,
+    holds: (d, i) => Number.isFinite(d.runup60[i]) && d.runup60[i] < 0.5,
   },
 ];
 
@@ -1106,6 +1166,44 @@ async function main() {
     };
   }).sort((a, b) => b.survivors - a.survivors);
 
+  // ── TINGKAT KELOLOSAN PER FILTER ─────────────────────────────────────────
+  //
+  // Melihat filter apa yang muncul di daftar teratas tidak membuktikan apa pun:
+  // filter yang hadir di banyak kombinasi grid akan muncul lebih sering hanya
+  // karena jumlahnya. Yang menjawab adalah TINGKAT kelolosan — berapa persen
+  // rule set yang memuat filter itu bertahan sampai gerbang terakhir,
+  // dibandingkan tingkat kelolosan keseluruhan.
+  //
+  // Ditambahkan ketika gate:ablate mengusulkan bahwa satu-satunya pembacaan
+  // yang memuat sinyal adalah runup. Usulan itu lahir dari data yang sama yang
+  // dipakai lab ini, jadi ia tidak bisa dikonfirmasi di sini — tapi kalau
+  // filternya justru MENURUNKAN tingkat kelolosan, itu bantahan yang sah, dan
+  // sebuah usulan yang tidak bisa dibantah tidak layak disebut hipotesis.
+  const overallRate = survivors.length / buckets;
+  const perFilter = FILTERS.map((f, fi) => {
+    const bit = 1 << fi;
+    let tested = 0;
+    let passed = 0;
+    for (let c = 0; c < nC; c++) {
+      if (!(combos[c].mask & bit)) continue;
+      for (let x = 0; x < nE; x++) {
+        for (let t = 0; t < TRIGGERS.length; t++) {
+          tested++;
+          if (survivorStress.has((t * nC + c) * nE + x)) passed++;
+        }
+      }
+    }
+    return {
+      id: f.id,
+      label: f.label,
+      ruleSetsTested: tested,
+      survivors: passed,
+      survivalRate: tested ? passed / tested : 0,
+      /** Berapa kali lipat tingkat kelolosan keseluruhan. 1,0 = tidak berpengaruh. */
+      lift: tested && overallRate > 0 ? passed / tested / overallRate : null,
+    };
+  }).sort((a, b) => b.survivalRate - a.survivalRate);
+
   const out = {
     generatedAt: new Date().toISOString(),
     sessions: db.dates.length,
@@ -1130,7 +1228,9 @@ async function main() {
       stressWinRateHaircut: STRESS_WR_HAIRCUT,
     },
     survivors: survivors.length,
+    overallSurvivalRate: overallRate,
     perTrigger,
+    perFilter,
     strategies,
   };
 
@@ -1161,6 +1261,17 @@ async function main() {
   }
   console.log('');
   console.log('lolos gerbang per trigger (nol pun dilaporkan):');
+  console.log('');
+  console.log('tingkat kelolosan per filter (lift 1,0 = tidak berpengaruh):');
+  for (const f of perFilter) {
+    console.log(
+      `  ${f.label.padEnd(46)} ${(100 * f.survivalRate).toFixed(2).padStart(6)}%  lift ` +
+        `${(f.lift ?? 0).toFixed(2).padStart(5)}  dari ${String(f.ruleSetsTested).padStart(6)} rule set`,
+    );
+  }
+  console.log(`  ${'(keseluruhan)'.padEnd(46)} ${(100 * overallRate).toFixed(2).padStart(6)}%`);
+  console.log('');
+
   for (const p of perTrigger) {
     const best = p.bestStressedExpectancyR;
     const wr = p.bestTestWinRate === null ? '–' : `${(p.bestTestWinRate * 100).toFixed(0)}%`;
