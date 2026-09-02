@@ -896,6 +896,24 @@ DES, CHAT, MOST, CNG, FUND, PORT, TNKR, NEWS, AVAL, DCF, LBO). Menambah layar ba
 baris di sana; `MenuPanel.tsx` dan `FunctionBar.tsx` keduanya membaca dari situ,
 jadi sebuah layar tidak mungkin ada di satu tempat tapi hilang di tempat lain.
 
+**Renderer Graphify cuma paham lima bentuk, dan tabel bukan salah satunya.**
+Artifact peta pengetahuan (lihat "Dokumen lain") menampilkan heading, bullet,
+`**tebal**`, `` `kode` `` dan `[[tautan]]` — tidak ada tabel, tidak ada blok kode
+berpagar. Markdown dari berkas ini yang ditempel mentah ke sana tampil sebagai
+paragraf gepeng, dan kegagalannya SENYAP: teksnya utuh, cuma tidak terbaca lagi.
+Impor 2026-09-02 mengubah tiap tabel jadi bullet dan tiap blok kode jadi bullet
+ber-`kode` sebelum dikirim. Kalau menambah catatan ke sana lagi, ubah dulu
+bentuknya.
+
+**Tautan Graphify di-dedup PER CATATAN, jadi jumlah `[[...]]` bukan jumlah
+garis.** `outLinks` membuang target berulang di dalam satu catatan, dan `edges`
+membuang tautan ke diri sendiri. Impor 2026-09-02 menulis 237 `[[...]]` tetapi
+peta menggambar 236 garis — satu catatan indeks menyebut target yang sama dua
+kali. Selisih satu ini tidak penting; yang penting, menghitung tautan dengan
+grep akan selalu memberi angka yang berbeda dari yang dipajang aplikasi. Untuk
+memeriksa peta tanpa membukanya, salin `outLinks`/`byTitle`/`edges` dari sumber
+artifact dan jalankan terhadap isi database-nya.
+
 ## Peta kode
 
 ```
@@ -962,6 +980,10 @@ src/components/analytics/MacroMonitor.tsx   layar MACRO
 src/components/analytics/WorldMap.tsx       layar MAP, globe SVG tanpa pustaka 3D
 .claude/agents/               enam subagent proyek ini; disalin ke folder
                               induk lewat `npm run agents:sync`
+graphify-out/                 keluaran /graphify: graph.html (viewer sendiri),
+                              graph.json (graf kode 1,5 MB), cache/,
+                              manifest.json, GRAPH_REPORT.md. MASUK .gitignore
+                              — hanya ada di mesin yang menjalankannya
 ```
 
 ## Perintah
@@ -1258,6 +1280,21 @@ layar barunya:**
 `SETUP.md` menjalankan & alert · `DEPLOY.md` Vercel + Actions ·
 `DATA_PIPELINE.md` sumber data & catatan teknis
 
+Berkas ini juga ada sebagai **peta pengetahuan** di artifact Graphify
+`710d0ffe-1683-49b9-b9e7-d8d4f6fb3add`: 119 catatan saling bertaut, satu temuan
+satu catatan, plus tujuh bagian GRAPH_REPORT yang memang ditulis untuk dibaca
+orang.
+
+Dua hal yang perlu diingat tentang peta itu. **Sumber kebenarannya tetap
+HANDOVER.md di repo ini** — peta itu salinan bertanggal 2026-09-02 dan tidak
+ikut berubah kalau berkas ini diedit; kalau keduanya berbeda, yang benar yang
+ini. Dan **bentuknya bintang, bukan jaring**: satu catatan ("Yang mahal
+ditemukan") memegang 87 dari 119 sambungan, karena impornya hanya memakai
+tautan yang sudah ada di struktur dokumen dan tidak menebak hubungan antar
+temuan. Tautan yang salah lebih buruk daripada tidak ada tautan. Untuk
+memperkayanya, pakai tombol "Cari koneksi" di panel Agent artifact itu dan
+saring usulannya sendiri.
+
 ## Aturan yang dipegang
 
 Setiap angka bisa ditelusuri ke endpoint sumbernya. Ketika data tidak memadai —
@@ -1305,12 +1342,26 @@ Diverifikasi langsung di situs live: `/api/picks` dan `/api/disclosure-summary`
 menjawab 404 di sana persis seperti rancangannya, dan kedua layar menampilkan
 itu sebagai keterangan, bukan kegagalan.
 
-**Yang BELUM ter-commit: halaman depan yang ditulis ulang** (`LandingPage.tsx`)
-plus invarian cakupannya di `backtest.ts`. Verifikasi lokal hijau: `tsc` bersih,
+Sesudah itu tiga commit lagi menyusul dan semuanya sudah di-push; `db5019a`
+adalah kepala `main` dan pohon kerjanya bersih. Halaman depan yang ditulis
+ulang (`LandingPage.tsx`) plus invarian cakupannya di `backtest.ts` masuk di
+`b86ca7b`, layanan lokal yang nyala sendiri di `ba03e04`, pemisahan log siklus
+hidup di `db5019a`. Verifikasi lokal saat itu hijau: `tsc` bersih,
 18/18 uji, backtest **237.812 pemeriksaan nol temuan atas 3 pass**,
 `strategy:lab` 365 lolos, build produksi sukses, dicek di 375px maupun desktop.
 
 Yang berubah di sesi terakhir:
+- **HANDOVER dan GRAPH_REPORT diimpor ke artifact Graphify** sebagai 119
+  catatan bertaut — 14 catatan bagian, 97 catatan temuan, 7 catatan graf kode,
+  1 indeks. Seluruhnya lewat database artifact; HTML aplikasinya tidak disentuh.
+  Empat catatan contoh bawaannya dihapus atas permintaan pemilik repo.
+  Diverifikasi dengan menjalankan `outLinks`/`byTitle`/`edges` milik artifact
+  itu sendiri terhadap isi database: 119 catatan, 236 garis, satu komponen utuh,
+  nol tautan putus, nol judul kembar, nol catatan mengambang. Halamannya sendiri
+  BELUM pernah dilihat — kedua browser tidak punya sesi claude.ai, jadi bukti di
+  atas berasal dari kode aplikasinya, bukan dari layar.
+  `graphify-out/` sengaja TIDAK ikut: 5,1 MB, dan isinya graf kode mesin yang
+  sudah punya viewer sendiri di `graph.html`.
 - **Halaman depan ditulis ulang.** Grid datar 11 kartu diganti struktur
   bertahap: hero, empat angka, tiga blok "kenapa dibikin", perbandingan dua
   kolom, band papan strategi, lalu 18 layar dikelompokkan jadi empat pekerjaan.
