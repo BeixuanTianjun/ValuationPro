@@ -1048,7 +1048,7 @@ graphify-out/                 keluaran /graphify: graph.html (viewer sendiri),
 npm run auto            # layanan lokal + aplikasi di :8787
 npm run dev             # Vite dev, proxy /api ke :8787
 
-npm test                # 111 uji di 5 suite: DCF, atribusi, LBO, portofolio, pengumuman
+npm test                # 192 uji di 9 suite — tiap model punya jaringnya sendiri
 npm run backtest -- 5   # sapu 962 emiten lewat TIAP mesin, 5 pass  (~108k pemeriksaan)
 npm run backtest:live   # invariant yang sama tapi terhadap DEPLOYMENT, bukan disk
 npm run chat:dossier -- PTBA   # cetak persis apa yang diterima model, tanpa API
@@ -1436,9 +1436,20 @@ dijalankan folder Startup). Diuji dengan membunuh pohon prosesnya: pulih dalam 4
 detik, tetap satu loop. Terbukti lagi semalaman — `eod` maju sendiri ke
 `2026-09-03-pagi` tanpa ada yang menyalakannya.
 
-**111 uji di lima suite**, naik dari 34. Yang baru: LBO (19), portofolio (29),
-pengumuman (29). Tes LBO pertama langsung menemukan jembatan nilai yang tidak
-menutup sebesar biaya transaksi.
+**192 uji di sembilan suite**, naik dari 34. Sembilan model yang berdiri tanpa
+jaring sekarang nol. Yang baru: LBO (19), portofolio (29), pengumuman (29),
+mesin kueri (29), laporan pick (20), kalibrator (21), ekspor Excel (11).
+
+Tiga di antaranya menemukan bug pada percobaan pertama. Tes LBO menemukan
+jembatan nilai yang tidak menutup sebesar biaya transaksi. Tes laporan pick
+menemukan lembar Metode yang masih berbunyi "Tidak ada backfill" — persis jenis
+klaim basi yang lembar itu ada untuk mencegah. Tes kalibrator menemukan komentar
+batas CAGR yang tidak sama dengan kodenya.
+
+`pickReport` dan `excelExporter` baru bisa diuji setelah penyusunan workbook
+dipisah dari penyimpanannya dan `file-saver` dipindah ke impor dinamis. Selama
+keduanya menyatu, satu-satunya cara memeriksa laporan adalah mengunduh lalu
+membukanya dengan mata — yang berarti tidak pernah diperiksa.
 
 **Kanal Telegram ada tapi BELUM menyala** — `TELEGRAM_BOT_TOKEN` dan
 `TELEGRAM_CHAT_ID` belum ada di `.env`. `npm run telegram:check` mencetak langkah
