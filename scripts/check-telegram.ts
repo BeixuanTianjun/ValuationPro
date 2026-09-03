@@ -64,11 +64,12 @@ async function main() {
   // Pratinjau isi pesannya, supaya bentuknya bisa dinilai sebelum satu pun
   // dikirim ke ponsel.
   try {
-    const { screener, watchlist, breadth, db } = await computeDailyDigest(DATA_DIR);
+    const { screener, watchlist, breadth, radar, db } = await computeDailyDigest(DATA_DIR);
     const teks = renderTelegramDigest({
       session: db.meta.latestSession,
       screener,
       watchlist,
+      radar,
       breadth,
       live: db.live,
       trigger: 'Pratinjau manual',

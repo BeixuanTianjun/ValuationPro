@@ -392,7 +392,11 @@ function rankHalfLife(snaps: Snap[], key: IndKey, maxLag: number): number {
  * Dikembalikan sebagai indeks ke dalam `block.core`, bukan kode, supaya loop
  * permutasi tidak menyentuh string sama sekali.
  */
-function donorPermutation(coreCount: number, rnd: () => number): Int32Array {
+// Int32Array<ArrayBuffer>, bukan Int32Array polos: sejak TypeScript 5.7 tipe
+// array bertipe punya parameter buffer, dan `new Int32Array(n)` menghasilkan
+// yang berbasis ArrayBuffer sementara `Int32Array` telanjang berarti
+// ArrayBufferLike — yang lebih longgar dan tidak bisa ditugaskan ke sana.
+function donorPermutation(coreCount: number, rnd: () => number): Int32Array<ArrayBuffer> {
   const perm = new Int32Array(coreCount);
   for (let i = 0; i < coreCount; i++) perm[i] = i;
   shuffleInPlace(perm, rnd);

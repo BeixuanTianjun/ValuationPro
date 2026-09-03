@@ -32,7 +32,7 @@
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { computeAllFactors } from '../src/models/factorEngine';
-import { convictionScore, runStockScreener } from '../src/models/stockScreener';
+import { convictionScore, runStockScreener, type ScreenerMode } from '../src/models/stockScreener';
 import { buildWatchlist } from '../src/models/watchlist';
 import { buildEventRadar } from '../src/models/eventRadar';
 import {
@@ -80,7 +80,6 @@ const findings: Finding[] = [];
 let checks = 0;
 
 const fail = (area: string, detail: string) => findings.push({ area, detail });
-const ok = () => checks++;
 
 /** Every number the UI will print must be finite. */
 function assertFinite(area: string, code: string, fields: Record<string, unknown>) {

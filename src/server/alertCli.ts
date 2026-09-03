@@ -32,19 +32,22 @@ const TRIGGER = argVal('--trigger', 'Terjadwal');
 
 async function main() {
   const dataDir = join(ROOT, 'public', 'data', 'idx');
-  const { screener, watchlist, breadth, db } = await computeDailyDigest(dataDir);
+  const { screener, watchlist, breadth, radar, db } = await computeDailyDigest(dataDir);
   const session = db.meta.latestSession;
 
   console.log(
-    `Sesi ${session} · ${screener.rows.length} lolos screener · ${watchlist.candidates.length} kandidat watchlist`
+    `Sesi ${session} · ${screener.rows.length} lolos screener · ${watchlist.candidates.length} kandidat watchlist` +
+      ` · ${radar.rows.length} radar`
   );
   for (const f of screener.funnel) console.log(`  ${f.label.padEnd(44)} ${f.remaining}`);
 
-  // An empty screener is a real answer on a weak tape, but an email with two
-  // empty sections is noise — only skip when BOTH systems come back with
-  // nothing.
-  if (!screener.rows.length && !watchlist.candidates.length) {
-    console.log('Tidak ada yang lolos screener maupun watchlist — email dilewati.');
+  // An empty screener is a real answer on a weak tape, but an email with three
+  // empty sections is noise — only skip when ALL of them come back with
+  // nothing. The radar counts here for the same reason it counts in the
+  // service: a session with no screener name but a change-of-control filing is
+  // exactly the session worth sending.
+  if (!screener.rows.length && !watchlist.candidates.length && !radar.rows.length) {
+    console.log('Tidak ada yang lolos screener, watchlist, maupun radar — email dilewati.');
     return;
   }
 
@@ -54,6 +57,9 @@ async function main() {
     }
     for (const [i, c] of watchlist.candidates.slice(0, 5).entries()) {
       console.log(`  watchlist #${i + 1} ${c.code} skor ${c.score.toFixed(2)} — ${c.narrative.headline.slice(0, 60)}`);
+    }
+    for (const r of radar.rows.slice(0, 5)) {
+      console.log(`  radar ${r.code} — ${r.why.join(', ')}`);
     }
     console.log('--dry-run aktif: email tidak dikirim.');
     return;
@@ -77,6 +83,7 @@ async function main() {
       session,
       screener,
       watchlist,
+      radar,
       breadth,
       live: db.live,
       trigger: TRIGGER,

@@ -47,7 +47,8 @@
 import { join } from 'node:path';
 import { loadMarketDatabaseFromDisk } from '../src/server/marketFromDisk';
 import { sliceMarketDatabase } from '../src/data/marketSlice';
-import { computeAllFactors, FactorSnapshot } from '../src/models/factorEngine';
+import { computeAllFactors } from '../src/models/factorEngine';
+import type { FactorSnapshot } from '../src/types/market';
 import { runStockScreener, ScreenerRow } from '../src/models/stockScreener';
 import type { MarketDatabase } from '../src/data/marketRepository';
 

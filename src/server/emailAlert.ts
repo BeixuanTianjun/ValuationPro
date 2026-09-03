@@ -115,11 +115,21 @@ export interface DigestInput {
   live: LiveStatus | null;
   trigger: string;
   /**
-   * Opsional supaya pemanggil yang ditulis sebelum radar ada tetap sah, dan
-   * supaya sebuah digest tidak batal terkirim hanya karena berkas pengumuman
-   * belum dibangun.
+   * WAJIB, dan itu keputusan yang diambil setelah lupa mengopernya TIGA KALI.
+   *
+   * Awalnya opsional supaya pemanggil lama tetap sah. Akibatnya: renderer email
+   * tidak pernah mencetaknya, `emailDigest` tidak pernah mengopernya, dan
+   * `/api/alert/preview` merakit HTML-nya sendiri tanpa radar — sehingga halaman
+   * yang gunanya justru MELIHAT apa yang akan dikirim menampilkan sesuatu yang
+   * berbeda dari yang dikirim. Ketiganya lolos typecheck, karena sebuah field
+   * opsional yang tidak dioper adalah kode yang sah. Yang menemukan ketiganya
+   * pertanyaan pemilik repo, bukan alat.
+   *
+   * `null` masih diterima dan artinya eksplisit: "berkas pengumuman belum ada".
+   * Itu berbeda dari lupa, dan perbedaan itulah yang tidak bisa dinyatakan oleh
+   * sebuah tanda tanya.
    */
-  radar?: RadarResult | null;
+  radar: RadarResult | null;
 }
 
 function escapeHtml(s: string): string {

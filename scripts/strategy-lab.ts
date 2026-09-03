@@ -1411,7 +1411,6 @@ async function main() {
   console.log('');
 
   for (const p of perTrigger) {
-    const best = p.bestStressedExpectancyR;
     const wr = p.bestTestWinRate === null ? '–' : `${(p.bestTestWinRate * 100).toFixed(0)}%`;
     const exp =
       p.bestTestExpectancyR === null
