@@ -1,15 +1,18 @@
 ﻿import React from 'react';
-import { UfcfYearData } from '../../types/dcf';
-import { formatCurrency, formatPercent } from '../../utils/formatters';
+import { DcfAssumptions, UfcfYearData } from '../../types/dcf';
+import { amountLabel, formatCurrency, formatPercent } from '../../utils/formatters';
 
 interface CashFlowTableProps {
   cashFlows: UfcfYearData[];
   currency: string;
+  /** Skala model. DcfAssumptions selalu membawanya, jadi tidak perlu ditebak. */
+  units: DcfAssumptions['units'];
 }
 
 export const CashFlowTable: React.FC<CashFlowTableProps> = ({
   cashFlows,
   currency,
+  units,
 }) => {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
@@ -17,7 +20,9 @@ export const CashFlowTable: React.FC<CashFlowTableProps> = ({
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
           Unlevered Free Cash Flow (UFCF) Projections
         </h3>
-        <span className="text-xs text-slate-400 font-mono">Currency: {currency} (Millions)</span>
+        <span className="text-xs text-slate-400 font-mono">
+          {amountLabel('Currency', currency, units)}
+        </span>
       </div>
 
       <div className="overflow-x-auto scrollbar-thin">

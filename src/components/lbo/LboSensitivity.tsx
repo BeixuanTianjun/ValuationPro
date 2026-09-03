@@ -3,8 +3,17 @@ import { LboAssumptions, LboReturnsSummary } from '../../types/lbo';
 import { generateLboSensitivityEntryVsExit, generateLboSensitivityLeverageVsExit } from '../../models/lboEngine';
 import { HeatmapTable } from '../common/HeatmapTable';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
-import { formatCurrency } from '../../utils/formatters';
+import { amountLabel, formatCurrency } from '../../utils/formatters';
 import { CHART } from '../../theme/chart';
+
+/**
+ * Skala model, dengan default yang dinyatakan.
+ *
+ * `units` opsional pada LboAssumptions supaya model lama tetap terbaca, jadi
+ * defaultnya harus ada di SATU tempat — sebuah default yang ditulis ulang di
+ * tiap layar adalah default yang akan berbeda di salah satunya.
+ */
+const lboUnits = (a: { units?: string }) => a.units ?? 'billions';
 
 interface LboSensitivityProps {
   assumptions: LboAssumptions;
@@ -45,7 +54,9 @@ export const LboSensitivity: React.FC<LboSensitivityProps> = ({
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
             Capital Structure Evolution & Equity Value Growth
           </h3>
-          <span className="text-xs text-slate-400 font-mono">Amounts in $m</span>
+          <span className="text-xs text-slate-400 font-mono">
+            {amountLabel('Amounts', assumptions.currency, lboUnits(assumptions))}
+          </span>
         </div>
 
         <div className="h-64 w-full">

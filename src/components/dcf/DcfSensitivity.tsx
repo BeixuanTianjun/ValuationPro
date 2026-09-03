@@ -3,7 +3,7 @@ import { DcfAssumptions, DcfValuationSummary } from '../../types/dcf';
 import { generateDcfSensitivityWaccVsGrowth, generateDcfSensitivityWaccVsMultiple } from '../../models/dcfEngine';
 import { HeatmapTable } from '../common/HeatmapTable';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
-import { formatCurrency } from '../../utils/formatters';
+import { amountLabel, formatCurrency } from '../../utils/formatters';
 import { CHART } from '../../theme/chart';
 
 interface DcfSensitivityProps {
@@ -36,7 +36,9 @@ export const DcfSensitivity: React.FC<DcfSensitivityProps> = ({
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
             Projected Cash Flow Trajectory (EBITDA vs UFCF vs PV)
           </h3>
-          <span className="text-xs text-slate-400 font-mono">Amounts in $m</span>
+          <span className="text-xs text-slate-400 font-mono">
+            {amountLabel('Amounts', assumptions.currency, assumptions.units)}
+          </span>
         </div>
 
         <div className="h-64 w-full">

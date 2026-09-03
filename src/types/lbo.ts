@@ -10,6 +10,21 @@
 export interface LboAssumptions {
   dealName: string;
   currency: string;
+  /**
+   * Skala yang dipakai SEMUA angka rupiah di model ini.
+   *
+   * KENAPA ADA. Sebelumnya tidak ada, dan akibatnya terlihat di layar:
+   * `convertCalibratedToLbo` menyalin `currency` dari laporan keuangan tetapi
+   * tidak menyalin skalanya, jadi angkanya berskala laporan — biasanya miliar
+   * untuk emiten IDX — sementara DebtWaterfall mencetak "(Millions)" dan panel
+   * sensitivitas mencetak "Amounts in $m". Dua klaim yang keduanya salah, di
+   * atas angka yang benar.
+   *
+   * Opsional supaya berkas model lama tetap terbaca; yang tidak menyebutkannya
+   * diperlakukan sebagai 'billions', skala yang dipakai tiap preset dan tiap
+   * kalibrasi dari laporan IDX.
+   */
+  units?: 'billions' | 'millions' | 'thousands' | 'exact';
   targetLtmRevenue: number;
   targetLtmEbitda: number;
   entryEvEbitdaMultiple: number;

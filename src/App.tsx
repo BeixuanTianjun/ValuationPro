@@ -470,7 +470,11 @@ export default function App() {
             )}
 
             {dcfSubTab === 'cashflows' && (
-              <CashFlowTable cashFlows={dcfSummary.cashFlows} currency={dcfAssumptions.currency} />
+              <CashFlowTable
+                cashFlows={dcfSummary.cashFlows}
+                currency={dcfAssumptions.currency}
+                units={dcfAssumptions.units}
+              />
             )}
 
             {dcfSubTab === 'valuation' && (
@@ -566,6 +570,7 @@ export default function App() {
                 schedules={lboSummary.schedules}
                 sourcesAndUses={lboSummary.sourcesAndUses}
                 currency={lboAssumptions.currency}
+                units={lboAssumptions.units}
               />
             )}
 

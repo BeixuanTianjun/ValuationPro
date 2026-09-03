@@ -143,6 +143,9 @@ export function convertCalibratedToLbo(calibrated: CalibratedModelParams, prevLb
     ...prevLbo,
     dealName: `Project ${calibrated.companyName} Buyout`,
     currency: calibrated.currency,
+    // Skalanya ikut, bukan hanya mata uangnya. Menyalin salah satunya saja
+    // adalah cara angka yang benar mendapat label yang salah.
+    units: calibrated.units,
     targetLtmRevenue: calibrated.baseRevenue,
     targetLtmEbitda: baseEbitda,
     seniorDebtMultiple: Math.min(Math.max(currentLeverage * 0.7, 2.0), 4.5),

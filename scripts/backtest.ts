@@ -178,6 +178,47 @@ async function main() {
       }
     }
 
+    // ---- no screen may hard-code the currency or the scale ----------------
+    //
+    // Ditemukan 2026-09-03 dengan membaca layarnya: panel sensitivitas DCF
+    // mencetak "Amounts in $m" di atas angka rupiah, dan tabel arus kas serta
+    // debt waterfall mencetak "(Millions)" untuk model yang seluruhnya berskala
+    // MILIAR. Angkanya benar di keempatnya. Hanya keterangannya yang bohong,
+    // dan keterangan itulah yang dibaca orang enam bulan lagi.
+    //
+    // `amountLabel()` sudah ada sejak lama dan komentarnya sendiri berbunyi
+    // "a rupiah model in billions must not be labelled ($m)" — pelajarannya
+    // sudah dipelajari, ditulis, lalu empat layar melewatinya. Prosa tidak
+    // menghentikannya; penjaga ini yang menghentikannya.
+    {
+      const LARANGAN: [RegExp, string][] = [
+        [/Amounts in \$m/, 'menulis "Amounts in $m" — dolar di atas model rupiah'],
+        [/\(Millions\)/, 'menulis "(Millions)" tetap alih-alih membaca skala model'],
+        [/in Millions`/, 'menulis "in Millions" tetap alih-alih membaca skala model'],
+      ];
+      const BERKAS = [
+        join('src', 'components', 'dcf', 'DcfSensitivity.tsx'),
+        join('src', 'components', 'dcf', 'CashFlowTable.tsx'),
+        join('src', 'components', 'lbo', 'LboSensitivity.tsx'),
+        join('src', 'components', 'lbo', 'DebtWaterfall.tsx'),
+        join('src', 'models', 'excelExporter.ts'),
+      ];
+      for (const rel of BERKAS) {
+        const src = await readFile(join(process.cwd(), rel), 'utf8');
+        // Komentar dikecualikan: berkas-berkas ini SENGAJA menyebut label lama
+        // untuk menjelaskan kenapa ia salah, dan penjaga yang melarang
+        // menuliskan pelajarannya akan menghapus alasannya.
+        const kode = src
+          .split('\n')
+          .filter((l) => !l.trimStart().startsWith('//') && !l.trimStart().startsWith('*'))
+          .join('\n');
+        for (const [re, kenapa] of LARANGAN) {
+          checks++;
+          if (re.test(kode)) fail('label satuan', `${rel} ${kenapa}`);
+        }
+      }
+    }
+
     // ---- the front page must cover every screen, and only real ones -------
     //
     // THIS IS THE GUARD THE OLD FRONT PAGE NEEDED AND DID NOT HAVE. It carried a

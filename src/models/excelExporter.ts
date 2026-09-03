@@ -268,7 +268,14 @@ export async function buildFinancialModelWorkbook(
   lboTitle.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
   lboSheet.getRow(2).height = 28;
 
-  lboSheet.getCell('B3').value = `Holding Period: ${lboAssumptions.holdPeriodYears} Years | Currency: ${lboAssumptions.currency} in Millions`;
+  // Skala dibaca dari modelnya, tidak ditulis tetap. Baris ini sempat berbunyi
+  // "in Millions" untuk tiap model yang pernah diekspor dari sini, dan semuanya
+  // berskala miliar — sebuah workbook hidup lebih lama daripada layar asalnya,
+  // jadi keterangan satuan yang salah di dalamnya akan dikutip orang nanti.
+  const lboScale = ({ billions: 'Billions', millions: 'Millions', thousands: 'Thousands', exact: 'units' } as Record<string, string>)[
+    lboAssumptions.units ?? 'billions'
+  ];
+  lboSheet.getCell('B3').value = `Holding Period: ${lboAssumptions.holdPeriodYears} Years | Currency: ${lboAssumptions.currency} in ${lboScale}`;
   lboSheet.getCell('B3').font = { name: 'Calibri', size: 10, italic: true, color: { argb: '555555' } };
 
   lboSheet.getCell('B5').value = 'I. SOURCES & USES OF FUNDS';

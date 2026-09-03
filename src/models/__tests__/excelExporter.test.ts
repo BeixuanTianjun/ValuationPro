@@ -41,7 +41,7 @@ const DCF: DcfAssumptions = {
 };
 
 const LBO: LboAssumptions = {
-  dealName: 'Contoh', currency: 'Rp ',
+  dealName: 'Contoh', currency: 'Rp ', units: 'billions',
   targetLtmRevenue: 10_000, targetLtmEbitda: 2_000,
   entryEvEbitdaMultiple: 8, holdPeriodYears: 5, exitEvEbitdaMultiple: 9,
   advisoryFeePercent: 0.015, financingFeePercent: 0.02,
@@ -99,6 +99,21 @@ async function main() {
     const semua = isiLembar(wb, 'DCF Model');
     check('mata uang tercetak', semua.includes('rp'), semua.slice(0, 200));
     check('skala tercetak', semua.includes('billion'), semua.slice(0, 200));
+  }
+
+  // 2b. SKALA LEMBAR LBO DIBACA DARI MODELNYA. Sampai 2026-09-03 baris ini
+  //     berbunyi "in Millions" tetap, untuk tiap model yang pernah diekspor —
+  //     dan semuanya berskala miliar, karena preset dan kalibrasi laporan IDX
+  //     dua-duanya miliar. Angkanya benar, keterangannya salah, dan workbook
+  //     hidup lebih lama daripada layar asalnya.
+  {
+    const semua = isiLembar(wb, 'LBO Model');
+    check('lembar LBO menyebut skala miliar', semua.includes('billions'), semua.slice(0, 220));
+    check('lembar LBO tidak lagi mengklaim juta', !semua.includes('in millions'), semua.slice(0, 220));
+
+    const juta = await buildFinancialModelWorkbook(DCF, runDcfModel(DCF), { ...LBO, units: 'millions' }, runLboModel(LBO));
+    const t = isiLembar(juta, 'LBO Model');
+    check('model berskala juta memang tercetak juta', t.includes('millions'), t.slice(0, 220));
   }
 
   // 3. Nama perusahaan sampai ke dalam berkasnya, bukan cuma ke nama berkas.

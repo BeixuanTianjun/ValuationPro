@@ -1,17 +1,26 @@
 ﻿import React from 'react';
 import { LboYearSchedule, SourcesAndUses } from '../../types/lbo';
-import { formatCurrency, formatMultiple } from '../../utils/formatters';
+import { amountLabel, formatCurrency, formatMultiple } from '../../utils/formatters';
 
 interface DebtWaterfallProps {
   schedules: LboYearSchedule[];
   sourcesAndUses: SourcesAndUses;
   currency: string;
+  /**
+   * Skala model. Sampai 2026-09-03 layar ini mencetak "(Millions)" tetap, dan
+   * itu salah untuk tiap model yang pernah dijalankan di sini: preset dan
+   * kalibrasi laporan IDX keduanya berskala MILIAR rupiah. Sebuah keterangan
+   * satuan yang tidak dibaca dari modelnya bukan keterangan, melainkan tebakan
+   * yang dicetak dengan percaya diri.
+   */
+  units?: 'billions' | 'millions' | 'thousands' | 'exact';
 }
 
 export const DebtWaterfallComponent: React.FC<DebtWaterfallProps> = ({
   schedules,
   sourcesAndUses: su,
   currency,
+  units = 'billions',
 }) => {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
@@ -19,7 +28,9 @@ export const DebtWaterfallComponent: React.FC<DebtWaterfallProps> = ({
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
           Operational Forecast & Debt Paydown Schedule
         </h3>
-        <span className="text-xs text-slate-400 font-mono">Currency: {currency} (Millions)</span>
+        <span className="text-xs text-slate-400 font-mono">
+          {amountLabel('Currency', currency, units)}
+        </span>
       </div>
 
       <div className="overflow-x-auto scrollbar-thin">
