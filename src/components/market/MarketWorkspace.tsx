@@ -1,17 +1,37 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Briefcase, Building2, CalendarDays, ClipboardList, LineChart, MessageSquare, Newspaper, Radar, ServerCrash, Target } from 'lucide-react';
 import { MarketDataState } from '../../hooks/useMarketData';
 import { MarketOverview } from './MarketOverview';
-import { PickJournal } from './PickJournal';
-import { EmitenBrowser } from './EmitenBrowser';
-import { EmitenDetail } from './EmitenDetail';
-import { StockScreenerPanel } from './StockScreenerPanel';
-import { EventRadar } from './EventRadar';
-import { StockWatchlist } from './StockWatchlist';
-import { PortfolioTracker } from './PortfolioTracker';
-import { AnnouncementFeed } from './AnnouncementFeed';
-import { EmitenChat } from '../chat/EmitenChat';
 import { EmitenModelBundle, buildEmitenModel } from '../../models/idxCompanyBridge';
+
+/*
+ * MarketOverview above is imported eagerly; everything below is not.
+ *
+ * Overview is the tab this workspace opens on, so deferring it would only buy a
+ * second round trip before the screen the user is already looking at. The other
+ * eight are each one click away at most, and together they were ~150 kB of the
+ * initial download that most sessions never touch — the screener and the
+ * watchlist alone are the two largest source modules in the app.
+ *
+ * Named exports need the `.then` unwrap because React.lazy resolves `default`.
+ * Written out per panel rather than behind a generic helper: the helper's
+ * signature costs more to read than nine honest lines.
+ */
+const PickJournal = lazy(() => import('./PickJournal').then((m) => ({ default: m.PickJournal })));
+const EmitenBrowser = lazy(() => import('./EmitenBrowser').then((m) => ({ default: m.EmitenBrowser })));
+const EmitenDetail = lazy(() => import('./EmitenDetail').then((m) => ({ default: m.EmitenDetail })));
+const StockScreenerPanel = lazy(() =>
+  import('./StockScreenerPanel').then((m) => ({ default: m.StockScreenerPanel }))
+);
+const EventRadar = lazy(() => import('./EventRadar').then((m) => ({ default: m.EventRadar })));
+const StockWatchlist = lazy(() => import('./StockWatchlist').then((m) => ({ default: m.StockWatchlist })));
+const PortfolioTracker = lazy(() =>
+  import('./PortfolioTracker').then((m) => ({ default: m.PortfolioTracker }))
+);
+const AnnouncementFeed = lazy(() =>
+  import('./AnnouncementFeed').then((m) => ({ default: m.AnnouncementFeed }))
+);
+const EmitenChat = lazy(() => import('../chat/EmitenChat').then((m) => ({ default: m.EmitenChat })));
 import { recentSubs } from '../../data/functions';
 import { EmptyState, Segmented, SegmentedOption, Spinner } from '../common/ui';
 
@@ -113,6 +133,12 @@ export const MarketWorkspace: React.FC<Props> = ({
         activeClass="bg-emerald-600 text-white shadow-md shadow-emerald-900/40"
       />
 
+      {/*
+        One Suspense for the whole body rather than one per tab. Overview is
+        eager so it never suspends and never sees this fallback; the tab bar
+        above stays mounted and clickable while a deferred panel arrives.
+      */}
+      <Suspense fallback={<Spinner label="Memuat panel…" />}>
       {subTab === 'overview' && (
         <MarketOverview db={db} indices={indices} breadth={breadth} onReload={reload} onSelectEmiten={openEmiten} />
       )}
@@ -162,6 +188,7 @@ export const MarketWorkspace: React.FC<Props> = ({
           />
         </div>
       )}
+      </Suspense>
     </div>
   );
 };

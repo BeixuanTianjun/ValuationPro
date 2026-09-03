@@ -7,7 +7,14 @@ import {
   PickSummary,
   monthOf,
 } from '../../models/pickJournal';
-import { exportPickJournalToExcel } from '../../models/pickReport';
+// pickReport is NOT imported statically. It pulls in ExcelJS, which minifies to
+// 925 kB — 43% of the whole app bundle — and this static edge was the single
+// reason that weight sat in the eagerly-loaded index chunk instead of the lazy
+// one vite.config.ts already expected it to land in. The comment there said
+// "exceljs is deliberately absent"; it was not, because this line dragged it
+// back onto the critical path. Same on-click pattern as the DCF/LBO exporter in
+// App.tsx: nobody pays for the spreadsheet writer until they ask for a
+// spreadsheet.
 import { EmptyState, Panel, PanelHeader, Pill, SourceNote, Spinner, Stat, StatGrid, TableScroll, Td, Th, cx } from '../common/ui';
 
 /**
@@ -158,6 +165,7 @@ export const PickJournal: React.FC<Props> = ({ onSelectEmiten }) => {
                 onClick={async () => {
                   setBusy(true);
                   try {
+                    const { exportPickJournalToExcel } = await import('../../models/pickReport');
                     await exportPickJournalToExcel(data.picks, data.summaries, {
                       startedOn: data.startedOn,
                       latestSession: data.latestSession,

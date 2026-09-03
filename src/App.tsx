@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { Suspense, lazy, useEffect, useState, useMemo } from 'react';
 import { Header, MobileTabBar } from './components/layout/Header';
 import { ActiveModelTab } from './types/common';
 import { DEAL_PRESETS } from './presets/deals';
@@ -10,24 +10,61 @@ import { runLboModel } from './models/lboEngine';
 import { MetricCard } from './components/common/MetricCard';
 import { formatCurrency, formatPercent, formatMultiple } from './utils/formatters';
 
-// DCF Components
-import { DcfAssumptionsComponent } from './components/dcf/DcfAssumptions';
-import { WaccCalculatorComponent } from './components/dcf/WaccCalculator';
-import { CashFlowTable } from './components/dcf/CashFlowTable';
-import { ValuationBridge } from './components/dcf/ValuationBridge';
-import { DcfSensitivity } from './components/dcf/DcfSensitivity';
+/*
+ * The DCF, LBO and analytics screens load on demand.
+ *
+ * The terminal opens on Market Overview and most sessions never leave the
+ * market tabs at all, yet these three workspaces were shipped in the first
+ * download regardless. `runDcfModel` and `runLboModel` above stay eager — the
+ * header reads a target price and an IRR off them on every screen, so the
+ * engines are genuinely first-paint code even when their panels are not.
+ *
+ * Only the presentation is deferred, which is why the header keeps working
+ * while a panel is still arriving.
+ */
+const DcfAssumptionsComponent = lazy(() =>
+  import('./components/dcf/DcfAssumptions').then((m) => ({ default: m.DcfAssumptionsComponent }))
+);
+const WaccCalculatorComponent = lazy(() =>
+  import('./components/dcf/WaccCalculator').then((m) => ({ default: m.WaccCalculatorComponent }))
+);
+const CashFlowTable = lazy(() =>
+  import('./components/dcf/CashFlowTable').then((m) => ({ default: m.CashFlowTable }))
+);
+const ValuationBridge = lazy(() =>
+  import('./components/dcf/ValuationBridge').then((m) => ({ default: m.ValuationBridge }))
+);
+const DcfSensitivity = lazy(() =>
+  import('./components/dcf/DcfSensitivity').then((m) => ({ default: m.DcfSensitivity }))
+);
+const DcfDiagnostics = lazy(() =>
+  import('./components/dcf/DcfDiagnostics').then((m) => ({ default: m.DcfDiagnostics }))
+);
 
-// LBO Components
-import { LboAssumptionsComponent } from './components/lbo/LboAssumptions';
-import { SourcesAndUsesComponent } from './components/lbo/SourcesAndUses';
-import { DebtWaterfallComponent } from './components/lbo/DebtWaterfall';
-import { ReturnsSummaryComponent } from './components/lbo/ReturnsSummary';
-import { LboSensitivity } from './components/lbo/LboSensitivity';
+const LboAssumptionsComponent = lazy(() =>
+  import('./components/lbo/LboAssumptions').then((m) => ({ default: m.LboAssumptionsComponent }))
+);
+const SourcesAndUsesComponent = lazy(() =>
+  import('./components/lbo/SourcesAndUses').then((m) => ({ default: m.SourcesAndUsesComponent }))
+);
+const DebtWaterfallComponent = lazy(() =>
+  import('./components/lbo/DebtWaterfall').then((m) => ({ default: m.DebtWaterfallComponent }))
+);
+const ReturnsSummaryComponent = lazy(() =>
+  import('./components/lbo/ReturnsSummary').then((m) => ({ default: m.ReturnsSummaryComponent }))
+);
+const LboSensitivity = lazy(() =>
+  import('./components/lbo/LboSensitivity').then((m) => ({ default: m.LboSensitivity }))
+);
+
+const AnalyticsWorkspace = lazy(() =>
+  import('./components/analytics/AnalyticsWorkspace').then((m) => ({ default: m.AnalyticsWorkspace }))
+);
 
 // Market Components
 import { MarketWorkspace, MarketSubTab } from './components/market/MarketWorkspace';
 import { EmitenModelBundle, buildEmitenModel } from './models/idxCompanyBridge';
-import { AnalyticsWorkspace, AnalyticsSubTab } from './components/analytics/AnalyticsWorkspace';
+import type { AnalyticsSubTab } from './components/analytics/AnalyticsWorkspace';
 import { AuthModal } from './components/auth/AuthModal';
 import { AccountUser, fetchAuthState, logOut } from './data/authClient';
 import { LandingPage } from './components/landing/LandingPage';
@@ -36,9 +73,8 @@ import { CurtainTransition } from './components/layout/CurtainTransition';
 import { MenuPanel } from './components/layout/MenuPanel';
 import { FunctionBar } from './components/layout/FunctionBar';
 import { TERMINAL_FUNCTIONS, TerminalFunction } from './data/functions';
-import { DcfDiagnostics } from './components/dcf/DcfDiagnostics';
 import { useMarketData } from './hooks/useMarketData';
-import { Segmented } from './components/common/ui';
+import { Segmented, Spinner } from './components/common/ui';
 
 import { TrendingUp, Layers, DollarSign, Award, BarChart3, Sliders, Table, Sparkles, Check } from 'lucide-react';
 
@@ -371,7 +407,15 @@ export default function App() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-24 lg:pb-8 flex-1 w-full space-y-5 sm:space-y-6">
-        
+
+      {/*
+        One boundary for every workspace, placed inside <main> so the header,
+        the function bar and the live status bar stay mounted while a deferred
+        screen arrives — they carry the ticker and the connection state, and
+        blanking them for a chunk fetch would read as a disconnect.
+      */}
+      <Suspense fallback={<Spinner label="Memuat ruang kerja…" />}>
+
         {/* 0. IDX MARKET WORKSPACE */}
         {activeTab === 'market' && (
           <MarketWorkspace
@@ -591,6 +635,7 @@ export default function App() {
           </div>
         )}
 
+      </Suspense>
       </main>
 
       <MobileTabBar activeTab={activeTab} setActiveTab={setActiveTab} onOpenMenu={() => setMenuOpen(true)} />
