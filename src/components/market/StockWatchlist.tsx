@@ -650,7 +650,77 @@ const StageBlock: React.FC<{
  * would re-import exactly the overfitting the split exists to remove, so the
  * card shows the test result big and the train result small beside it — the gap
  * between them is the reader's own overfitting check.
+ *
+ * AND THAT SPLIT IS NOT ENOUGH, WHICH IS WHY THE BOX BELOW EXISTS.
+ *
+ * A train/test split makes this board FEEL rigorous, and the feeling outruns
+ * the evidence. 148,104 rule sets were tried against 94,695 distinct signals:
+ * the search has more knobs than the sample has independent things to say. The
+ * conventional ceiling for that ratio is 10%; this is 156%, fifteen times over.
+ * At that density a test split stops being a test — enough candidates will
+ * clear any bar by luck alone.
+ *
+ * THE FLATTERING DENOMINATOR IS THE TRADE COUNT, and it is wrong. Dividing by
+ * 6,794,640 simulated trades gives 2.18%, which looks healthy and is an
+ * artifact: one signal is re-simulated under 72 different exit rules, so the
+ * trade count counts the same underlying observation 72 times. Independent
+ * observations are what a degree of freedom costs, and those are the signals.
+ *
+ * Both numbers are printed, the honest one first, because someone will
+ * eventually find the 2.18% themselves and needs to already know why it is not
+ * the number.
  */
+/**
+ * The one thing this board must say about itself.
+ *
+ * Placed ABOVE the numbers rather than under them: a caveat printed after the
+ * ranked list is read by whoever already decided to trust the list.
+ */
+const DegreesOfFreedomNote: React.FC<{ file: StrategyFile }> = ({ file }) => {
+  const signals = file.signalsFired;
+  const trades = file.totalTradesSimulated;
+  const honest = signals > 0 ? file.ruleSetsTested / signals : NaN;
+  const flattering = trades > 0 ? file.ruleSetsTested / trades : NaN;
+  const overThreshold = Number.isFinite(honest) && honest > 0.1;
+
+  return (
+    <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-800/60 bg-amber-950/20 p-3.5">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+      <div className="space-y-1.5 text-[11px] leading-relaxed text-amber-100/90">
+        <p>
+          <span className="font-bold">
+            Papan ini alat EKSPLORASI, bukan daftar rekomendasi.
+          </span>{' '}
+          {file.ruleSetsTested.toLocaleString('id-ID')} kombinasi aturan dicoba terhadap{' '}
+          {signals.toLocaleString('id-ID')} sinyal berbeda — rasio derajat kebebasan{' '}
+          <span className="font-bold tabular-nums">
+            {Number.isFinite(honest) ? `${(honest * 100).toFixed(1)}%` : '–'}
+          </span>
+          {overThreshold ? (
+            <>
+              , sekitar {Math.round(honest / 0.1)}× di atas ambang lazim 10%. Pada kepadatan itu
+              pemisahan latih/uji berhenti menjadi ujian: dengan kandidat sebanyak ini, selalu ada
+              yang melewati ambang mana pun karena keberuntungan saja.
+            </>
+          ) : (
+            <>, di bawah ambang lazim 10%.</>
+          )}
+        </p>
+        <p className="text-amber-200/70">
+          Angka yang lebih enak dilihat adalah{' '}
+          <span className="tabular-nums">
+            {Number.isFinite(flattering) ? `${(flattering * 100).toFixed(2)}%` : '–'}
+          </span>{' '}
+          — {file.ruleSetsTested.toLocaleString('id-ID')} dibagi {trades.toLocaleString('id-ID')}{' '}
+          trade tersimulasi. Itu artefak: satu sinyal disimulasikan ulang di bawah puluhan aturan
+          keluar, jadi hitungan trade menghitung pengamatan yang sama berkali-kali. Yang dibayar
+          sebuah derajat kebebasan adalah pengamatan yang saling bebas, dan itu sinyalnya.
+        </p>
+      </div>
+    </div>
+  );
+};
+
 const StrategyLabPanel: React.FC<{ file: StrategyFile }> = ({ file }) => {
   const [open, setOpen] = useState(false);
   const shown = open ? file.strategies : file.strategies.slice(0, 3);
@@ -675,6 +745,8 @@ const StrategyLabPanel: React.FC<{ file: StrategyFile }> = ({ file }) => {
           )
         }
       />
+
+      <DegreesOfFreedomNote file={file} />
 
       <div className="mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <Stat label="Lolos semua gerbang" value={String(file.survivors)} tone="accent" hint={`dari ${file.ruleSetsTested.toLocaleString('id-ID')} diuji`} />
