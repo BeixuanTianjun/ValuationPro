@@ -13,7 +13,7 @@
 // orang yang tidak ingat posisi terbuka dikecualikan. Kalau lembar Metode
 // hilang atau isinya basi, angkanya berubah dari pengukuran menjadi klaim.
 
-import type { EvaluatedPick, PickSummary } from '../pickJournal';
+import { PICK_SOURCES, type EvaluatedPick, type PickSummary } from '../pickJournal';
 import { buildPickWorkbook, pickReportFilename } from '../pickReport';
 
 const results: { name: string; ok: boolean; detail: string }[] = [];
@@ -108,6 +108,24 @@ async function main() {
     check('Metode tidak lagi mengklaim "tidak ada backfill"',
       !semua.includes('tidak ada backfill'),
       'klaim basi masih ada di lembar Metode');
+
+    // LEMBAR INI HARUS MENYEBUT TIAP SUMBER YANG ADA, dan daftarnya diturunkan
+    // dari PICK_SOURCES alih-alih diketik ulang, supaya menambah layar baru
+    // MEMBUAT tes ini gagal sampai lembarnya ikut diperbarui.
+    //
+    // Bukan kehati-hatian teoretis. Pada 2026-09-03 sumber `radar:peristiwa`
+    // ditambahkan ke jurnal, dan tiga tempat sekaligus terus berbunyi "layar
+    // Screener dan Watchlist": subjudul panel jurnal, deskripsi di dalam
+    // picks.json, dan baris ini. Semuanya lolos typecheck, tes, dan backtest,
+    // karena kalimat yang salah tidak pernah melempar apa pun. Yang menemukannya
+    // cuma membaca layarnya.
+    for (const src of PICK_SOURCES) {
+      // Bagian setelah "·" adalah yang membedakan satu sumber dari sumber lain;
+      // "Screener" sendirian dipakai bertiga dan tidak membuktikan apa-apa.
+      const penanda = (src.label.split('·').pop() || src.label).trim().toLowerCase();
+      check(`Metode menyebut sumber "${src.label}"`, semua.includes(penanda),
+        `penanda "${penanda}" tidak ada di lembar Metode`);
+    }
   }
 
   // 4. Lingkup bulanan benar-benar menyaring. Laporan berlabel September yang

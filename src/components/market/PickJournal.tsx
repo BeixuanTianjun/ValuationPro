@@ -130,7 +130,8 @@ export const PickJournal: React.FC<Props> = ({ onSelectEmiten }) => {
           tone="text-violet-300"
           subtitle={
             <>
-              Tiap sesi, sepuluh teratas dari tiap layar Screener dan Watchlist dicatat pada harga penutupan, sebelum
+              Tiap sesi, sepuluh teratas dari tiap layar Screener, Watchlist dan Radar Peristiwa dicatat pada harga
+              penutupan, sebelum
               hasilnya diketahui. Dinilai memakai stop dan target ATR yang sama dengan yang dicetak layar, dengan
               horizon {MAX_HOLD_SESSIONS} sesi (±3 bulan). Dicatat harian sejak {liveStart || '—'} · sesi terakhir{' '}
               {data.latestSession}.

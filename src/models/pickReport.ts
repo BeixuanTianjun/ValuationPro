@@ -213,7 +213,7 @@ export async function buildPickWorkbook(
   const lines: [string, boolean][] = [
     ['BAGAIMANA ANGKA DI BERKAS INI DIHITUNG', true],
     ['', false],
-    [`Apa yang dicatat: sepuluh nama teratas dari tiap layar (Screener momentum / antre beli / tertinggal, Watchlist mingguan / bulanan) pada setiap sesi bursa, diurutkan persis seperti yang ditampilkan layar.`, false],
+    [`Apa yang dicatat: sepuluh nama teratas dari tiap layar (Screener momentum / antre beli / tertinggal, Watchlist mingguan / bulanan, Radar Peristiwa) pada setiap sesi bursa, diurutkan persis seperti yang ditampilkan layar.`, false],
     [`Kapan dicatat: setelah penutupan, oleh penjadwal, tanpa bergantung pada ada tidaknya orang yang membuka aplikasi. Sesi yang masih berjalan ditolak; kalau ada yang dipaksa masuk, barisnya ditandai "sementara" dan DIKECUALIKAN dari seluruh statistik (${meta.provisionalExcluded} baris pada laporan ini).`, false],
     [`Entry: harga penutupan sesi saat pick dicatat — harga yang benar-benar tercetak.`, false],
     [`Stop dan target: ${STOP_ATR_MULT}x dan ${TARGET_ATR_MULT}x ATR14, sama persis dengan yang dicetak layar. Multiplier ini konvensi, bukan hasil optimasi.`, false],

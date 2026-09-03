@@ -271,7 +271,7 @@ const EMPTY: PickFile = {
   version: 1,
   startedOn: '',
   note:
-    'Catatan pick harian dari layar Screener dan Watchlist. Ditulis SEBELUM hasilnya diketahui; tidak pernah disunting ulang. Entry = penutupan sesi yang tercatat, stop/target = 1,5x/2,5x ATR14 seperti yang dicetak layar.',
+    'Catatan pick harian dari layar Screener, Watchlist dan Radar Peristiwa. Ditulis SEBELUM hasilnya diketahui; tidak pernah disunting ulang. Entry = penutupan sesi yang tercatat, stop/target = 1,5x/2,5x ATR14 seperti yang dicetak layar — penggaris yang sama untuk ketiganya, supaya ketiganya bisa dibandingkan.',
   picks: [],
 };
 
