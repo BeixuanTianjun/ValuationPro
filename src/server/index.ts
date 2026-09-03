@@ -32,6 +32,11 @@ import {
   verifyMail,
 } from './emailAlert';
 import {
+  explainTelegramError,
+  readTelegramConfig,
+  sendTelegramDigest,
+} from './telegramAlert';
+import {
   SESSION_COOKIE,
   administrator,
   clearedCookie,
@@ -244,6 +249,37 @@ async function emailDigest(trigger: string): Promise<string> {
   }
 }
 
+/**
+ * Kanal kedua, gagal sendiri-sendiri.
+ *
+ * Dipisahkan dari `emailDigest` dan dipanggil terpisah supaya satu kanal yang
+ * mati tidak membungkam yang lain. Seluruh alasan fitur ini ada adalah tidak
+ * melewatkan sesi; menggabungkan keduanya dalam satu try akan membuat token
+ * Telegram yang kedaluwarsa ikut membatalkan emailnya.
+ */
+async function telegramDigest(trigger: string): Promise<string> {
+  const cfg = readTelegramConfig();
+  if (!cfg) return 'telegram dilewati — TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID belum diisi di .env';
+
+  const { screener, watchlist, breadth, db } = await computeDailyDigest(DATA_DIR);
+  if (!screener.rows.length && !watchlist.candidates.length) {
+    return 'telegram dilewati — tidak ada yang lolos screener maupun watchlist';
+  }
+  try {
+    const id = await sendTelegramDigest(cfg, {
+      session: db.meta.latestSession,
+      screener,
+      watchlist,
+      breadth,
+      live: db.live,
+      trigger,
+    });
+    return `telegram terkirim (id ${id})`;
+  } catch (err) {
+    return `telegram GAGAL — ${explainTelegramError(err)}`;
+  }
+}
+
 async function runJob(id: JobId, reason: string, sendAlert: boolean): Promise<string> {
   switch (id) {
     case 'intraday':
@@ -278,7 +314,8 @@ async function runJob(id: JobId, reason: string, sendAlert: boolean): Promise<st
       }
       if (!sendAlert) return `harga live diperbarui${news}${picks}`;
       const mail = await emailDigest(reason);
-      return `harga live diperbarui${news}${picks}; ${mail}`;
+      const tele = await telegramDigest(reason);
+      return `harga live diperbarui${news}${picks}; ${mail}; ${tele}`;
     }
     case 'eod': {
       // A short window is enough for the daily catch-up; the per-session cache
