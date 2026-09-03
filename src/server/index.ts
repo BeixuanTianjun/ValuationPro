@@ -802,12 +802,13 @@ const server = createServer(async (req, res) => {
     // Renders exactly what would be emailed, without sending. Lets the digest
     // be reviewed before any SMTP credentials exist.
     if (url.pathname === '/api/alert/preview') {
-      const { screener, watchlist, breadth, db } = await computeDailyDigest(DATA_DIR);
+      const { screener, watchlist, breadth, radar, db } = await computeDailyDigest(DATA_DIR);
       const html = renderDigestHtml({
         session: db.meta.latestSession,
         screener,
         watchlist,
         breadth,
+        radar,
         live: db.live,
         trigger: 'Pratinjau',
       });
