@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { loadIdxFile } from '../../data/idxFiles';
 import {
   Area,
   CartesianGrid,
@@ -96,15 +97,16 @@ export const MutualFundTracker: React.FC<Props> = ({ db, onSelectEmiten, focusEm
 
   useEffect(() => {
     let alive = true;
-    fetch(`${import.meta.env.BASE_URL || '/'}data/idx/ownership.json`.replace(/\/{2,}/g, '/'), { cache: 'no-cache' })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((j: OwnershipFile) => alive && setFile(j))
-      .catch(
-        () => alive && setError('Data kepemilikan KSEI belum dibangun. Jalankan "npm run data:ownership".')
-      );
+    void loadIdxFile<OwnershipFile>('ownership.json').then((j) => {
+      if (!alive) return;
+      // Pemuat bersama menciutkan tiap kegagalan menjadi null, jadi pesan yang
+      // membedakan "belum dibangun" dari "gagal diambil" dipilih di sini. Tidak
+      // ada yang hilang: berkas yang belum ada dan berkas yang gagal dibaca
+      // sama-sama berarti panel ini tidak punya data, dan perintah untuk
+      // membangunnya adalah jawaban yang benar untuk keduanya.
+      if (j) setFile(j);
+      else setError('Data kepemilikan KSEI belum dibangun. Jalankan "npm run data:ownership".');
+    });
     return () => {
       alive = false;
     };

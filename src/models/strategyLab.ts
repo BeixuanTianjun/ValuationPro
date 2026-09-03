@@ -19,6 +19,8 @@
 // look at the chart — the same division of labour the watchlist's own final
 // stage already insists on.
 
+import { loadIdxFile } from '../data/idxFiles';
+
 export interface RankedStrategy {
   id: string;
   family: string;
@@ -127,13 +129,13 @@ export interface StrategyFile {
   strategies: RankedStrategy[];
 }
 
-export async function loadStrategyFile(): Promise<StrategyFile | null> {
-  try {
-    const url = `${import.meta.env.BASE_URL || '/'}data/idx/strategies.json`.replace(/\/{2,}/g, '/');
-    const res = await fetch(url, { cache: 'no-cache' });
-    if (!res.ok) return null;
-    return (await res.json()) as StrategyFile;
-  } catch {
-    return null;
-  }
+/**
+ * Memoised through `loadIdxFile`, which is why this is a one-liner now.
+ *
+ * Both this file's panel and the watchlist call it, and before the shared
+ * loader existed one pass through the Market tabs pulled strategies.json four
+ * separate times.
+ */
+export function loadStrategyFile(): Promise<StrategyFile | null> {
+  return loadIdxFile<StrategyFile>('strategies.json');
 }

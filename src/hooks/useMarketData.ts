@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { invalidateIdxFiles } from '../data/idxFiles';
 import {
   MarketDatabase,
   computeBreadth,
@@ -132,6 +133,11 @@ export function useMarketData(enabled: boolean): MarketDataState {
   const reload = useCallback(() => {
     invalidateMarketDatabase();
     invalidateFundamentalsDatabase();
+    // Berkas sampingan ikut dibuang. Tombol ini ada untuk membaca ulang apa yang
+    // ada di disk, dan pengumuman atau kepemilikan yang selamat dari penekanannya
+    // akan membuat refresh-nya benar separuh — bentuk kegagalan yang paling sulit
+    // dilihat, karena layarnya tetap memuat ulang dan sebagian angkanya berubah.
+    invalidateIdxFiles();
     setDb(null);
     setFundamentals(null);
     setNonce((n) => n + 1);

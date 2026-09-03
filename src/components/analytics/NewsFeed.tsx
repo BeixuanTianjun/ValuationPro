@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { loadIdxFile } from '../../data/idxFiles';
 import { AlertTriangle, CalendarClock, ExternalLink, Globe, Info, Newspaper, ServerCrash } from 'lucide-react';
 import { EmptyState, Panel, PanelHeader, Pill, Segmented, SourceNote, Spinner, Stat, StatGrid, cx } from '../common/ui';
 
@@ -102,15 +103,11 @@ export const NewsFeed: React.FC<Props> = ({ onSelectEmiten }) => {
 
   useEffect(() => {
     let alive = true;
-    const url = `${import.meta.env.BASE_URL || '/'}data/idx/news.json`.replace(/\/{2,}/g, '/');
-    void fetch(url, { cache: 'no-cache' })
-      .then((r) => (r.ok ? (r.json() as Promise<NewsFile>) : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .catch(() => null)
-      .then((f) => {
-        if (!alive) return;
-        setFile(f);
-        setLoading(false);
-      });
+    void loadIdxFile<NewsFile>('news.json').then((f) => {
+      if (!alive) return;
+      setFile(f);
+      setLoading(false);
+    });
     return () => {
       alive = false;
     };

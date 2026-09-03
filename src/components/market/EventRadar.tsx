@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
+import { loadIdxFile } from '../../data/idxFiles';
 import { AnnouncementsFile } from '../../models/announcements';
 import {
   DEFAULT_RADAR_SETTINGS,
@@ -222,15 +223,11 @@ export const EventRadar: React.FC<Props> = ({ db, onSelectEmiten }) => {
 
   useEffect(() => {
     let alive = true;
-    const url = `${import.meta.env.BASE_URL || '/'}data/idx/announcements.json`.replace(/\/{2,}/g, '/');
-    void fetch(url, { cache: 'no-cache' })
-      .then((r) => (r.ok ? (r.json() as Promise<AnnouncementsFile>) : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .catch(() => null)
-      .then((f) => {
-        if (!alive) return;
-        setFile(f);
-        setLoading(false);
-      });
+    void loadIdxFile<AnnouncementsFile>('announcements.json').then((f) => {
+      if (!alive) return;
+      setFile(f);
+      setLoading(false);
+    });
     return () => {
       alive = false;
     };

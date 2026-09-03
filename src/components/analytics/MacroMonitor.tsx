@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { loadIdxFile } from '../../data/idxFiles';
 import { Activity, AlertTriangle, Globe, Search, ServerCrash, TrendingDown, TrendingUp } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
 import {
@@ -110,15 +111,11 @@ export const MacroMonitor: React.FC<Props> = ({ db, focusEmiten }) => {
 
   useEffect(() => {
     let alive = true;
-    const url = `${import.meta.env.BASE_URL || '/'}data/idx/macro.json`.replace(/\/{2,}/g, '/');
-    void fetch(url, { cache: 'no-cache' })
-      .then((r) => (r.ok ? (r.json() as Promise<MacroFile>) : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .catch(() => null)
-      .then((f) => {
-        if (!alive) return;
-        setFile(f);
-        setLoading(false);
-      });
+    void loadIdxFile<MacroFile>('macro.json').then((f) => {
+      if (!alive) return;
+      setFile(f);
+      setLoading(false);
+    });
     return () => {
       alive = false;
     };

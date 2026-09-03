@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { loadIdxFile } from '../../data/idxFiles';
 import {
   ArrowRight,
   Bell,
@@ -100,18 +101,14 @@ function useStrategyFacts(): { tested: number; survivors: number; sessions: numb
   const [facts, setFacts] = useState<{ tested: number; survivors: number; sessions: number } | null>(null);
   useEffect(() => {
     let alive = true;
-    const url = `${import.meta.env.BASE_URL || '/'}data/idx/strategies.json`.replace(/\/{2,}/g, '/');
-    void fetch(url, { cache: 'no-cache' })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('no file'))))
-      .then((f: { ruleSetsTested?: number; survivors?: number; sessions?: number }) => {
-        if (!alive) return;
-        if (Number.isFinite(f.ruleSetsTested) && Number.isFinite(f.survivors)) {
-          setFacts({ tested: f.ruleSetsTested!, survivors: f.survivors!, sessions: f.sessions ?? 0 });
-        }
-      })
-      .catch(() => {
-        /* the band renders without it rather than printing a made-up number */
-      });
+    void loadIdxFile<{ ruleSetsTested?: number; survivors?: number; sessions?: number }>(
+      'strategies.json'
+    ).then((f) => {
+      if (!alive || !f) return; // the band renders without it rather than printing a made-up number
+      if (Number.isFinite(f.ruleSetsTested) && Number.isFinite(f.survivors)) {
+        setFacts({ tested: f.ruleSetsTested!, survivors: f.survivors!, sessions: f.sessions ?? 0 });
+      }
+    });
     return () => {
       alive = false;
     };

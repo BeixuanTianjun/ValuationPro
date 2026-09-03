@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { loadIdxFile } from '../../data/idxFiles';
 import {
   AlertTriangle,
   Briefcase,
@@ -112,11 +113,7 @@ export const PortfolioTracker: React.FC<Props> = ({ db, factors, onSelectEmiten 
 
   useEffect(() => {
     let alive = true;
-    const url = `${import.meta.env.BASE_URL || '/'}data/idx/ownership.json`.replace(/\/{2,}/g, '/');
-    void fetch(url, { cache: 'no-cache' })
-      .then((r) => (r.ok ? (r.json() as Promise<OwnershipFile>) : Promise.reject(new Error('x'))))
-      .catch(() => null)
-      .then((f) => alive && setOwnership(f));
+    void loadIdxFile<OwnershipFile>('ownership.json').then((f) => alive && setOwnership(f));
     return () => {
       alive = false;
     };

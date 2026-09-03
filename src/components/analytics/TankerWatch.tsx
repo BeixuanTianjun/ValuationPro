@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { loadIdxFile } from '../../data/idxFiles';
 import { AlertTriangle, Anchor, Info, Ship, ServerCrash } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
 import { WorldMap } from './WorldMap';
@@ -156,15 +157,11 @@ export const TankerWatch: React.FC<Props> = ({ db, onSelectEmiten }) => {
 
   useEffect(() => {
     let alive = true;
-    const url = `${import.meta.env.BASE_URL || '/'}data/idx/tanker.json`.replace(/\/{2,}/g, '/');
-    void fetch(url, { cache: 'no-cache' })
-      .then((r) => (r.ok ? (r.json() as Promise<TankerFile>) : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .catch(() => null)
-      .then((t) => {
-        if (!alive) return;
-        setFile(t);
-        setLoading(false);
-      });
+    void loadIdxFile<TankerFile>('tanker.json').then((t) => {
+      if (!alive) return;
+      setFile(t);
+      setLoading(false);
+    });
     return () => {
       alive = false;
     };

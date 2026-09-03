@@ -24,6 +24,7 @@ import { Horizon, WatchlistCandidate, buildWatchlist } from '../../models/watchl
 import { SCREENER_MODES, ScreenerMode } from '../../models/stockScreener';
 import { buildTradeSetup } from '../../models/tradeSetup';
 import { StrategyFile, TriggerDiagnostic, loadStrategyFile } from '../../models/strategyLab';
+import { loadIdxFile } from '../../data/idxFiles';
 import { NARRATIVE_THEMES } from '../../data/narratives';
 import { TradingViewChart } from './TradingViewChart';
 import {
@@ -95,13 +96,10 @@ export const StockWatchlist: React.FC<Props> = ({ db, factors, onSelectEmiten })
 
   useEffect(() => {
     let alive = true;
-    const url = (name: string) => `${import.meta.env.BASE_URL || '/'}data/idx/${name}`.replace(/\/{2,}/g, '/');
-    const get = <T,>(name: string): Promise<T | null> =>
-      fetch(url(name), { cache: 'no-cache' })
-        .then((r) => (r.ok ? (r.json() as Promise<T>) : Promise.reject(new Error(`HTTP ${r.status}`))))
-        .catch(() => null);
-
-    void Promise.all([get<AnnouncementsFile>('announcements.json'), get<OwnershipFile>('ownership.json')]).then(
+    void Promise.all([
+      loadIdxFile<AnnouncementsFile>('announcements.json'),
+      loadIdxFile<OwnershipFile>('ownership.json'),
+    ]).then(
       ([ann, own]) => {
         if (!alive) return;
         setAnnouncements(ann);

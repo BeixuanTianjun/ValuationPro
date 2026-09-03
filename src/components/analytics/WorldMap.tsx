@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { loadIdxFile } from '../../data/idxFiles';
 import { AlertTriangle, Anchor, Globe2, Ship, ServerCrash } from 'lucide-react';
 import { EmptyState, Panel, PanelHeader, Pill, SourceNote, Spinner, Stat, StatGrid, Td, Th, TableScroll, cx } from '../common/ui';
 
@@ -133,15 +134,11 @@ export const WorldMap: React.FC = () => {
 
   useEffect(() => {
     let alive = true;
-    const url = `${import.meta.env.BASE_URL || '/'}data/idx/worldmap.json`.replace(/\/{2,}/g, '/');
-    void fetch(url, { cache: 'no-cache' })
-      .then((r) => (r.ok ? (r.json() as Promise<WorldMapFile>) : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .catch(() => null)
-      .then((f) => {
-        if (!alive) return;
-        setFile(f);
-        setLoading(false);
-      });
+    void loadIdxFile<WorldMapFile>('worldmap.json').then((f) => {
+      if (!alive) return;
+      setFile(f);
+      setLoading(false);
+    });
     return () => {
       alive = false;
     };
