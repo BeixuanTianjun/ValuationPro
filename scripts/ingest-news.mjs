@@ -44,6 +44,7 @@
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildMatchers, tagEmiten } from './news-tagging.mjs';
 import { execFile } from 'node:child_process';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -133,69 +134,6 @@ function parseFeed(xml) {
   return out;
 }
 
-// ──────────────────────────────────────────────────────────── IDX tagging ──
-
-/**
- * Matching headlines to emiten is where this file can most easily lie, and the
- * first version did, loudly.
- *
- * IDX tickers are four letters, and a great many of them are ordinary words:
- * PADA, NAIK, UANG, BANK, FAST, EAST, RISE, LINK, NINE, BLUE, FUJI. Matching
- * case-insensitively on a standalone token tagged "Fast-fashion giant Shein" as
- * FAST, "Bursa Asia Berguguran ... Kembali Memanas" as PADA, and a story about
- * US mortgage rates as EAST and RISE. Sixty-five percent of the feed came back
- * "about" some Indonesian company. That is worse than no tagging at all,
- * because it looks like a feature.
- *
- * Two rules fix it, and both are about being strict rather than clever:
- *
- *   1. TICKERS ARE MATCHED CASE-SENSITIVELY, in the original text, as a
- *      standalone all-caps token. Real mentions are written "BBRI"; the English
- *      word is written "fast". Case is the signal, and lowercasing the text
- *      before matching throws away the one thing that separates them.
- *
- *   2. COMPANY NAMES MUST APPEAR AS A PHRASE, not as scattered tokens. The old
- *      code reduced "Bank Central Asia Tbk." to the token CENTRAL and tagged
- *      BBCA onto any headline containing that word anywhere. Requiring the
- *      consecutive phrase "BANK CENTRAL ASIA" costs a few real matches
- *      (a headline saying only "Adaro" will be missed) and buys the ability to
- *      trust every match that does appear.
- */
-const NAME_NOISE = /\b(PT|TBK|PERSERO|PERSEROAN|TERBUKA)\b\.?/g;
-
-function buildMatchers(universe) {
-  return universe.map((e) => {
-    const phrase = (e.name || '')
-      .toUpperCase()
-      .replace(/[().,]/g, ' ')
-      .replace(NAME_NOISE, ' ')
-      .replace(/[^A-Z0-9 ]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    // Too short to be distinctive on its own ("MAP", "AKR") — the ticker rule
-    // still covers those, and a two-letter phrase would match everything.
-    const usable = phrase.length >= 8 ? phrase : '';
-    return { code: e.code, phrase: usable };
-  });
-}
-
-function tagEmiten(text, matchers) {
-  // Original case preserved for the ticker test; a separate normalised copy for
-  // the phrase test, where case genuinely does not matter.
-  const spaced = ` ${text.replace(/[^A-Za-z0-9]/g, ' ').replace(/\s+/g, ' ')} `;
-  const upper = spaced.toUpperCase();
-
-  const hits = new Set();
-  for (const m of matchers) {
-    if (spaced.includes(` ${m.code} `)) {
-      hits.add(m.code);
-      continue;
-    }
-    if (m.phrase && upper.includes(` ${m.phrase} `)) hits.add(m.code);
-  }
-  return [...hits].slice(0, 6);
-}
-
 // ────────────────────────────────────────────────────────────── calendar ──
 
 /** ForexFactory impact strings → the three levels the UI colours. */
@@ -251,7 +189,7 @@ async function main() {
           source: f.name,
           sourceId: f.id,
           scope: f.scope,
-          emiten: tagEmiten(`${it.title} ${it.summary}`, matchers),
+          emiten: tagEmiten(`${it.title} ${it.summary}`, matchers, f.scope),
         }));
       } catch (err) {
         log(`!! ${f.name} gagal: ${err.message}`);

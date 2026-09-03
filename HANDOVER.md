@@ -79,6 +79,39 @@ menangkapnya bukan review, tapi `npm run backtest` yang menyapu 962 emiten dan
 membandingkan angka terhadap invariannya. **Kalau menambah mesin baru, tambahkan
 invariannya ke backtest di commit yang sama.**
 
+**AKRONIM MEMATAHKAN ATURAN "case adalah sinyalnya".** Penandaan berita ke kode
+emiten bersandar pada huruf besar: ticker ditulis `FAST`, kata Inggrisnya
+ditulis `fast`. Itu benar untuk kata biasa dan RUNTUH untuk akronim. `NATO`
+adalah kode IDX yang sah (Olympus Strategic Indonesia Tbk) dan juga aliansi
+militer, keduanya ditulis kapital, dan berita Putin/Ukraina tampil di NewsFeed
+sebagai berita tentang emiten. Yang memisahkannya bukan huruf melainkan
+korannya: dari 18 ticker yang muncul kapital, 17 benar dan semuanya dari CNBC
+Indonesia; satu-satunya yang salah datang dari kawat asing. Sekarang ticker
+telanjang di feed `global` butuh petunjuk pasar Indonesia di teksnya. Frasa nama
+perusahaan dikecualikan — "TELKOM INDONESIA" bukti bagi dirinya sendiri.
+
+**MENULIS BERKAS LEWAT HEREDOC MERUSAK ESCAPE, DAN HASILNYA DIAM.** Sudah tiga
+kali di repo ini, dan contoh-contohnya sengaja ditulis dengan kata alih-alih
+lambang karena paragraf ini sendiri sempat ikut jadi korbannya:
+
+1. Moniker WMI di service-supervisor.vbs: DUA backslash sebelum titik menyusut
+   jadi SATU, monikernya jadi tidak sah, dan GetObject menjawab kode galat
+   dengan `Err.Description` KOSONG.
+2. Sebuah penggantian Python: backslash-n yang dimaksudkan sebagai dua karakter
+   berubah menjadi baris baru sungguhan.
+3. Regex `ID_CUE` di news-tagging.mjs: backslash-b berubah menjadi satu byte
+   BACKSPACE (U+0008), sehingga regexnya menuntut karakter backspace di kiri
+   dan kanan kata dan TIDAK PERNAH cocok.
+
+Yang ketiga paling berbahaya, karena ia tetap "memperbaiki" NATO — dengan cara
+mematikan SELURUH penandaan ticker di kawat asing. Tes NATO-nya lulus untuk
+alasan yang salah, dan yang menangkapnya adalah tes tetangganya yang menuntut
+berita asing tentang Indonesia TETAP ditandai.
+
+Kalau menulis berkas dari skrip: bangun karakter backslash lewat `chr(92)` atau
+raw string, lalu PERIKSA hasil tulisnya, jangan percaya sumbernya —
+`[...baris].filter(c => c.charCodeAt(0) < 32)` harus kosong.
+
 **Run Actions yang DIBATALKAN membunuh commit-nya, dan tidak terlihat gagal.**
 Run 33241417759 (Sabtu 2026-08-29, satu-satunya slot mingguan) menggantung di
 tarikan KSEI lalu dibatalkan. Karena langkah "Commit data fundamental" berada
