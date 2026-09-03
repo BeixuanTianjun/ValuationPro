@@ -54,6 +54,7 @@ export const LboAssumptionsComponent: React.FC<LboAssumptionsProps> = ({
             value={assumptions.targetLtmRevenue}
             onChange={(v) => updateField('targetLtmRevenue', v)}
             type="currency"
+            currency={assumptions.currency}
             step={10}
             decimals={1}
           />
@@ -63,6 +64,7 @@ export const LboAssumptionsComponent: React.FC<LboAssumptionsProps> = ({
             value={assumptions.targetLtmEbitda}
             onChange={(v) => updateField('targetLtmEbitda', v)}
             type="currency"
+            currency={assumptions.currency}
             step={5}
             decimals={1}
           />
@@ -205,6 +207,7 @@ export const LboAssumptionsComponent: React.FC<LboAssumptionsProps> = ({
             value={assumptions.minCashBalance}
             onChange={(v) => updateField('minCashBalance', v)}
             type="currency"
+            currency={assumptions.currency}
             step={5}
             decimals={1}
           />

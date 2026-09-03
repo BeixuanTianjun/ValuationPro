@@ -10,6 +10,15 @@ interface NumberInputProps {
   max?: number;
   helperText?: string;
   decimals?: number;
+  /**
+   * Lambang mata uang untuk `type="currency"`.
+   *
+   * KENAPA HARUS DIOPER. Komponen ini menuliskan '$' secara keras, jadi tiap
+   * kotak isian rupiah di layar DCF dan LBO memasang lambang dolar — tepat di
+   * sebelah label yang sudah benar berbunyi "Base Revenue (Rp bn)". Label dan
+   * kotaknya saling membantah, di formulir yang sama.
+   */
+  currency?: string;
 }
 
 export const NumberInput: React.FC<NumberInputProps> = ({
@@ -22,6 +31,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   max,
   helperText,
   decimals = 2,
+  currency,
 }) => {
   // Convert value for input display
   const displayValue = type === 'percent' ? +(value * 100).toFixed(decimals) : value;
@@ -34,7 +44,9 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   };
 
   const getPrefix = () => {
-    if (type === 'currency') return '$';
+    // '$' hanya dipakai kalau pemanggilnya benar-benar tidak tahu mata uangnya.
+    // Tiap pemanggil di repo ini tahu, dan mengopernya.
+    if (type === 'currency') return (currency || '$').trim();
     return null;
   };
 

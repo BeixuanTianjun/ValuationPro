@@ -500,6 +500,12 @@ export function buildWatchlist({
 
   candidates.sort((a, b) => b.score - a.score);
 
+  // KEDUANYA dihitung dari `candidates` yang sama, yaitu tahap 1. Ini BUKAN
+  // rantai bersarang, dan angkanya memang bisa naik lagi di tahap 3: pada
+  // 2026-09-03 layarnya menunjukkan 284 -> 34 -> 113. Yang salah waktu itu
+  // bukan angkanya melainkan katanya — tahap 3 berbunyi "Di antaranya", yang
+  // membuat corong tak-bersarang terbaca seolah bersarang dan menyuruh pembaca
+  // menghitung 113 dari 34. Tahap 2 menilai, ia tidak pernah menggugurkan.
   const withRotation = candidates.filter((c) => c.rotation.score >= 0.25).length;
   const withTape = candidates.filter((c) => c.priceAction.score >= 0.25).length;
 
@@ -514,13 +520,13 @@ export function buildWatchlist({
       id: 'rotation',
       label: '2. Rotasi konglomerasi',
       remaining: withRotation,
-      note: 'Di antaranya, yang berada di grup pengendali yang benar-benar sedang bergerak dan kohesif.',
+      note: 'Di antaranya, yang berada di grup pengendali yang benar-benar sedang bergerak dan kohesif. Tahap ini MENILAI, bukan menyaring — sebagian besar emiten tidak punya grup pengendali, dan itu bukan cacat.',
     },
     {
       id: 'price',
       label: '3. Price action',
       remaining: withTape,
-      note: 'Di antaranya, yang tape-nya ikut mengonfirmasi: arus asing, lonjakan nilai, ukuran tiket, dan aturan screener — ketiga setup-nya sekaligus (momentum, antre beli, tertinggal), bukan hanya yang sedang naik.',
+      note: 'Dihitung dari tahap 1, BUKAN dari tahap 2 — karena tahap 2 tidak menggugurkan siapa pun, angka di sini bisa lebih besar daripada di atasnya. Yang tape-nya ikut mengonfirmasi: arus asing, lonjakan nilai, ukuran tiket, dan aturan screener — ketiga setup-nya sekaligus (momentum, antre beli, tertinggal), bukan hanya yang sedang naik.',
     },
     {
       id: 'chart',

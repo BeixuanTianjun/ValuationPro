@@ -196,6 +196,41 @@ async function main() {
         [/\(Millions\)/, 'menulis "(Millions)" tetap alih-alih membaca skala model'],
         [/in Millions`/, 'menulis "in Millions" tetap alih-alih membaca skala model'],
       ];
+      // Tiap kotak isian bertipe currency harus dioper mata uangnya. Formulir
+      // DCF sempat memasang '$' di sebelah label "Base Revenue (Rp bn)" — label
+      // dan kotaknya saling membantah di formulir yang sama.
+      for (const rel of [
+        join('src', 'components', 'dcf', 'DcfAssumptions.tsx'),
+        join('src', 'components', 'lbo', 'LboAssumptions.tsx'),
+      ]) {
+        const src = await readFile(join(process.cwd(), rel), 'utf8');
+        const kotak = (src.match(/type="currency"/g) || []).length;
+        const dioper = (src.match(/currency=\{/g) || []).length;
+        checks++;
+        if (kotak > dioper) {
+          fail('label satuan', `${rel}: ${kotak} kotak currency tetapi hanya ${dioper} yang dioper mata uangnya`);
+        }
+      }
+
+      // ...dan NumberInput harus benar-benar MEMAKAI yang dioper. Penjaga di atas
+      // sendirian tidak cukup: mematikan prop-nya di dalam komponen membuat tiap
+      // pemanggil tetap lulus sementara layarnya kembali mencetak dolar.
+      // Ditemukan dengan memutasi komponennya dan melihat backtest tetap LULUS.
+      {
+        const ni = await readFile(
+          join(process.cwd(), 'src', 'components', 'common', 'NumberInput.tsx'),
+          'utf8'
+        );
+        checks++;
+        if (/type === 'currency'\)\s*return\s*'\$'/.test(ni)) {
+          fail('label satuan', "NumberInput.tsx mengembalikan '$' tetap untuk type=currency");
+        }
+        checks++;
+        if (!/type === 'currency'\)\s*return\s*\(currency/.test(ni)) {
+          fail('label satuan', 'NumberInput.tsx tidak membaca prop currency untuk type=currency');
+        }
+      }
+
       const BERKAS = [
         join('src', 'components', 'dcf', 'DcfSensitivity.tsx'),
         join('src', 'components', 'dcf', 'CashFlowTable.tsx'),
@@ -700,6 +735,26 @@ async function main() {
       });
       checks++;
       if (!wl.candidates) fail('watchlist', `${horizon} tidak menghasilkan kandidat`);
+
+      // SEBUAH TAHAP YANG BILANG "di antaranya" HARUS BENAR-BENAR BERSARANG.
+      //
+      // Ditemukan 2026-09-03 dengan membaca layarnya: corongnya menunjukkan
+      // 284 -> 34 -> 113, sementara tahap 3 berbunyi "Di antaranya". Angkanya
+      // benar — tahap 2 menilai dan tidak pernah menggugurkan, jadi tahap 3
+      // dihitung dari tahap 1 — tapi katanya menyuruh pembaca menghitung 113
+      // dari 34, yang mustahil. Corong yang tidak bersarang boleh saja; corong
+      // yang MENGAKU bersarang padahal tidak, tidak boleh.
+      for (let i = 1; i < wl.funnel.length; i++) {
+        const st = wl.funnel[i];
+        if (!/di antaranya/i.test(st.note)) continue;
+        checks++;
+        if (st.remaining > wl.funnel[i - 1].remaining) {
+          fail(
+            'watchlist',
+            `${horizon} tahap "${st.label}" mengaku "di antaranya" tetapi ${st.remaining} > ${wl.funnel[i - 1].remaining} di tahap sebelumnya`
+          );
+        }
+      }
       for (const c of wl.candidates) {
         assertFinite(`watchlist ${horizon}`, c.code, { score: c.score, close: c.close });
         checks++;

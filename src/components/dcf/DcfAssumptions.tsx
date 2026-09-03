@@ -55,6 +55,7 @@ export const DcfAssumptionsComponent: React.FC<DcfAssumptionsProps> = ({
             value={assumptions.currentSharePrice}
             onChange={(v) => updateField('currentSharePrice', v)}
             type="currency"
+            currency={assumptions.currency}
             step={0.5}
             decimals={2}
           />
@@ -72,6 +73,7 @@ export const DcfAssumptionsComponent: React.FC<DcfAssumptionsProps> = ({
             value={assumptions.baseRevenue}
             onChange={(v) => updateField('baseRevenue', v)}
             type="currency"
+            currency={assumptions.currency}
             step={10}
             decimals={1}
           />
@@ -81,6 +83,7 @@ export const DcfAssumptionsComponent: React.FC<DcfAssumptionsProps> = ({
             value={assumptions.balanceSheetCash}
             onChange={(v) => updateField('balanceSheetCash', v)}
             type="currency"
+            currency={assumptions.currency}
             step={5}
             decimals={1}
           />
@@ -90,6 +93,7 @@ export const DcfAssumptionsComponent: React.FC<DcfAssumptionsProps> = ({
             value={assumptions.balanceSheetDebt}
             onChange={(v) => updateField('balanceSheetDebt', v)}
             type="currency"
+            currency={assumptions.currency}
             step={10}
             decimals={1}
           />
@@ -99,6 +103,7 @@ export const DcfAssumptionsComponent: React.FC<DcfAssumptionsProps> = ({
             value={assumptions.minorityInterest}
             onChange={(v) => updateField('minorityInterest', v)}
             type="currency"
+            currency={assumptions.currency}
             step={1}
             decimals={1}
           />
