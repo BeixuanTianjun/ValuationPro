@@ -14,7 +14,6 @@
 // most early on: whether there is enough resolved data to say anything at all.
 
 import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
 import {
   EvaluatedPick,
   MAX_HOLD_SESSIONS,
@@ -47,11 +46,20 @@ function headerRow(sheet: ExcelJS.Worksheet, row: number, cells: string[], fill 
   r.height = 26;
 }
 
-export async function exportPickJournalToExcel(
+/**
+ * Susun workbook-nya, TANPA menyimpan.
+ *
+ * Dipisahkan dari `exportPickJournalToExcel` supaya isinya bisa diperiksa di
+ * Node. `saveAs` butuh DOM, jadi selama keduanya menyatu satu-satunya cara
+ * memeriksa laporan ini adalah mengunduhnya dan membukanya dengan mata —
+ * yang berarti ia tidak pernah diperiksa. Perhitungan dan I/O adalah dua hal,
+ * dan hanya yang pertama yang punya jawaban benar-salah.
+ */
+export async function buildPickWorkbook(
   picks: EvaluatedPick[],
   summaries: PickSummary[],
   meta: ReportMeta
-) {
+): Promise<ExcelJS.Workbook> {
   const scoped = meta.month ? picks.filter((p) => monthOf(p.session) === meta.month) : picks;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'ValuationPro';
@@ -215,7 +223,9 @@ export async function exportPickJournalToExcel(
     ['YANG TIDAK DIHITUNG, DAN KENAPA', true],
     [`Posisi yang masih berjalan tidak masuk winrate. Posisi terbuka bukan setengah kemenangan, dan di awal periode hampir semuanya terbuka sementara yang selesai duluan justru yang paling volatil — memasukkannya akan membuat angka awal terlihat jauh lebih baik daripada kenyataannya.`, false],
     [`Winrate tidak dicetak sebelum ${MIN_RESOLVED_FOR_WINRATE} pick selesai. Di bawah itu sel winrate berisi teks, bukan angka, supaya tidak ikut ter-chart atau ter-rata-rata.`, false],
-    [`Tidak ada backfill. Pencatatan dimulai ${meta.startedOn || '—'}. Merekonstruksi pick masa lalu akan menilainya memakai rumus dan data yang tidak ia miliki saat itu — rumus conviction berubah 2 September 2026, dan lapisan narasi Watchlist hanya punya 45 hari arsip pengajuan.`, false],
+    [`Ada DUA populasi di jurnal ini, dan keduanya tidak boleh dijumlahkan. Baris yang dicatat harian ditulis pada sesinya, sebelum hasilnya diketahui. Baris backfill direkonstruksi dari sejarah oleh "npm run picks:backfill" memakai screener yang sama atas database yang dipotong ke sesi itu. Kalau laporan ini memuat keduanya, angkanya dipisah dan diberi label.`, false],
+    [`Angka backfill OPTIMIS, dan arah biasnya diketahui. Universe-nya universe hari ini, jadi emiten yang sudah delisting tidak pernah bisa terpilih — dan delisting condong ke kegagalan, bukan keberhasilan. Rankingnya juga dihitung dari angka resmi IDX, sementara pencatatan harian berjalan di harga intraday karena IDX belum menerbitkan sesinya saat pencatatan.`, false],
+    [`Aturan berubah, dan tiap baris membawa versinya. Versi 2 (2 September 2026) menambahkan gerbang runup pada momentum dan menghapus suku freshness dari conviction; versi 3 malam yang sama menambahkan syarat MA200 dan melonggarkan ambang runup ke 25%. Baris berversi berbeda mengukur aturan yang berbeda.`, false],
     [`Biaya transaksi, slippage, dan pajak TIDAK dihitung. Semua angka di sini adalah gerak harga kotor.`, false],
     ['', false],
     ['HUBUNGANNYA DENGAN PAPAN STRATEGI', true],
@@ -231,7 +241,31 @@ export async function exportPickJournalToExcel(
     s4.getRow(i + 1).height = text.length > 110 ? 42 : text.length > 60 ? 28 : 16;
   });
 
+  return workbook;
+}
+
+/** Nama berkas unduhan. Diekspor supaya bisa diuji tanpa menyentuh DOM. */
+export function pickReportFilename(meta: ReportMeta): string {
   const stamp = meta.month ?? `${meta.startedOn || 'awal'}_${meta.latestSession}`;
+  return `ValuationPro_JurnalPick_${stamp}.xlsx`;
+}
+
+export async function exportPickJournalToExcel(
+  picks: EvaluatedPick[],
+  summaries: PickSummary[],
+  meta: ReportMeta
+) {
+  const workbook = await buildPickWorkbook(picks, summaries, meta);
   const buf = await workbook.xlsx.writeBuffer();
-  saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `ValuationPro_JurnalPick_${stamp}.xlsx`);
+  // Diimpor DI SINI, bukan di puncak berkas.
+  //
+  // `file-saver` butuh DOM, jadi impor tingkat-modul membuat seluruh berkas ini
+  // tidak bisa dimuat di Node — termasuk `buildPickWorkbook`, yang tidak
+  // menyentuh DOM sama sekali. Selama begitu, laporan ini tidak punya cara
+  // diperiksa selain diunduh dan dibaca dengan mata.
+  const { saveAs } = await import('file-saver');
+  saveAs(
+    new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+    pickReportFilename(meta),
+  );
 }
