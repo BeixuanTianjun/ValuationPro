@@ -295,6 +295,68 @@ export interface FunnelStage {
   removed: number;
 }
 
+/**
+ * What a rule actually DID today, as opposed to what it says it does.
+ *
+ * WHY THIS IS COMPUTED AND SHOWN. On 2026-09-03 the laggard mode's defining
+ * rule — "the benchmark index gained at least 10% over 60 sessions" — removed
+ * zero emiten from 962, because all 45 IDX indices happened to be up between
+ * 16% and 40%. Nothing was broken and the funnel honestly printed "-0
+ * tersaring", but the mode was running without the index context that gives it
+ * meaning and nothing on screen said so.
+ *
+ * Measured over the 481 sessions before that, the same rule removed EVERYTHING
+ * on 22% of sessions and nearly nothing on 0.4%. Both ends are legitimate
+ * states of the market and neither is a defect: on a day when no index led,
+ * there is no laggard setup to find. What was missing was the sentence saying
+ * which of those days you are looking at.
+ *
+ * Applied to every rule in every mode, not just that one, because a rule that
+ * silently stops discriminating is a class of problem rather than an incident,
+ * and the other modes have not been checked for it over the same span.
+ */
+export type GateVerdict = 'inert' | 'lemah' | 'habis' | null;
+
+export interface AnnotatedStage extends FunnelStage {
+  /** How many emiten this stage was handed. */
+  entering: number;
+  /** Fraction of those it removed, 0-1. NaN when nothing entered. */
+  removedFraction: number;
+  verdict: GateVerdict;
+}
+
+/**
+ * `lemah` sits at 2% rather than at some rounder number because a rule that
+ * removes one or two names out of nine hundred is doing the same nothing that
+ * a rule removing zero does — it just happens to have caught a straggler. The
+ * threshold is deliberately tight: calling a genuinely selective rule "weak"
+ * would train the reader to ignore the badge.
+ */
+const LEMAH_THRESHOLD = 0.02;
+
+export function annotateFunnel(funnel: FunnelStage[]): AnnotatedStage[] {
+  return funnel.map((stage, i) => {
+    // The first row is the universe itself, not a rule, so it never gets a
+    // verdict — labelling "962 emiten tercatat" as inert would be nonsense.
+    const entering = i === 0 ? stage.remaining : funnel[i - 1].remaining;
+    const removedFraction = entering > 0 ? stage.removed / entering : NaN;
+
+    let verdict: GateVerdict = null;
+    if (i > 0 && entering > 0) {
+      if (stage.remaining === 0) verdict = 'habis';
+      else if (stage.removed === 0) verdict = 'inert';
+      else if (removedFraction < LEMAH_THRESHOLD) verdict = 'lemah';
+    }
+    return { ...stage, entering, removedFraction, verdict };
+  });
+}
+
+export const GATE_VERDICT_NOTE: Record<Exclude<GateVerdict, null>, string> = {
+  inert: 'Aturan ini tidak menyaring apa pun hari ini — semua yang masuk lolos.',
+  lemah: 'Aturan ini nyaris tidak menyaring hari ini.',
+  habis: 'Aturan ini menggugurkan semuanya — tidak ada setup seperti ini hari ini.',
+};
+
 export interface ScreenerResult {
   session: string;
   /** True when the newest row came from the intraday overlay, not an IDX close. */

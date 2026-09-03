@@ -1,14 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronUp, Crosshair, Filter, Info, RotateCcw, Search, SlidersHorizontal, Target, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Crosshair, Filter, Info, RotateCcw, Search, SlidersHorizontal, Target, X } from 'lucide-react';
 import { MarketDatabase } from '../../data/marketRepository';
 import { FactorSnapshot } from '../../types/market';
 import { TradingViewChart } from './TradingViewChart';
 import {
   DEFAULT_SCREENER_SETTINGS,
+  GATE_VERDICT_NOTE,
   SCREENER_MODES,
   ScreenerMode,
   ScreenerRow,
   ScreenerSettings,
+  annotateFunnel,
   convictionScore,
   runStockScreener,
 } from '../../models/stockScreener';
@@ -214,6 +216,7 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, factors, onSelectEmite
   const mode = settings.mode;
   const modeMeta = SCREENER_MODES.find((m) => m.id === mode) ?? SCREENER_MODES[0];
   const result = useMemo(() => runStockScreener(db, settings), [db, settings]);
+  const annotated = useMemo(() => annotateFunnel(result.funnel), [result.funnel]);
 
   const rank = (r: ScreenerRow): RankedRow => ({
     ...r,
@@ -446,26 +449,38 @@ export const StockScreenerPanel: React.FC<Props> = ({ db, factors, onSelectEmite
 
         {/* Funnel ------------------------------------------------------- */}
         <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {result.funnel.map((stage, i) => (
+          {annotated.map((stage, i) => (
             <div
               key={stage.id}
               className={cx(
                 'rounded-xl border p-3',
-                i === result.funnel.length - 1
-                  ? 'border-emerald-800/60 bg-emerald-950/20'
-                  : 'border-slate-800 bg-slate-950'
+                stage.verdict
+                  ? 'border-amber-800/60 bg-amber-950/20'
+                  : i === annotated.length - 1
+                    ? 'border-emerald-800/60 bg-emerald-950/20'
+                    : 'border-slate-800 bg-slate-950'
               )}
             >
               <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{stage.label}</div>
               <div
                 className={cx(
                   'mt-1 text-xl font-extrabold tabular-nums',
-                  i === result.funnel.length - 1 ? 'text-emerald-300' : 'text-white'
+                  stage.verdict
+                    ? 'text-amber-300'
+                    : i === annotated.length - 1
+                      ? 'text-emerald-300'
+                      : 'text-white'
                 )}
               >
                 {stage.remaining}
               </div>
               {i > 0 && <div className="text-[10px] text-slate-500">−{stage.removed} tersaring</div>}
+              {stage.verdict && (
+                <div className="mt-1.5 flex items-start gap-1 text-[10px] leading-snug text-amber-200/90">
+                  <AlertTriangle className="mt-0.5 h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+                  <span>{GATE_VERDICT_NOTE[stage.verdict]}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>
