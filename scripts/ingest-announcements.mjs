@@ -23,7 +23,7 @@
  *
  * Writes public/data/idx/announcements.json
  */
-import { mkdir, writeFile, stat } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, stat } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { IDX_BASE, getJson, setRequestGap } from './idx-lib.mjs';
@@ -164,10 +164,70 @@ async function main() {
   await mkdir(OUT_DIR, { recursive: true });
   const file = join(OUT_DIR, 'announcements.json');
   await writeFile(file, JSON.stringify(payload));
+
+  await archive(rows);
   const { size } = await stat(file);
   log(
     `wrote announcements.json — ${rows.length} pengumuman dari ${payload.emitenCount} emiten (${payload.from} → ${payload.to}), ${(size / 1024).toFixed(0)} KB`
   );
+}
+
+/**
+ * Arsip pengumuman yang bersifat MENAMBAH, bukan menimpa.
+ *
+ * KENAPA ADA. `announcements.json` adalah jendela bergulir 45 hari: tiap kali
+ * ingest jalan, apa pun yang lebih tua dari itu hilang untuk selamanya. Itu
+ * baru terasa mahal pada 2026-09-03, ketika pertanyaannya menjadi "sinyal apa
+ * yang mendahului lonjakan IATA?" dan jawabannya ternyata ada di judul
+ * pengajuan tertanggal 2026-07-30 — sehari sebelum harganya naik 33%.
+ * Pengajuannya masih ada. Tiga bulan sebelumnya tidak, jadi polanya tidak bisa
+ * diuji atas apa pun selain satu contoh.
+ *
+ * Arsipnya dipecah per bulan dan digabung berdasarkan kunci (kode, tanggal,
+ * judul). IDX kadang menerbitkan ulang pengajuan yang sama dengan URL berbeda,
+ * jadi URL SENGAJA tidak masuk kunci: memasukkannya akan menyimpan dua baris
+ * untuk satu peristiwa dan menggandakan tiap event study yang membacanya.
+ *
+ * Ia tidak pernah menghapus. Sebuah bulan yang crawl-nya pulang setengah tidak
+ * boleh memangkas bulan yang sudah lengkap.
+ */
+async function archive(rows) {
+  const dir = join(OUT_DIR, 'announcements-archive');
+  await mkdir(dir, { recursive: true });
+
+  const byMonth = new Map();
+  for (const r of rows) {
+    const m = r.date.slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(m)) continue;
+    if (!byMonth.has(m)) byMonth.set(m, []);
+    byMonth.get(m).push(r);
+  }
+
+  let added = 0;
+  for (const [month, fresh] of byMonth) {
+    const file = join(dir, month + '.json');
+    let existing = [];
+    try {
+      existing = JSON.parse(await readFile(file, 'utf8'));
+      if (!Array.isArray(existing)) existing = [];
+    } catch {
+      existing = [];
+    }
+
+    const seen = new Set(existing.map((r) => r.code + '|' + r.date + '|' + r.title));
+    for (const r of fresh) {
+      const key = r.code + '|' + r.date + '|' + r.title;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      existing.push(r);
+      added++;
+    }
+
+    existing.sort((a, b) => b.date.localeCompare(a.date) || a.code.localeCompare(b.code));
+    await writeFile(file, JSON.stringify(existing));
+  }
+
+  log(`arsip: +${added} pengajuan baru di ${byMonth.size} berkas bulanan`);
 }
 
 main().catch((err) => {
