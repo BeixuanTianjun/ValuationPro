@@ -131,6 +131,21 @@ export function renderTelegramDigest(input: DigestInput): string {
     if (c.narrative.headline) lines.push(`     ${c.narrative.headline}`);
   }
 
+  // Radar dicetak TERAKHIR dan dengan peringatannya sendiri, bukan dicampur ke
+  // daftar di atas. Screener dan watchlist punya jurnal winrate; radar belum
+  // punya apa-apa, dan menaruh ketiganya dalam satu daftar tanpa tanda akan
+  // membuat yang belum teruji terbaca sekuat yang sudah diukur.
+  const rad = input.radar;
+  if (rad && rad.rows.length) {
+    lines.push('', `RADAR PERISTIWA — ${rad.rows.length} dari ${rad.triggeredEmiten} emiten berpemicu`);
+    for (const r of rad.rows.slice(0, 5)) {
+      lines.push(`  ${r.code} · ${r.why.join(', ')}`);
+      const top = r.filings[0];
+      if (top) lines.push(`     ${top.title.slice(0, 90)}`);
+    }
+    lines.push('  BELUM teruji — daftar bacaan, bukan sinyal beli.');
+  }
+
   lines.push('', 'Alat riset, bukan rekomendasi investasi.');
 
   const text = lines.join('\n');

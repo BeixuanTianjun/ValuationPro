@@ -9,6 +9,7 @@ import { MarketBreadth } from '../types/market';
 import { LiveStatus } from '../data/marketRepository';
 import { ScreenerResult, ScreenerRow } from '../models/stockScreener';
 import { WatchlistCandidate, WatchlistResult } from '../models/watchlist';
+import type { RadarResult } from '../models/eventRadar';
 
 export interface MailConfig {
   host: string;
@@ -113,6 +114,12 @@ export interface DigestInput {
   breadth: MarketBreadth;
   live: LiveStatus | null;
   trigger: string;
+  /**
+   * Opsional supaya pemanggil yang ditulis sebelum radar ada tetap sah, dan
+   * supaya sebuah digest tidak batal terkirim hanya karena berkas pengumuman
+   * belum dibangun.
+   */
+  radar?: RadarResult | null;
 }
 
 function escapeHtml(s: string): string {

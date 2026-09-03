@@ -261,9 +261,12 @@ async function telegramDigest(trigger: string): Promise<string> {
   const cfg = readTelegramConfig();
   if (!cfg) return 'telegram dilewati — TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID belum diisi di .env';
 
-  const { screener, watchlist, breadth, db } = await computeDailyDigest(DATA_DIR);
-  if (!screener.rows.length && !watchlist.candidates.length) {
-    return 'telegram dilewati — tidak ada yang lolos screener maupun watchlist';
+  const { screener, watchlist, breadth, radar, db } = await computeDailyDigest(DATA_DIR);
+  // Radar ikut menahan "tidak ada apa-apa": sebuah sesi tanpa nama screener
+  // tetapi dengan pengajuan perubahan kendali adalah sesi yang justru layak
+  // dikirim, dan versi sebelumnya akan membisukannya.
+  if (!screener.rows.length && !watchlist.candidates.length && !radar.rows.length) {
+    return 'telegram dilewati — tidak ada yang lolos screener, watchlist, maupun radar';
   }
   try {
     const id = await sendTelegramDigest(cfg, {
@@ -271,6 +274,7 @@ async function telegramDigest(trigger: string): Promise<string> {
       screener,
       watchlist,
       breadth,
+      radar,
       live: db.live,
       trigger,
     });

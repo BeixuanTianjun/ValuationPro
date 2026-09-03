@@ -20,6 +20,7 @@ import { computeAllFactors } from '../models/factorEngine';
 import { MarketBreadth } from '../types/market';
 import { ScreenerResult, runStockScreener } from '../models/stockScreener';
 import { WatchlistResult, buildWatchlist } from '../models/watchlist';
+import { buildEventRadar, type RadarResult } from '../models/eventRadar';
 import { AnnouncementsFile } from '../models/announcements';
 import { ChatContext } from './chatApi';
 import { MacroFile } from '../models/macroLinkage';
@@ -94,6 +95,15 @@ export interface DailyDigestRun {
   screener: ScreenerResult;
   watchlist: WatchlistResult;
   breadth: MarketBreadth;
+  /**
+   * Baris radar peristiwa untuk sesi ini.
+   *
+   * Ikut di sini dan bukan di kanal sendiri karena radar adalah SATU-SATUNYA
+   * layar yang gunanya justru saat aplikasinya tidak dibuka: pengajuan
+   * perubahan kendali terbit di tengah jam bursa, dan yang membacanya besok
+   * pagi sudah membaca berita, bukan radar.
+   */
+  radar: RadarResult;
 }
 
 /**
@@ -133,5 +143,5 @@ export async function computeDailyDigest(dataDir: string): Promise<DailyDigestRu
     limit: 8,
   });
 
-  return { db, screener, watchlist, breadth };
+  return { db, screener, watchlist, breadth, radar: buildEventRadar(db, announcements) };
 }
