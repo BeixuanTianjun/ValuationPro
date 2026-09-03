@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Network,
   Newspaper,
+  Radar,
   Scale,
   Search,
   ShieldCheck,
@@ -153,6 +154,13 @@ const GROUPS: {
         title: 'Screener tiga setup',
         body: 'Momentum, antre beli pas lagi diskon, atau yang ketinggalan dari indeksnya. Ada kotak "kenapa saham gue nggak lolos".',
         accent: 'text-emerald-400',
+      },
+      {
+        icon: Radar,
+        code: 'RDR',
+        title: 'Radar peristiwa',
+        body: 'Yang belum gerak, tapi filing-nya sudah bilang sesuatu. Ganti pemilik, ganti nama, transaksi material — sebelum tapenya ikut bicara. Belum teruji, dan layarnya bilang begitu.',
+        accent: 'text-amber-400',
       },
       {
         icon: CalendarDays,

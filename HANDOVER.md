@@ -1399,6 +1399,69 @@ mendekati batas waktu, dan chatbot yang diam-diam jatuh ke parser browser.
 
 ## Kondisi saat serah terima ini ditulis
 
+### Sesi 2026-09-03 siang — Radar Peristiwa (RDR)
+
+Layar kesembilan belas, dan satu-satunya yang menilai KEDIAMAN. Semua mode
+screener mensyaratkan tren yang sudah ada, jadi secara konstruksi tidak satu pun
+bisa menyebut saham sehari sebelum ia bergerak. RDR menolak yang sudah bergerak.
+
+**Kasus yang melahirkannya: IATA, 30 Juli 2026, tutup 57.** Tapenya diam total —
+volume 0,97x basis 60 sesinya sendiri, frekuensi transaksi TURUN 39%, nilai Rp68
+juta sehari yang ada di bawah lantai likuiditas tiap layar lain di app ini.
+Besoknya 76 (+33%), lalu 129 dalam tujuh sesi. Yang bisa dibaca siapa saja dan
+bertanggal: 29 Juli perubahan alamat dan situs, 30 Juli rencana RUPSU atas nama
+baru "PT Karya Pacific Energy Tbk". Taksonomi pengumuman menilai tiap satunya
+nol, dan itu benar — perubahan alamat sendirian memang administrasi. Yang
+berarti KELOMPOKNYA.
+
+**Arsip pengumuman sekarang menambah, bukan menimpa.** `announcements.json`
+adalah jendela bergulir 45 hari; tiap ingest membuang yang lebih tua. Itu sebabnya
+pola di atas tidak bisa diuji atas apa pun selain satu contoh. `public/data/idx/
+announcements-archive/YYYY-MM.json` menumpuk sejak 2026-09-03, digabung
+berdasarkan (kode, tanggal, judul) — URL sengaja di luar kunci karena IDX
+menerbitkan ulang pengajuan yang sama dengan URL berbeda. **Jangan pernah
+mengubahnya jadi menimpa.**
+
+**Empat cacat ditemukan membangunnya, semuanya mengembalikan angka wajar:**
+
+- *Saham beku lolos sebagai "paling tenang".* WIKA disuspensi, harga beku di 204
+  seratus sesi lebih, jadi runup-nya tepat 0% — lebih baik dari saham tenang mana
+  pun yang masih hidup. **122 dari 960 emiten (satu dari delapan) dalam keadaan
+  itu.** Gerbang `tradingLife` menuntut minimal 10 dari 20 sesi ada transaksi DAN
+  harga pernah berubah.
+- *Rata-rata dua puluh sesi dari satu pengamatan.* Seri WIKA tanpa volume EOD
+  sama sekali, tapi snapshot intraday menempelkan satu cetakan di ujungnya, dan
+  radar mencetak "Rp41 jt/hari". `meanOf` sekarang punya `minObs`.
+- *Perombakan pengurus ANAK USAHA terbaca sebagai pergantian kendali.* CMNT
+  berdiri di peringkat dua karenanya. Penindasannya SEPARUH dan garisnya penting:
+  identitas dan kendali di dalam grup tidak mengatakan apa pun tentang siapa yang
+  memiliki grupnya, tapi transaksi lewat anak usaha tetap transaksi grup.
+- *Aturan transaksi hanya menangkap sisi MEMBELI.* EMTK, WIFI, NIRO, WINR — empat
+  pelepasan nyata di jendela yang sama — lewat tanpa suara. Memanjangkannya ke
+  bahasa divestasi lalu menghidupkan tabrakan baru: 13 laporan pelepasan saham
+  treasuri hasil buyback dalam enam minggu, semuanya rutin, semuanya berbunyi
+  seperti penjualan saham. Dijaga di blok negatif.
+
+**Pelajaran soal tes, bukan soal radar.** Tes pertama "saham beku ditolak" LULUS
+saat gerbangnya dimatikan — yang menahannya ternyata gerbang likuiditas, jadi ia
+mengunci hasil tanpa mengunci penjaga. Penggantinya saham di lantai harga Rp50
+yang ramai diperdagangkan: likuiditas bagus, runup 0%, rasio volume 1, dan tidak
+bergerak karena tidak bisa. **Matikan tiap penjaga baru dan pastikan tes yang
+tepat yang jatuh.**
+
+**RDR mencatat ke jurnal pick sejak baris pertama**, dengan penggaris penilaian
+identik (entry penutupan, stop/target 1,5x/2,5x ATR14) supaya ia bisa dibandingkan
+langsung dengan screener. Itu disengaja meski ia belum terbukti.
+
+**RADAR_CAVEAT dicetak di layar, bukan disimpan di komentar.** Arsipnya baru
+mulai, jadi belum ada riwayat untuk diuji: n=27 untuk perubahan identitas, n=62
+untuk transaksi material. Cukup untuk melihat bentuk, jauh dari cukup untuk
+mengklaim edge. Hasil 3 Sep 2026: ARKO, EMTK, PANI — 3 lolos dari 62 emiten yang
+punya pemicu.
+
+Tes: suite kesepuluh, 44 tes, total **236**.
+
+
 ### Sesi 2026-09-02 malam sampai 2026-09-03 pagi
 
 Tiga belas commit, semuanya di `main`. Yang perlu dibaca lebih dulu:
@@ -1490,7 +1553,10 @@ Yang berubah di sesi terakhir:
   sudah punya viewer sendiri di `graph.html`.
 - **Halaman depan ditulis ulang.** Grid datar 11 kartu diganti struktur
   bertahap: hero, empat angka, tiga blok "kenapa dibikin", perbandingan dua
-  kolom, band papan strategi, lalu 18 layar dikelompokkan jadi empat pekerjaan.
+  kolom, band papan strategi, lalu seluruh layar dikelompokkan jadi empat
+  pekerjaan (18 saat itu ditulis, 19 sejak RDR — jumlahnya dibaca dari
+  `TERMINAL_FUNCTIONS.length`, dan backtest menolak kalau ada yang menuliskannya
+  manual lagi).
   Referensinya halaman jualan kursus yang dikirim pemilik repo — yang diambil
   PACING-nya, bukan funnel-nya: tidak ada angka keberhasilan, harga, atau
   testimoni, karena tidak ada satu pun yang bisa didukung di sini.

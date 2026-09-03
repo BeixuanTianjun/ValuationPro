@@ -78,6 +78,16 @@ export const TERMINAL_FUNCTIONS: TerminalFunction[] = [
     tone: 'text-emerald-300',
   },
   {
+    code: 'RDR',
+    name: 'Event Radar',
+    hint: 'Kebalikan screener: menolak saham yang sudah bergerak. Menyaring pengajuan IDX untuk transaksi material, pergantian kendali, perubahan identitas dan aksi korporasi, lalu hanya menampilkan yang tape-nya masih tenang, masih bisa dijual, dan belum ditanya bursa. BELUM teruji — daftar bacaan, bukan sinyal beli.',
+    group: 'Market',
+    area: 'market',
+    sub: 'radar',
+    tone: 'text-amber-300',
+    added: '2026-09-03',
+  },
+  {
     code: 'WL',
     name: 'Stock Watchlist',
     hint: 'Corong empat tahap: narasi, rotasi konglomerasi, price action, chart.',
