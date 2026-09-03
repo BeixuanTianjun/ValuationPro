@@ -388,10 +388,25 @@ export function loadRecentMarketDatabase(): Promise<MarketDatabase> {
 }
 
 /** Drop the memoised copy so the next load re-reads the JSON from disk. */
-export function invalidateMarketDatabase(): void {
+/**
+ * @param opts.keepFiles keep the memoised JSON bodies and rebuild from them.
+ *
+ *   The 45-second live re-quote passes this. It exists to pick up a new PRICE,
+ *   and the price comes from `/api/live`, which is fetched fresh every time and
+ *   never memoised. meta, universe, daily, indices and history cannot change
+ *   between two polls of the same session, so dropping them made every poll
+ *   revalidate five files — including the 17.8 MB history — to learn something
+ *   none of them could tell it. Nothing failed, because a revalidation of an
+ *   unchanged file returns 304 and no body; it was five wasted round-trips a
+ *   minute rather than five wasted megabytes.
+ *
+ *   The explicit reload button passes nothing and drops everything, which is
+ *   what that button is for: re-reading what is on disk.
+ */
+export function invalidateMarketDatabase(opts: { keepFiles?: boolean } = {}): void {
   cache = null;
   recentCache = null;
-  jsonCache.clear();
+  if (!opts.keepFiles) jsonCache.clear();
 }
 
 /**

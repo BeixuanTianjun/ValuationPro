@@ -228,15 +228,19 @@ async function emailDigest(trigger: string): Promise<string> {
   if (!cfg) {
     return 'email dilewati — SMTP belum dikonfigurasi di .env';
   }
-  const { screener, watchlist, breadth, db } = await computeDailyDigest(DATA_DIR);
-  if (!screener.rows.length && !watchlist.candidates.length) {
-    return 'email dilewati — tidak ada yang lolos screener maupun watchlist';
+  const { screener, watchlist, breadth, radar, db } = await computeDailyDigest(DATA_DIR);
+  // Radar ikut menahan "tidak ada apa-apa", sama seperti di Telegram: sesi tanpa
+  // nama screener tetapi dengan pengajuan perubahan kendali adalah sesi yang
+  // justru layak dikirim.
+  if (!screener.rows.length && !watchlist.candidates.length && !radar.rows.length) {
+    return 'email dilewati — tidak ada yang lolos screener, watchlist, maupun radar';
   }
   try {
     const id = await sendDigest(cfg, {
       session: db.meta.latestSession,
       screener,
       watchlist,
+      radar,
       breadth,
       live: db.live,
       trigger,

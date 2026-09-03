@@ -180,7 +180,7 @@ function watchRow(c: WatchlistCandidate, rank: number): string {
 }
 
 export function renderDigestHtml(input: DigestInput): string {
-  const { session, screener, watchlist, breadth, live, trigger } = input;
+  const { session, screener, watchlist, breadth, live, trigger, radar } = input;
 
   const staleFlowNotice = live?.applied
     ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin:16px 0;font-size:12px;color:#92400e;">
@@ -268,6 +268,27 @@ export function renderDigestHtml(input: DigestInput): string {
           : `<p style="font-size:12px;color:#64748b;margin:0;">Tidak ada emiten dengan pemicu narasi pada jendela ini.</p>`
       }
 
+      ${
+        radar && radar.rows.length
+          ? `<div style="margin:26px 0 0;padding:16px;border:1px solid #fde68a;border-radius:10px;background:#fffbeb;">
+        <div style="font-size:13px;font-weight:800;color:#92400e;">RADAR PERISTIWA — ${radar.rows.length} dari ${radar.triggeredEmiten} emiten berpemicu</div>
+        <p style="font-size:11px;color:#92400e;line-height:1.6;margin:6px 0 12px;">
+          <strong>BELUM teruji.</strong> Arsip pengumuman baru menumpuk sejak 3 September 2026, jadi belum ada
+          riwayat untuk mengujinya. Perlakukan tiap baris sebagai daftar bacaan, bukan sinyal beli.
+        </p>
+        ${radar.rows
+          .slice(0, 6)
+          .map(
+            (r) => `<div style="padding:8px 0;border-top:1px solid #fde68a;">
+            <div style="font-size:12px;font-weight:700;color:#0f172a;">${escapeHtml(r.code)} · ${escapeHtml(r.why.join(', '))}</div>
+            ${r.filings[0] ? `<div style="font-size:11px;color:#78716c;margin-top:2px;">${escapeHtml(r.filings[0].title.slice(0, 120))}</div>` : ''}
+          </div>`
+          )
+          .join('')}
+      </div>`
+          : ''
+      }
+
       <p style="font-size:11px;color:#94a3b8;line-height:1.6;margin:22px 0 0;">
         Screener menyaring ${screener.universe} emiten tercatat dengan aturan yang bisa Anda periksa satu per satu.
         Watchlist masuk dari narasi, bukan dari harga — skornya bukan prediksi return. Arus asing diterbitkan IDX
@@ -309,6 +330,15 @@ export function renderDigestText(input: DigestInput): string {
     lines.push(`      Pemicu: ${c.narrative.headline}`);
     for (const r of c.reasons.slice(0, 2)) lines.push(`      • ${r}`);
     for (const r of c.cautions.slice(0, 1)) lines.push(`      ! ${r}`);
+    lines.push('');
+  }
+  if (input.radar && input.radar.rows.length) {
+    lines.push('', `3) RADAR PERISTIWA — ${input.radar.rows.length} dari ${input.radar.triggeredEmiten} emiten berpemicu.`);
+    lines.push('   BELUM teruji — daftar bacaan, bukan sinyal beli.', '');
+    for (const r of input.radar.rows.slice(0, 6)) {
+      lines.push(`   ${r.code} — ${r.name} [${r.why.join(', ')}]`);
+      if (r.filings[0]) lines.push(`      ${r.filings[0].title}`);
+    }
     lines.push('');
   }
   lines.push('Alat riset, bukan rekomendasi investasi.');

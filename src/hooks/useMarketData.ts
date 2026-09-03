@@ -176,7 +176,9 @@ export function useMarketData(enabled: boolean): MarketDataState {
    * fully built, so the numbers change in place and nothing flickers.
    */
   const refreshLive = useCallback(async () => {
-    invalidateMarketDatabase();
+    // Berkas JSON-nya DIPERTAHANKAN. Yang dicari panggilan ini cuma harga baru,
+    // dan harga datang dari /api/live yang memang selalu diambil segar.
+    invalidateMarketDatabase({ keepFiles: true });
     setRefreshing(true);
     try {
       const market = await loadMarketDatabase();
