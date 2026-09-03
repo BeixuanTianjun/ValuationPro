@@ -896,6 +896,54 @@ DES, CHAT, MOST, CNG, FUND, PORT, TNKR, NEWS, AVAL, DCF, LBO). Menambah layar ba
 baris di sana; `MenuPanel.tsx` dan `FunctionBar.tsx` keduanya membaca dari situ,
 jadi sebuah layar tidak mungkin ada di satu tempat tapi hilang di tempat lain.
 
+**Harga yang disesuaikan dan harga traded adalah DUA SKALA, dan mencampurnya
+tidak pernah terlihat salah.** `series.close/high/low` disesuaikan terhadap sesi
+TERBARU; `entry`, `stop` dan `target` di jurnal pick ditulis dalam harga
+sebagaimana diperdagangkan hari itu. Untuk emiten yang kena aksi korporasi
+SESUDAH entry, keduanya berbeda skala persis sebesar faktor aksi itu. `evaluatePick`
+membandingkannya langsung sampai 2026-09-02: 673 dari 22.770 baris terkena, dan
+PACK pada 2025-05-21 tercatat **-81,7% padahal pemegangnya untung 142,4%** —
+reverse split terbaca sebagai keruntuhan. Bendera outcome ikut salah, bukan cuma
+angkanya: `stop` dan `target` diuji terhadap `high`/`low` di skala yang tidak
+sepadan, jadi sebuah pick bisa tercatat kena stop pada bar yang tidak pernah
+menyentuhnya. Perbaikannya satu faktor `k = rawClose[start] / close[start]` yang
+dikalikan ke tiap bar masa depan. **Kalau menulis kode baru yang membandingkan
+level tetap dengan deret harga, periksa dulu skalanya.** Invariannya ada di
+backtest dan sudah diuji memerahkan run.
+
+**Gerbang "belum terbang" TANPA syarat tren panjang menghasilkan kebalikan dari
+yang dimaksud.** Dipasang 2026-09-02 sore: runup 60 sesi < 15% sebagai aturan
+keras momentum. Hasilnya 19 dari 22 emiten yang lolos berada DI BAWAH MA200 dan
+9 return 60 sesinya negatif — saham yang tiga bulan turun lalu memantul tiga
+hari. Sebabnya mode momentum hanya memeriksa MA3 dan MA5, tiga dan lima sesi;
+sebelum ada gerbang runup, saham yang benar-benar naik ikut lolos dan menutupi
+kelemahan itu. Membuang yang sudah naik justru menyingkirkan satu-satunya
+kelompok yang trennya benar. **Sebuah gerbang yang membuang satu ujung
+distribusi hanya aman kalau ada syarat lain yang menjaga ujung satunya.**
+Diperbaiki malam itu juga dengan menambahkan MA200 dan melonggarkan ambangnya ke
+25%; keduanya bersama pada 15% meloloskan SATU emiten.
+
+**Angka t atas jendela yang tumpang tindih dilebih-lebihkan sekitar tujuh kali.**
+Menilai horizon 63 sesi dengan mengambil sampel tiap hari berarti jendela hari
+ini dan jendela besok berbagi 62 dari 63 barnya. Diukur di `rank:diag`: conviction
+pullback tampak terbalik meyakinkan pada t = -10,5 dengan 352 sesi, dan menjadi
+t = -1,6 atas n = 6 begitu dihitung dari sampel yang tidak tumpang tindih. **Dua
+tahun data hanya berisi sekitar tujuh jendela tiga-bulanan yang bebas**, dan itu
+batas yang tidak bisa ditawar dengan menambah sesi. Kedua skrip diagnosa
+mencetak versi tumpang tindih dan versi jujur berdampingan supaya selisihnya
+terlihat.
+
+**Korelasi yang tandanya terbalik tidak terlihat salah — ia cuma menyimpulkan
+kebalikannya.** Versi pertama `spearman` di `rank:diag` memberi peringkat 1
+kepada conviction TERTINGGI dan peringkat 1 kepada return TERENDAH, sehingga rho
+positif justru berarti skornya terbalik, sementara keterangan di layar
+menyatakan sebaliknya. Nyaris dilaporkan sebagai "pullback punya korelasi
+positif terkuat" padahal itu yang paling terbalik. Sekarang ada
+`assertSpearmanOrientation()` yang jalan tiap skrip mulai dan sudah dimutasi-uji:
+membalik satu tanda membuat skrip menolak jalan. **Tiap fungsi yang
+mengembalikan angka bertanda layak diberi dua kasus yang jawabannya sudah
+diketahui.**
+
 **Renderer Graphify cuma paham lima bentuk, dan tabel bukan salah satunya.**
 Artifact peta pengetahuan (lihat "Dokumen lain") menampilkan heading, bullet,
 `**tebal**`, `` `kode` `` dan `[[tautan]]` — tidak ada tabel, tidak ada blok kode
@@ -980,6 +1028,14 @@ src/components/analytics/MacroMonitor.tsx   layar MACRO
 src/components/analytics/WorldMap.tsx       layar MAP, globe SVG tanpa pustaka 3D
 .claude/agents/               enam subagent proyek ini; disalin ke folder
                               induk lewat `npm run agents:sync`
+scripts/rank-diagnostic.ts    pisahkan efek gerbang, peringkat dan likuiditas
+scripts/gate-ablation.ts      uji tiap syarat screener sendiri-sendiri + dosis-respons
+scripts/backfill-picks.ts     isi jurnal pick mundur dari sejarah, dengan --verify
+scripts/check-telegram.ts     verifikasi kanal Telegram tanpa mengirim
+src/data/marketSlice.ts       database "sebagaimana adanya di sesi N"
+src/models/contextSlice.ts    pengumuman & KSEI dipotong ke sesi itu juga
+src/server/telegramAlert.ts   kanal kedua digest, gagal terpisah dari email
+scripts/service-supervisor.vbs  penjaga tanpa konsol untuk layanan lokal
 graphify-out/                 keluaran /graphify: graph.html (viewer sendiri),
                               graph.json (graf kode 1,5 MB), cache/,
                               manifest.json, GRAPH_REPORT.md. MASUK .gitignore
@@ -992,7 +1048,7 @@ graphify-out/                 keluaran /graphify: graph.html (viewer sendiri),
 npm run auto            # layanan lokal + aplikasi di :8787
 npm run dev             # Vite dev, proxy /api ke :8787
 
-npm test                # 34 uji: guard rail DCF, rekonsiliasi atribusi, kurasi konglomerasi
+npm test                # 111 uji di 5 suite: DCF, atribusi, LBO, portofolio, pengumuman
 npm run backtest -- 5   # sapu 962 emiten lewat TIAP mesin, 5 pass  (~108k pemeriksaan)
 npm run backtest:live   # invariant yang sama tapi terhadap DEPLOYMENT, bukan disk
 npm run chat:dossier -- PTBA   # cetak persis apa yang diterima model, tanpa API
@@ -1010,6 +1066,13 @@ npm run data:tanker     # 6 proksi tarif charter tanker (~3 detik)
 npm run strategy:lab    # cari ulang papan strategi, out-of-sample (~1 detik)
 npm run alert:preview   # hitung pick tanpa mengirim email
 npm run mail:check      # uji login SMTP, tanpa mengirim apa pun
+npm run telegram:check  # uji token bot + pratinjau pesan, TANPA mengirim
+                        # (butuh --kirim untuk benar-benar mengirim)
+
+npm run picks:backfill -- --verify        # buktikan potongan tidak menengok ke depan
+npm run picks:backfill -- --sessions 500  # isi jurnal mundur dari sejarah
+npm run rank:diag       # pisahkan efek gerbang dari efek peringkat
+npm run gate:ablate     # uji tiap syarat screener SENDIRI-SENDIRI
 
 node scripts/wake-report.mjs --since <ISO>   # apa yang terjadi selagi pergi
 ```
@@ -1335,6 +1398,58 @@ ikut ter-deploy, data yang basi karena ingest terjadwal berhenti, fungsi chat ya
 mendekati batas waktu, dan chatbot yang diam-diam jatuh ke parser browser.
 
 ## Kondisi saat serah terima ini ditulis
+
+### Sesi 2026-09-02 malam sampai 2026-09-03 pagi
+
+Tiga belas commit, semuanya di `main`. Yang perlu dibaca lebih dulu:
+
+**Screener berubah DUA KALI dalam satu malam, dan yang kedua memperbaiki yang
+pertama.** Aturan momentum sekarang: di atas MA3/MA5, **di atas MA200**, dan
+runup 60 sesi **< 25%**. Versi jam sebelumnya hanya menambahkan gerbang runup
+15% tanpa MA200 dan menghasilkan daftar yang isinya saham turun — lihat entri
+"Gerbang belum terbang TANPA syarat tren panjang" di atas. `RULES_VERSION` di
+`pickJournal.ts` sekarang 3, dan tiap pick membawa versinya; naikkan angka itu
+setiap kali aturan keras atau conviction berubah.
+
+**Empat alat diagnosa baru, dan temuan utamanya tidak menyenangkan.**
+`gate:ablate` menguji dua puluh syarat sendiri-sendiri terhadap keranjang saham
+likuid selama 432 sesi. Hanya SATU yang punya dosis-respons: runup 60 sesi,
+monoton di sepuluh desil dari +1,40pp sampai -8,63pp, bertahan di kedua paruh
+waktu. MA200, pita diskon, RSI, arus asing, kualitas tren, regangan ATR — semua
+datar dalam ±0,3pp. `rank:diag` menunjukkan ketiga mode menghasilkan keranjang
+yang tidak bisa dibedakan dari saham likuid mana saja. **Aturan-aturannya tidak
+menyeleksi apa pun; yang menyeleksi cuma seberapa jauh saham sudah naik.**
+
+MA200 tetap dipasang, dan alasannya BUKAN return: layar itu mengaku menunjukkan
+"apa yang sedang bergerak naik", dan saham di bawah rata-rata 200 sesinya tidak
+sedang bergerak naik. Aturan yang tidak sesuai dengan klaimnya sendiri salah,
+seberapa pun angkanya.
+
+**Jurnal pick bisa diisi mundur** (`picks:backfill`), 22.710 baris atas 496 sesi.
+`--verify` membuktikan potongan databasenya tidak menengok ke depan. Baris
+backfill dan baris harian TIDAK PERNAH dijumlahkan — populasinya berbeda, dan
+backfill optimis karena universe-nya universe hari ini sehingga emiten yang
+sudah delisting tidak pernah bisa terpilih.
+
+**Layanan lokal punya penjaga yang selamat dari Ctrl+C** (`service-supervisor.vbs`,
+dijalankan folder Startup). Diuji dengan membunuh pohon prosesnya: pulih dalam 47
+detik, tetap satu loop. Terbukti lagi semalaman — `eod` maju sendiri ke
+`2026-09-03-pagi` tanpa ada yang menyalakannya.
+
+**111 uji di lima suite**, naik dari 34. Yang baru: LBO (19), portofolio (29),
+pengumuman (29). Tes LBO pertama langsung menemukan jembatan nilai yang tidak
+menutup sebesar biaya transaksi.
+
+**Kanal Telegram ada tapi BELUM menyala** — `TELEGRAM_BOT_TOKEN` dan
+`TELEGRAM_CHAT_ID` belum ada di `.env`. `npm run telegram:check` mencetak langkah
+pemasangannya. Tidak ada satu pun pesan yang pernah dikirim.
+
+**Mode Tertinggal praktis mati**: median NOL emiten lolos, 107 dari 120 sesi di
+bawah sepuluh, tanpa gerbang baru apa pun. Syaratnya butuh indeks sektor naik
+≥10% dalam 60 sesi, dan di pasar yang turun setahun ini itu nyaris tidak pernah
+terjadi. Layarnya masih ada dan kosong.
+
+---
 
 Commit `37067fe` sudah di-push ke `main` dan Vercel menyajikannya — screener
 tiga setup, jurnal winrate, ringkasan AI keterbukaan informasi, perbaikan ingest.
