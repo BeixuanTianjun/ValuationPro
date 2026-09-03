@@ -56,7 +56,8 @@ export type PickSource =
   | 'screener:pullback'
   | 'screener:laggard'
   | 'watchlist:mingguan'
-  | 'watchlist:bulanan';
+  | 'watchlist:bulanan'
+  | 'radar:peristiwa';
 
 export const PICK_SOURCES: { id: PickSource; label: string }[] = [
   { id: 'screener:momentum', label: 'Screener · Momentum' },
@@ -64,6 +65,10 @@ export const PICK_SOURCES: { id: PickSource; label: string }[] = [
   { id: 'screener:laggard', label: 'Screener · Tertinggal' },
   { id: 'watchlist:mingguan', label: 'Watchlist · Mingguan' },
   { id: 'watchlist:bulanan', label: 'Watchlist · Bulanan' },
+  // Dicatat sejak hari pertama justru KARENA belum terbukti. Sebuah layar baru
+  // yang mulai dinilai hanya setelah pemiliknya menyukai hasilnya adalah layar
+  // yang tidak akan pernah punya rekam jejak yang jujur.
+  { id: 'radar:peristiwa', label: 'Radar · Peristiwa' },
 ];
 
 export interface Pick {

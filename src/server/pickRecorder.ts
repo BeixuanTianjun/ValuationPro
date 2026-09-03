@@ -28,6 +28,7 @@ import { dirname, join } from 'node:path';
 import { computeAllFactors } from '../models/factorEngine';
 import { runStockScreener, convictionScore, ScreenerMode } from '../models/stockScreener';
 import { buildWatchlist, Horizon } from '../models/watchlist';
+import { buildEventRadar } from '../models/eventRadar';
 import { Pick, PickFile, PickSource, RULES_VERSION, levelsFor } from '../models/pickJournal';
 import type { AnnouncementsFile } from '../models/announcements';
 import type { OwnershipFile } from '../models/ownershipFlow';
@@ -152,6 +153,30 @@ export function buildPicksForSession(input: BuildPicksInput): Pick[] {
         extensionAtr: c.priceAction.screener?.extensionAtr ?? NaN,
         gapToIndexPp: c.priceAction.gapToIndexPp,
         dipFromHigh: c.priceAction.dipFromHigh,
+      })
+    );
+  }
+
+  // RADAR PERISTIWA.
+  //
+  // Dicatat dengan aturan penilaian yang PERSIS SAMA seperti sumber lain —
+  // entry penutupan sesi, stop dan target 1,5x/2,5x ATR14 — meski logika
+  // pemilihannya sama sekali berbeda. Itu disengaja: satu-satunya cara
+  // menjawab "apakah radar ini lebih baik daripada screener" adalah kalau
+  // keduanya dinilai dengan penggaris yang sama.
+  //
+  // Dan ia dicatat sejak baris pertamanya, sebelum ada alasan untuk percaya ia
+  // bekerja. Layar yang baru mulai dinilai setelah pemiliknya menyukai
+  // hasilnya tidak akan pernah punya rekam jejak yang bisa dipercaya.
+  //
+  // `announcements` di sini sudah dipotong ke sesi yang bersangkutan pada
+  // backfill (lihat BuildPicksInput), jadi radar tidak bisa melihat pengajuan
+  // yang belum terbit pada hari itu.
+  {
+    const radar = buildEventRadar(db, announcements);
+    radar.rows.slice(0, TOP_N).forEach((r, i) =>
+      push('radar:peristiwa', i + 1, r.code, r.score, {
+        runupFromLow: r.runup60,
       })
     );
   }
