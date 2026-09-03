@@ -49,7 +49,13 @@ export function calibrateFinancialReport(report: ParsedFinancialReport): Calibra
     cagr = growths.length > 0 ? growths.reduce((a, b) => a + b, 0) / growths.length : 0.08;
   }
 
-  // Bound CAGR to reasonable projection range (-10% to +40%)
+  // Bound CAGR to a projection range that survives one freak year.
+  //
+  // Angkanya -5% sampai +35%, dan komentar di sini sempat menyebut -10% sampai
+  // +40% — angka di komentar yang tidak sama dengan angka di kode adalah cara
+  // sebuah asumsi diwarisi salah oleh orang yang membaca komentarnya dan tidak
+  // membaca barisnya. Batas ini konvensi, bukan hasil optimasi: ia hanya ada
+  // supaya satu tahun ganjil tidak diproyeksikan lima tahun ke depan.
   const boundedCagr = Math.min(Math.max(cagr, -0.05), 0.35);
 
   // 2. Calculate average margins

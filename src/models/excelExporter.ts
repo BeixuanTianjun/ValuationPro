@@ -1,5 +1,4 @@
 ﻿import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
 import { DcfAssumptions, DcfValuationSummary } from '../types/dcf';
 import { LboAssumptions, LboReturnsSummary } from '../types/lbo';
 
@@ -32,12 +31,19 @@ function applyCurrencySymbol(workbook: ExcelJS.Workbook, currency: string) {
   });
 }
 
-export async function exportFinancialModelToExcel(
+/**
+ * Susun workbook DCF + LBO, TANPA menyimpan.
+ *
+ * Alasannya sama seperti di pickReport.ts: `saveAs` butuh DOM, jadi selama
+ * penyusunan dan penyimpanan menyatu, isi berkas ini hanya bisa diperiksa
+ * dengan mengunduh lalu membukanya — yang berarti tidak pernah diperiksa.
+ */
+export async function buildFinancialModelWorkbook(
   dcfAssumptions: DcfAssumptions,
   dcfSummary: DcfValuationSummary,
   lboAssumptions: LboAssumptions,
   lboSummary: LboReturnsSummary
-) {
+): Promise<ExcelJS.Workbook> {
   // Column headers carry the currency and scale the model is actually in.
   const UNIT_TAG = `(${[
     dcfAssumptions.currency.trim(),
@@ -464,9 +470,27 @@ export async function exportFinancialModelToExcel(
   ];
 
   applyCurrencySymbol(workbook, dcfAssumptions.currency);
+  return workbook;
+}
 
+/** Nama berkas unduhan. Diekspor supaya bisa diuji tanpa menyentuh DOM. */
+export function financialModelFilename(companyName: string): string {
+  return `Financial_Model_${companyName.replace(/\s+/g, '_')}_DCF_LBO.xlsx`;
+}
+
+export async function exportFinancialModelToExcel(
+  dcfAssumptions: DcfAssumptions,
+  dcfSummary: DcfValuationSummary,
+  lboAssumptions: LboAssumptions,
+  lboSummary: LboReturnsSummary
+) {
+  const workbook = await buildFinancialModelWorkbook(dcfAssumptions, dcfSummary, lboAssumptions, lboSummary);
   const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const fileName = `Financial_Model_${dcfAssumptions.companyName.replace(/\s+/g, '_')}_DCF_LBO.xlsx`;
-  saveAs(blob, fileName);
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  // Diimpor di sini, bukan di puncak berkas — lihat catatan yang sama di
+  // pickReport.ts.
+  const { saveAs } = await import('file-saver');
+  saveAs(blob, financialModelFilename(dcfAssumptions.companyName));
 }
