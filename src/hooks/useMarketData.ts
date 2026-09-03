@@ -5,6 +5,7 @@ import {
   computeBreadth,
   invalidateMarketDatabase,
   loadMarketDatabase,
+  loadRecentMarketDatabase,
 } from '../data/marketRepository';
 import {
   FundamentalsDatabase,
@@ -111,18 +112,41 @@ export function useMarketData(enabled: boolean): MarketDataState {
     setLoading(true);
     setError(null);
 
-    Promise.all([loadMarketDatabase(), loadFundamentalsDatabase()])
+    // TWO PHASES, AND THE SECOND ONE MUST NOT BLANK THE FIRST.
+    //
+    // history.json is 5.2 MB over the wire and nothing can be drawn until it
+    // arrives. The 400-session cut is 3.1 MB, so the terminal comes alive
+    // roughly 40% sooner and the full history is swapped in behind it — the
+    // same swap-in-place `refreshLive` does, and for the same reason: dropping
+    // `db` back to null would send every panel to a spinner it had already
+    // left.
+    //
+    // The lists do not change across the swap. That was measured, not hoped
+    // for; see `loadRecentMarketDatabase`. What can change is a trade setup on
+    // one of the ~7% of emiten with sparse high/low, which shows nothing until
+    // the full file lands rather than showing a level built on air.
+    Promise.all([loadRecentMarketDatabase(), loadFundamentalsDatabase()])
       .then(([market, funds]) => {
         if (cancelled) return;
         setDb(market);
         setFundamentals(funds);
         setLoadedAt(Date.now());
+        setLoading(false);
+
+        // Phase two. A failure here is not an error the user needs to see: the
+        // recent database on screen is complete enough for every list, so the
+        // only cost is that a handful of thin names keep their missing ATR.
+        void loadMarketDatabase()
+          .then((full) => {
+            if (!cancelled && full !== market) setDb(full);
+          })
+          .catch(() => undefined);
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setError(err.message);
+          setLoading(false);
+        }
       });
 
     return () => {

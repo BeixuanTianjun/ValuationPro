@@ -43,12 +43,21 @@ async function tryReadJson<T>(dir: string, name: string): Promise<T | null> {
   }
 }
 
-export async function loadMarketDatabaseFromDisk(dataDir: string): Promise<MarketDatabase> {
+/**
+ * @param historyFile which history payload to build from. The backtest passes
+ *   'history-recent.json' to check that the browser's first-phase database is
+ *   not quietly full of NaNs — the shorter window is what the terminal draws
+ *   from for the first few seconds of every visit, and nothing else exercises it.
+ */
+export async function loadMarketDatabaseFromDisk(
+  dataDir: string,
+  historyFile = 'history.json'
+): Promise<MarketDatabase> {
   const [meta, universe, daily, history, indices, intraday] = await Promise.all([
     readJson<MarketMeta>(dataDir, 'meta.json'),
     readJson<UniverseFile>(dataDir, 'universe.json'),
     readJson<DailyFile>(dataDir, 'daily.json'),
-    readJson<HistoryFile>(dataDir, 'history.json'),
+    readJson<HistoryFile>(dataDir, historyFile),
     readJson<IndicesFile>(dataDir, 'indices.json'),
     tryReadJson<IntradayFile>(dataDir, 'intraday.json'),
   ]);

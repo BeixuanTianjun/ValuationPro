@@ -322,15 +322,49 @@ async function tryJson<T>(file: string): Promise<T | null> {
 }
 
 let cache: Promise<MarketDatabase> | null = null;
+let recentCache: Promise<MarketDatabase> | null = null;
 
 export function loadMarketDatabase(): Promise<MarketDatabase> {
-  if (!cache) cache = buildDatabase();
+  if (!cache) cache = buildDatabase('history.json');
   return cache;
+}
+
+/**
+ * The same database built from the last 400 sessions instead of all 717.
+ *
+ * WHY IT EXISTS. history.json is 17.8 MB raw, 5.2 MB over the wire, and the
+ * terminal cannot draw a single number until it lands. The recent cut is 3.1 MB
+ * brotli, so the screen comes alive roughly 40% sooner and the full history is
+ * swapped in behind it.
+ *
+ * WHAT IS SAFE TO SHOW FROM IT, measured rather than assumed: a database built
+ * from the last 260 sessions produces byte-identical screener rows and funnel
+ * counts for all three modes, identical event-radar rows, and identical index
+ * attribution over all five periods. What does change is ATR and foreign-streak
+ * for the ~7% of emiten whose high/low or foreign flow is sparse — for those,
+ * a shorter window can leave ATR at zero, and `levelsFor` and `buildTradeSetup`
+ * both already refuse to invent a stop when that happens. So a thin name may
+ * show no trade setup until the full file lands, and none of the lists change.
+ *
+ * 400 rather than 260 is that measured floor plus half again.
+ */
+export function loadRecentMarketDatabase(): Promise<MarketDatabase> {
+  if (!recentCache) {
+    recentCache = buildDatabase('history-recent.json').catch(() => {
+      // A deployment whose data predates this split has no recent file. Falling
+      // back to the full one costs the speed-up and nothing else; throwing here
+      // would blank a terminal that has perfectly good data sitting next to it.
+      recentCache = null;
+      return loadMarketDatabase();
+    });
+  }
+  return recentCache;
 }
 
 /** Drop the memoised copy so the next load re-reads the JSON from disk. */
 export function invalidateMarketDatabase(): void {
   cache = null;
+  recentCache = null;
 }
 
 /**
@@ -358,12 +392,12 @@ async function loadIntraday(): Promise<IntradayFile | null> {
   return tryJson<IntradayFile>('intraday.json');
 }
 
-async function buildDatabase(): Promise<MarketDatabase> {
+async function buildDatabase(historyFile: string): Promise<MarketDatabase> {
   const [meta, universe, daily, history, indices, intraday] = await Promise.all([
     getJson<MarketMeta>('meta.json'),
     getJson<UniverseFile>('universe.json'),
     getJson<DailyFile>('daily.json'),
-    getJson<HistoryFile>('history.json'),
+    getJson<HistoryFile>(historyFile),
     getJson<IndicesFile>('indices.json'),
     loadIntraday(),
   ]);

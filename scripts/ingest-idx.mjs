@@ -560,10 +560,54 @@ async function main() {
     ],
   };
 
+/**
+ * Sessions kept in the fast-path history file.
+ *
+ * MEASURED, NOT CHOSEN. A database built from only the last N sessions was
+ * compared field by field against one built from all 717: screener rows and
+ * funnel counts for all three modes, event-radar rows, and index attribution
+ * over five periods were IDENTICAL from N=260 upward. The only differences were
+ * ATR and foreign-streak values for the ~7% of emiten whose high/low or foreign
+ * flow is sparse, plus `sessionsAvailable`, which is supposed to change.
+ *
+ * 400 is that floor plus half again. The margin is not superstition: MA200
+ * needs 200 clean sessions and this exchange has emiten that do not trade for
+ * weeks, so a 200-session WINDOW can span far more than 200 rows of data.
+ */
+const RECENT_SESSIONS = 400;
+
+/**
+ * Cut a history payload down to its last N sessions, shape unchanged.
+ *
+ * Every series is a comma-separated string of the same length as `dates`, so
+ * the slice has to happen on both or the two stop lining up — and a history
+ * whose series are off by one against its dates is the kind of fault that
+ * returns plausible prices for the wrong days.
+ */
+function sliceHistory(payload, keep) {
+  const from = Math.max(0, payload.dates.length - keep);
+  if (from === 0) return payload;
+  const tail = (csv) => (csv ? csv.split(',').slice(from).join(',') : csv);
+  const series = {};
+  for (const [code, s] of Object.entries(payload.series)) {
+    const cut = { ...s };
+    for (const f of ['c', 'h', 'l', 'v', 't', 'fn', 'f', 'adj']) if (s[f]) cut[f] = tail(s[f]);
+    series[code] = cut;
+  }
+  return { ...payload, dates: payload.dates.slice(from), series };
+}
+
   const files = {
     'universe.json': { generatedAt: meta.generatedAt, count: emiten.length, emiten },
     'indices.json': { generatedAt: meta.generatedAt, dates: mergedIndexDates, indices: indexOut },
     'history.json': { generatedAt: meta.generatedAt, dates: mergedDates, series: historySeries },
+    // The same file, cut to the recent window. The browser builds its first
+    // database from this one so the terminal is usable before the full 18 MB
+    // arrives, then swaps in the complete history once it lands.
+    'history-recent.json': sliceHistory(
+      { generatedAt: meta.generatedAt, dates: mergedDates, series: historySeries },
+      RECENT_SESSIONS
+    ),
     'daily.json': keepPriorDaily
       ? priorDaily
       : { generatedAt: meta.generatedAt, session: last.actual, count: daily.length, stocks: daily },

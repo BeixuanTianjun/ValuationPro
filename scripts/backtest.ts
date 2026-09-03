@@ -34,6 +34,7 @@ import { readFile } from 'node:fs/promises';
 import { computeAllFactors } from '../src/models/factorEngine';
 import { convictionScore, runStockScreener } from '../src/models/stockScreener';
 import { buildWatchlist } from '../src/models/watchlist';
+import { buildEventRadar } from '../src/models/eventRadar';
 import {
   EvaluatedPick,
   MAX_HOLD_SESSIONS,
@@ -719,6 +720,83 @@ async function main() {
         checks++;
         if (s.resolved === 0 && Number.isFinite(s.winRate)) {
           fail('jurnal pick', `${s.label}: winrate dicetak padahal nol pick selesai`);
+        }
+      }
+    }
+
+    // ---- the browser's FIRST-PHASE database must not be full of holes ------
+    //
+    // Every visit now draws from history-recent.json for its first seconds
+    // while the full 17.8 MB history arrives behind it. Nothing else in this
+    // repo exercises that shorter window, and its failure mode is the quiet
+    // one: a model reading past the start of the window returns NaN, and a NaN
+    // renders as a dash rather than as an error.
+    //
+    // The lists were measured identical from 260 sessions upward and the file
+    // keeps 400, so this asserts the outcome rather than trusting the margin.
+    {
+      const recentPath = join(DATA_DIR, 'history-recent.json');
+      let recentExists = true;
+      try {
+        await readFile(recentPath, 'utf8');
+      } catch {
+        recentExists = false;
+      }
+      checks++;
+      if (!recentExists) {
+        fail('history recent', 'history-recent.json belum dibangun — jalankan npm run data:idx');
+      } else {
+        const rdb = await loadMarketDatabaseFromDisk(DATA_DIR, 'history-recent.json');
+        const rfac = computeAllFactors(rdb);
+
+        checks++;
+        if (rdb.emiten.length !== db.emiten.length) {
+          fail('history recent', `semesta berbeda: ${rdb.emiten.length} vs ${db.emiten.length}`);
+        }
+
+        // Daftar yang tampil harus SAMA PERSIS. Kalau ini bergeser, pengguna
+        // melihat baris muncul dan hilang saat berkas penuh mendarat.
+        for (const mode of ['momentum', 'pullback', 'laggard'] as ScreenerMode[]) {
+          const a = runStockScreener(db, { mode }).rows.map((r) => r.code).sort().join(',');
+          const b = runStockScreener(rdb, { mode }).rows.map((r) => r.code).sort().join(',');
+          checks++;
+          if (a !== b) fail('history recent', `daftar screener ${mode} berubah antara jendela pendek dan penuh`);
+        }
+
+        const ra = buildEventRadar(db, ctx.announcements ?? null).rows.map((r) => r.code).join(',');
+        const rb = buildEventRadar(rdb, ctx.announcements ?? null).rows.map((r) => r.code).join(',');
+        checks++;
+        if (ra !== rb) fail('history recent', `daftar radar berubah: penuh [${ra}] vs pendek [${rb}]`);
+
+        // Faktor inti harus berangka untuk emiten yang benar-benar diperdagangkan.
+        // Dibatasi ke yang likuid: emiten yang memang tidak berdagang WAJAR
+        // ber-NaN, dan menuntut angka di situ akan menuntut kebohongan.
+        //
+        // Yang diperiksa sengaja faktor TERDALAM, bukan yang mudah: sma200
+        // butuh 200 sesi bersih, return12m dan distanceFrom52wHigh butuh 252.
+        // Kalau jendela 400 sesi menopang ketiganya untuk tiap emiten likuid,
+        // ia menopang semua yang lebih dangkal.
+        const DALAM = ['sma200', 'return12m', 'distanceFrom52wHigh', 'momentum12_1'] as const;
+        const kosong = new Map<string, number>();
+        for (const e of rdb.emiten) {
+          const q = rdb.daily.get(e.code);
+          if (!q || !(q.close > 0) || !(q.volume > 1_000_000)) continue;
+          const f = rfac.get(e.code);
+          const g = factors.get(e.code);
+          for (const k of DALAM) {
+            checks++;
+            // Dibandingkan terhadap riwayat PENUH, bukan terhadap "harus
+            // berangka": emiten yang baru tercatat wajar ber-NaN di keduanya,
+            // dan menuntut angka di situ akan menuntut kebohongan. Yang tidak
+            // boleh adalah faktor yang HILANG hanya karena jendelanya dipotong.
+            if (g && Number.isFinite(g[k]) && (!f || !Number.isFinite(f[k]))) {
+              kosong.set(k, (kosong.get(k) ?? 0) + 1);
+            }
+          }
+        }
+        for (const [k, n] of kosong) {
+          checks++;
+          fail('history recent', `${n} emiten likuid kehilangan ${k} di jendela pendek tapi punya di riwayat penuh`);
         }
       }
     }
