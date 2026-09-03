@@ -76,6 +76,7 @@ import { join } from 'node:path';
 import { loadMarketDatabaseFromDisk } from '../src/server/marketFromDisk';
 import { rsi, atr } from '../src/models/factorEngine';
 import { SECTOR_TO_INDEX } from '../src/data/idxIndexCatalog';
+import { CscvResult, renderLogitHistogram, runCscv } from './cscv';
 import { MarketDatabase } from '../src/data/marketRepository';
 import { PriceSeries } from '../src/types/market';
 
@@ -93,11 +94,29 @@ const OUT_FILE = join(DATA_DIR, 'strategies.json');
  * an off-by-a-whole-window mistake. The floor of 105 keeps MA100 defined; the
  * ceiling of 150 stops a long history from spending all its runway warming up.
  */
+/** Terjemahan PBO ke keputusan, mengikuti kalibrasi di sumbernya. */
+function verdictPbo(pbo: number): string {
+  if (pbo < 0.1) return '— kokoh: pemenang IS unggul konsisten di potongan lain';
+  if (pbo < 0.3) return '— risiko sedang: kecilkan modal, perketat kill-switch';
+  if (pbo < 0.5) return '— risiko TINGGI: pemenang IS setara pilihan acak di luar sampel';
+  return '— TOLAK: pemenang IS di bawah median pada mayoritas potongan';
+}
+
 function warmupFor(sessions: number): number {
   return Math.min(150, Math.max(105, Math.floor(sessions * 0.25)));
 }
 /** Fraction of the history used to search. The rest only ever judges. */
 const TRAIN_FRACTION = 0.7;
+
+/**
+ * Jumlah blok CSCV (2S). Enam belas memberi C(16,8) = 12.870 kombinasi.
+ *
+ * Sumbernya menyarankan blok minimal 30 hari; 716 sesi dibagi 16 memberi ~44
+ * sesi per blok, jadi ambang itu terpenuhi. Menaikkannya ke 18 melipatgandakan
+ * kombinasi jadi 48.620 sekaligus memendekkan blok ke 39 sesi — lebih mahal
+ * tanpa menambah informasi.
+ */
+const CSCV_BLOCKS = 16;
 /** A stock must turn over this much on median to be considered tradeable. */
 const MIN_MEDIAN_TURNOVER_IDR_MN = 1_000;
 
@@ -835,6 +854,31 @@ async function main() {
   const teGain = new Float64Array(buckets);
   const teLoss = new Float64Array(buckets);
 
+  // ── AKUMULATOR PER BLOK, untuk CSCV ────────────────────────────────────
+  //
+  // Pembagian 70/30 tunggal punya satu cacat yang tidak bisa diperbaiki dengan
+  // memindahkan batasnya: batas ITU SENDIRI adalah derajat kebebasan, dan di
+  // repo ini batasnya kebetulan mendarat tepat sebelum crash 2026 sehingga
+  // SELURUH jendela test berada di dalam satu rezim penurunan 41,5%.
+  //
+  // CSCV menggantinya dengan 12.870 pembagian sekaligus. Yang dibutuhkannya
+  // bukan return per sesi melainkan agregat per BLOK, karena kedua metrik yang
+  // dipakai aditif atas blok — 16 slot per rule set, bukan 716. Untuk 148.104
+  // rule set itu 19 MB per larik, bukan 847 MB.
+  const blockSum = new Float64Array(buckets * CSCV_BLOCKS);
+  const blockSq = new Float64Array(buckets * CSCV_BLOCKS);
+  const blockN = new Float64Array(buckets * CSCV_BLOCKS);
+
+  // Sesi -> blok. Dibagi rata atas sesi yang BISA menghasilkan sinyal (setelah
+  // warmup), bukan atas seluruh larik tanggal: blok yang isinya nol trade
+  // membuat metrik OOS-nya NaN dan merusak peringkat.
+  const firstSignal = WARMUP;
+  const usable = db.dates.length - firstSignal;
+  const blockOf = (i: number): number => {
+    const b = Math.floor(((i - firstSignal) * CSCV_BLOCKS) / usable);
+    return b < 0 ? 0 : b >= CSCV_BLOCKS ? CSCV_BLOCKS - 1 : b;
+  };
+
   const comboMasks = Int32Array.from(combos.map((c) => c.mask));
   const outR = new Float64Array(nE);
 
@@ -902,6 +946,7 @@ async function main() {
         tradesSimulated += nE;
 
         const isTrain = i < splitIdx;
+        const blk = blockOf(i);
         const mask = masks[i];
 
         for (let c = 0; c < nC; c++) {
@@ -912,6 +957,10 @@ async function main() {
             const r = outR[x];
             if (!Number.isFinite(r)) continue;
             const k = base + x;
+            const bi = k * CSCV_BLOCKS + blk;
+            blockSum[bi] += r;
+            blockSq[bi] += r * r;
+            blockN[bi]++;
             if (isTrain) {
               trN[k]++;
               trSum[k] += r;
@@ -1179,6 +1228,46 @@ async function main() {
   // dipakai lab ini, jadi ia tidak bisa dikonfirmasi di sini — tapi kalau
   // filternya justru MENURUNKAN tingkat kelolosan, itu bantahan yang sah, dan
   // sebuah usulan yang tidak bisa dibantah tidak layak disebut hipotesis.
+  // ── CSCV: seberapa besar 485 pemenang itu hasil pencarian belaka ────────
+  //
+  // Kandidatnya disaring LEBIH DULU dan bukan berdasarkan kinerja: hanya rule
+  // set yang punya cukup trade di CUKUP BANYAK blok yang ikut. Alasannya bukan
+  // efisiensi melainkan kebenaran — sebuah kandidat yang kosong di separuh blok
+  // akan memberi metrik OOS NaN pada separuh kombinasi, dan NaN yang
+  // diperingkat diam-diam menjadi peringkat terburuk. Menyaring SESUDAH melihat
+  // metrik adalah anti-pola nomor 2 di sumbernya (cherry-picking K).
+  const MIN_BLOCKS_WITH_TRADES = CSCV_BLOCKS - 2;
+  const MIN_TRADES_PER_CANDIDATE = 100;
+  const cscvIdx: number[] = [];
+  for (let k = 0; k < buckets; k++) {
+    let filled = 0;
+    let total = 0;
+    for (let b = 0; b < CSCV_BLOCKS; b++) {
+      const n = blockN[k * CSCV_BLOCKS + b];
+      if (n > 0) filled++;
+      total += n;
+    }
+    if (filled >= MIN_BLOCKS_WITH_TRADES && total >= MIN_TRADES_PER_CANDIDATE) cscvIdx.push(k);
+  }
+
+  let cscv: CscvResult | null = null;
+  if (cscvIdx.length >= 2) {
+    const K = cscvIdx.length;
+    const mSum = new Float64Array(K * CSCV_BLOCKS);
+    const mSq = new Float64Array(K * CSCV_BLOCKS);
+    const mN = new Float64Array(K * CSCV_BLOCKS);
+    for (let i = 0; i < K; i++) {
+      const src = cscvIdx[i] * CSCV_BLOCKS;
+      const dst = i * CSCV_BLOCKS;
+      for (let b = 0; b < CSCV_BLOCKS; b++) {
+        mSum[dst + b] = blockSum[src + b];
+        mSq[dst + b] = blockSq[src + b];
+        mN[dst + b] = blockN[src + b];
+      }
+    }
+    cscv = runCscv({ k: K, blocks: CSCV_BLOCKS, sum: mSum, sq: mSq, n: mN }, 'expectancy');
+  }
+
   const overallRate = survivors.length / buckets;
   const perFilter = FILTERS.map((f, fi) => {
     const bit = 1 << fi;
@@ -1261,6 +1350,55 @@ async function main() {
   }
   console.log('');
   console.log('lolos gerbang per trigger (nol pun dilaporkan):');
+  // ── laporan CSCV ────────────────────────────────────────────────────────
+  console.log('');
+  if (!cscv) {
+    console.log('CSCV dilewati — kurang dari dua kandidat punya trade di cukup banyak blok.');
+  } else {
+    // DUA rasio, dan yang pertama menyanjung diri sendiri.
+    //
+    // `tradesSimulated` adalah total di SELURUH rule set, dan trade antar rule
+    // set saling tumpang tindih berat: satu sinyal yang sama disimulasikan 72
+    // kali untuk 72 exit, dan kombinasi filter yang beda satu bit berbagi
+    // hampir semua sinyalnya. Membaginya dengan angka itu memberi rasio yang
+    // rendah karena penyebutnya dihitung berkali-kali, bukan karena buktinya
+    // banyak.
+    //
+    // Penyebut yang jujur adalah jumlah SINYAL berbeda — berapa peristiwa
+    // masuk yang benar-benar ada di data untuk membedakan 148.104 konfigurasi.
+    const dofNaive = buckets / Math.max(1, tradesSimulated);
+    const dof = buckets / Math.max(1, signalsFired);
+    console.log('CSCV — probabilitas papan ini hasil pencarian belaka');
+    console.log(`  kandidat  ${cscv.k.toLocaleString('id-ID')} dari ${buckets.toLocaleString('id-ID')} rule set`);
+    console.log(`            (disaring SEBELUM metrik dilihat: >= ${MIN_TRADES_PER_CANDIDATE} trade, terisi di >= ${MIN_BLOCKS_WITH_TRADES}/${CSCV_BLOCKS} blok)`);
+    console.log(`  kombinasi ${cscv.combinations.toLocaleString('id-ID')} pembagian ${CSCV_BLOCKS / 2}-lawan-${CSCV_BLOCKS / 2}`);
+    console.log('');
+    console.log(`  PBO       ${(100 * cscv.pbo).toFixed(1)}%  ${verdictPbo(cscv.pbo)}`);
+    console.log(`  logit     median ${cscv.medianLogit.toFixed(3)} · rata-rata ${cscv.meanLogit.toFixed(3)}`);
+    console.log(`  peringkat relatif pemenang IS di OOS: ${cscv.medianRelativeRank.toFixed(3)} (0,500 = lemparan koin)`);
+    console.log('');
+    console.log(`  pemenang IS berbeda: ${cscv.distinctWinners.toLocaleString('id-ID')} dari ${cscv.combinations.toLocaleString('id-ID')} kombinasi`);
+    if (cscv.topWinner) {
+      console.log(`  yang paling sering menang: ${(100 * cscv.topWinner.share).toFixed(1)}% kombinasi`);
+    }
+    console.log('  (banyak pemenang berbeda = tidak ada satu rule set yang benar-benar terbaik,');
+    console.log('   yang ada hanya potongan data yang berbeda-beda — uji stabilitas parameter)');
+    console.log('');
+    for (const line of renderLogitHistogram(cscv)) console.log('  ' + line);
+    console.log('');
+    console.log('  DERAJAT KEBEBASAN (aturan 10%: di bawah sehat, di atas eksploratif)');
+    console.log(
+      `    naif  : ${buckets.toLocaleString('id-ID')} / ${tradesSimulated.toLocaleString('id-ID')} trade = ${(100 * dofNaive).toFixed(2)}%`,
+    );
+    console.log('            JANGAN dipakai — satu sinyal dihitung 72 kali untuk 72 exit.');
+    console.log(
+      `    jujur : ${buckets.toLocaleString('id-ID')} / ${signalsFired.toLocaleString('id-ID')} sinyal berbeda = ${(100 * dof).toFixed(1)}%`,
+    );
+    console.log(
+      `    ${dof > 0.1 ? 'JAUH DI ATAS AMBANG. Papan ini alat eksplorasi, bukan alat keputusan.' : 'Di bawah ambang.'}`,
+    );
+  }
+
   console.log('');
   console.log('tingkat kelolosan per filter (lift 1,0 = tidak berpengaruh):');
   for (const f of perFilter) {

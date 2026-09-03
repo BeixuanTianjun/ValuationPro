@@ -38,7 +38,8 @@
     "picks:backfill": "esbuild scripts/backfill-picks.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/backfill-picks.mjs --log-level=warning && node .cache/backfill-picks.mjs",
     "rank:diag": "esbuild scripts/rank-diagnostic.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/rank-diag.mjs --log-level=warning && node --max-old-space-size=4096 .cache/rank-diag.mjs",
     "gate:ablate": "esbuild scripts/gate-ablation.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=.cache/gate-ablate.mjs --log-level=warning && node --max-old-space-size=4096 .cache/gate-ablate.mjs",
-    "telegram:check": "esbuild scripts/check-telegram.ts --bundle --platform=node --format=esm --packages=external --outfile=.cache/telegram-check.mjs --log-level=warning && node .cache/telegram-check.mjs"
+    "telegram:check": "esbuild scripts/check-telegram.ts --bundle --platform=node --format=esm --packages=external --outfile=.cache/telegram-check.mjs --log-level=warning && node .cache/telegram-check.mjs",
+    "audit:robust": "esbuild scripts/robustness-audit.ts --bundle --platform=node --format=esm --packages=external --outfile=.cache/robust.mjs --log-level=warning && node --max-old-space-size=4096 .cache/robust.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.121.0",
