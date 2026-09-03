@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Briefcase, Building2, CalendarDays, ClipboardList, LineChart, MessageSquare, Newspaper, ServerCrash, Target } from 'lucide-react';
+import { Briefcase, Building2, CalendarDays, ClipboardList, LineChart, MessageSquare, Newspaper, Radar, ServerCrash, Target } from 'lucide-react';
 import { MarketDataState } from '../../hooks/useMarketData';
 import { MarketOverview } from './MarketOverview';
 import { PickJournal } from './PickJournal';
 import { EmitenBrowser } from './EmitenBrowser';
 import { EmitenDetail } from './EmitenDetail';
 import { StockScreenerPanel } from './StockScreenerPanel';
+import { EventRadar } from './EventRadar';
 import { StockWatchlist } from './StockWatchlist';
 import { PortfolioTracker } from './PortfolioTracker';
 import { AnnouncementFeed } from './AnnouncementFeed';
@@ -18,6 +19,7 @@ export type MarketSubTab =
   | 'overview'
   | 'emiten'
   | 'screener'
+  | 'radar'
   | 'watchlist'
   | 'portfolio'
   | 'journal'
@@ -37,6 +39,7 @@ interface Props {
 const TABS: SegmentedOption<MarketSubTab>[] = [
   { id: 'overview', label: 'Market Overview', shortLabel: 'Overview', icon: LineChart },
   { id: 'screener', label: 'Stock Screener', shortLabel: 'Screener', icon: Target },
+  { id: 'radar', label: 'Event Radar', shortLabel: 'Radar', icon: Radar },
   { id: 'watchlist', label: 'Stock Watchlist', shortLabel: 'Watchlist', icon: CalendarDays },
   { id: 'portfolio', label: 'Portofolio', shortLabel: 'Portofolio', icon: Briefcase },
   { id: 'journal', label: 'Pick Journal', shortLabel: 'Jurnal', icon: ClipboardList },
@@ -117,6 +120,8 @@ export const MarketWorkspace: React.FC<Props> = ({
       {subTab === 'screener' && (
         <StockScreenerPanel db={db} factors={factors} onSelectEmiten={openEmiten} />
       )}
+
+      {subTab === 'radar' && <EventRadar db={db} onSelectEmiten={openEmiten} />}
 
       {subTab === 'watchlist' && (
         <StockWatchlist db={db} factors={factors} onSelectEmiten={openEmiten} />

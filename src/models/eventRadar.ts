@@ -118,12 +118,24 @@ const NEGATIVE: RegExp[] = [
   /hasil (rupslb|rupsu|rups|rapat umum)/i,
   /risalah rapat umum/i,
   /penggunaan dana hasil penawaran umum/i,
+  // Pelepasan saham treasuri hasil buyback. Thirteen of them in a six-week
+  // window, all routine programme reporting, and every one contains words that
+  // read like a share disposal. The same collision announcements.ts defuses in
+  // its own top block, and it has to be defused here too because the
+  // `transaksi` rule below deliberately reaches for divestment language.
+  /pengalihan (kembali )?saham (treasuri |treasury )?hasil (pembelian kembali|buy ?back)/i,
+  /saham treasuri|saham treasury/i,
 ];
 
 const TRIGGER_RULES: TriggerRule[] = [
   {
     trigger: 'transaksi',
-    test: /akuisisi|pengambilalihan|transaksi material|penggabungan usaha|peleburan usaha|penyertaan (modal|saham)|pembelian atau penjualan saham perusahaan yang nilainya material|perubahan kegiatan usaha/i,
+    // Divestment reads as an event in both directions. A group selling a
+    // subsidiary is as much a change in what it owns as buying one, and the
+    // first version of this rule caught only the buying half — EMTK selling a
+    // subsidiary's shares, WIFI divesting one, NIRO releasing a subsidiary's
+    // assets and WINR raising its stake all fell through it silently.
+    test: /akuisisi|pengambilalihan|transaksi material|penggabungan usaha|peleburan usaha|penyertaan (modal|saham)|pembelian atau penjualan saham perusahaan yang nilainya material|perubahan kegiatan usaha|divestasi|pelepasan (saham|aset)|penjualan saham|peningkatan kepemilikan saham/i,
   },
   {
     trigger: 'kendali',
@@ -148,9 +160,45 @@ const TRIGGER_RULES: TriggerRule[] = [
 const TOO_LATE =
   /volatilitas transaksi|unusual market activity|permintaan penjelasan bursa|suspensi|penghentian sementara perdagangan/i;
 
+/**
+ * The filing is about a subsidiary, not about the listed company itself.
+ *
+ * FOUND BY READING THE LIVE SCREEN, not by reasoning. CMNT sat at rank two on
+ * the first render, and opening the row showed why: "Perubahan Susunan Pengurus
+ * Entitas Anak dari PT Cemindo Gemilang Tbk" — a board reshuffle at a
+ * subsidiary. That is group housekeeping. It is not a change of control of
+ * CMNT, and a radar built to notice new owners had put it second.
+ *
+ * The suppression is deliberately PARTIAL, because "mentions a subsidiary" is
+ * not the same as "does not matter". Of the 33 filings in the window that name
+ * one, the split is clean along a line worth stating:
+ *
+ *   suppressed   PGJO's subsidiary changing its articles, INTP's subsidiary
+ *                changing its directors, WIRG's subsidiary changing both.
+ *                Identity and control INSIDE a group say nothing about who
+ *                owns the group.
+ *   kept         ARKO's subsidiary completing a share acquisition, EMTK
+ *                selling a subsidiary's shares, WIFI divesting one, MIRA
+ *                selling land through one. A transaction executed through a
+ *                subsidiary is still a transaction of the group, and it lands
+ *                in the same consolidated accounts.
+ *
+ * So it suppresses `identitas` and `kendali` only, and it lets the search
+ * continue rather than returning null — a filing that reshuffles a subsidiary
+ * board AND calls an EGM is still an EGM.
+ */
+const SUBSIDIARY =
+  /entitas anak|anak[- ]anak perusahaan|anak perusahaan|perusahaan anak|anak usaha|entitas asosiasi/i;
+const SUBSIDIARY_SUPPRESSES: RadarTrigger[] = ['identitas', 'kendali'];
+
 export function classifyTrigger(title: string): RadarTrigger | null {
   for (const re of NEGATIVE) if (re.test(title)) return null;
-  for (const rule of TRIGGER_RULES) if (rule.test.test(title)) return rule.trigger;
+  const aboutSubsidiary = SUBSIDIARY.test(title);
+  for (const rule of TRIGGER_RULES) {
+    if (!rule.test.test(title)) continue;
+    if (aboutSubsidiary && SUBSIDIARY_SUPPRESSES.includes(rule.trigger)) continue;
+    return rule.trigger;
+  }
   return null;
 }
 

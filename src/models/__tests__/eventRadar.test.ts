@@ -80,6 +80,65 @@ const check = (name: string, ok: boolean, detail = '') =>
     classifyTrigger('Laporan Penggunaan Dana Hasil Penawaran Umum') === null);
 }
 
+// 3c. SAHAM TREASURI BUKAN DIVESTASI. Tiga belas pengajuan dalam jendela enam
+//     minggu adalah pelaporan rutin program buyback, dan tiap satunya memuat
+//     kata-kata yang terbaca seperti pelepasan saham. Tabrakan ini baru menjadi
+//     berbahaya setelah aturan `transaksi` sengaja dipanjangkan untuk menangkap
+//     bahasa divestasi — sebelum itu ia lolos karena kebetulan, bukan karena
+//     dijaga.
+{
+  const rutin = [
+    'Laporan Pengalihan Kembali Saham Hasil Buy Back',
+    'Rencana Pengalihan Saham Treasuri Hasil Pembelian Kembali Saham',
+    'Realisasi Pengalihan Saham Treasury Dalam Rangka Pelaksanaan Program Kepemilikan Saham Oleh Manajemen',
+  ];
+  for (const t of rutin)
+    check(`treasuri tidak memicu: "${t.slice(0, 40)}…"`, classifyTrigger(t) === null, `${classifyTrigger(t)}`);
+
+  // Sisi lain dari aturan yang sama: divestasi yang sungguhan HARUS memicu.
+  // Versi pertama aturan ini hanya menangkap sisi membeli, dan empat pelepasan
+  // nyata di jendela yang sama lewat tanpa suara.
+  const nyata: [string, string][] = [
+    ['Keterbukaan Informasi atas Divestasi saham Perseroan pada anak usahanya', 'transaksi'],
+    ['Rencana Pelepasan Aset Entitas Anak Tidak Langsung Perseroan', 'transaksi'],
+    ['Peningkatan Kepemilikan Saham di entitas anak Perseroan', 'transaksi'],
+  ];
+  for (const [t, harap] of nyata)
+    check(`divestasi memicu: "${t.slice(0, 40)}…"`, classifyTrigger(t) === harap, `${classifyTrigger(t)}`);
+}
+
+// 3b. ANAK USAHA. Judul-judul di bawah ini semuanya nyata, disalin dari jendela
+//     pengumuman 24 Agu - 3 Sep 2026. Yang pertama sempat berdiri di peringkat
+//     DUA pada render pertama layar ini: perombakan pengurus di anak usaha, yang
+//     merupakan rumah tangga grup dan sama sekali bukan pergantian pemilik CMNT.
+//
+//     Penindasannya sengaja SEPARUH. Dari 33 pengajuan di jendela itu yang
+//     menyebut anak usaha, garisnya bersih: identitas dan kendali DI DALAM grup
+//     tidak mengatakan apa pun tentang siapa yang memiliki grupnya, sedangkan
+//     transaksi yang dijalankan lewat anak usaha tetap transaksi grup dan
+//     mendarat di laporan konsolidasi yang sama.
+{
+  const kasus: [string, string | null][] = [
+    ['Perubahan Susunan Pengurus Entitas Anak dari PT Cemindo Gemilang Tbk', null],
+    ['Perubahan Anggaran Dasar Entitas Anak Perseroan berupa Penambahan Kegiatan Usaha', null],
+    ['Perubahan Direksi PT Mandiri Sejahtera Sentra, Entitas Anak PT Indocement Tunggal Prakarsa Tbk.', null],
+    ['Pemenuhan Akuisisi Saham oleh Anak Usaha Perseroan', 'transaksi'],
+    ['Penjualan Saham Entitas Anak Perseroan', 'transaksi'],
+    ['Transaksi Material berkaitan dengan penjualan tanah dan bangunan oleh Perseroan dan anak perusahaan Perseroan', 'transaksi'],
+  ];
+  for (const [judul, harap] of kasus) {
+    const got = classifyTrigger(judul);
+    check(`anak usaha: "${judul.slice(0, 40)}…" -> ${harap}`, got === harap, `dapat ${got}`);
+  }
+
+  // Penindasannya melanjutkan pencarian, bukan menghentikannya. Sebuah pengajuan
+  // yang merombak pengurus anak usaha SEKALIGUS memanggil RUPSLB tetap sebuah
+  // RUPSLB, dan mengembalikan null di situ akan membuang bagian yang berarti.
+  check('anak usaha tidak membatalkan pemicu lain di judul yang sama',
+    classifyTrigger('Perubahan Susunan Pengurus Entitas Anak dan Rencana RUPSLB Perseroan') === 'aksi-korporasi',
+    `${classifyTrigger('Perubahan Susunan Pengurus Entitas Anak dan Rencana RUPSLB Perseroan')}`);
+}
+
 // ──────────────────────────────────────────────────── perkakas basis data ──
 
 const DATES = Array.from({ length: 120 }, (_, i) => {
