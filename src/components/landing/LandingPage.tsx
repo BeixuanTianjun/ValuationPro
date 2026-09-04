@@ -48,55 +48,6 @@ interface Props {
 const pct = (v: number, d = 2) => (Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%` : '–');
 const idr = (v: number, d = 0) => (Number.isFinite(v) ? v.toLocaleString('id-ID', { maximumFractionDigits: d }) : '–');
 
-/**
- * The hero chart is drawn from the real IHSG series when the database has
- * loaded, and from a neutral placeholder before that — never from invented
- * numbers dressed up as market data.
- */
-function useHeroSeries(indices: IndexQuote[]): { points: string; area: string; real: boolean } {
-  return useMemo(() => {
-    const composite = indices.find((i) => i.code === 'COMPOSITE');
-    const W = 1000;
-    const H = 260;
-
-    let values: number[];
-    let real = false;
-
-    if (composite && composite.closes.length > 20) {
-      const raw = Array.from(composite.closes).filter((v) => Number.isFinite(v) && v > 0);
-      const step = Math.max(1, Math.floor(raw.length / 120));
-      values = raw.filter((_, i) => i % step === 0);
-      real = true;
-    } else {
-      values = Array.from({ length: 60 }, (_, i) => 100 + Math.sin(i / 6) * 8 + i * 0.35);
-    }
-
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const span = max - min || 1;
-    const coords = values.map((v, i) => {
-      const x = (i / (values.length - 1)) * W;
-      const y = H - ((v - min) / span) * (H - 30) - 15;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    });
-
-    return {
-      points: coords.join(' '),
-      area: `0,${H} ${coords.join(' ')} ${W},${H}`,
-      real,
-    };
-  }, [indices]);
-}
-
-/**
- * The strategy board header, fetched for the proof band.
- *
- * 36 KB, and it carries the single most checkable claim on this page: how many
- * rule sets were tested and how few survived an out-of-sample split. Worth one
- * request. `announcements.json` is deliberately NOT fetched here — it is 712 KB
- * and the only thing this page would want from it is one count, which is not a
- * trade anybody should make on a first paint.
- */
 function useStrategyFacts(): { tested: number; survivors: number; sessions: number } | null {
   const [facts, setFacts] = useState<{ tested: number; survivors: number; sessions: number } | null>(null);
   useEffect(() => {
@@ -115,6 +66,234 @@ function useStrategyFacts(): { tested: number; survivors: number; sessions: numb
   }, []);
   return facts;
 }
+
+/**
+ * Latar halaman depan: SELURUH semesta, digambar sekaligus.
+ *
+ * KENAPA BUKAN VIDEO, DAN KENAPA BUKAN SATU GARIS IHSG.
+ *
+ * Halaman ini berjudul "Semua saham Indonesia". Versi sebelumnya menaruh satu
+ * polyline IHSG di belakangnya — indeks, bukan sahamnya — dan sebuah video stok
+ * akan lebih buruk lagi: gerak yang tidak menandakan apa pun. Yang digambar di
+ * sini 962 emiten sungguhan dari `db.series`, jadi teksturnya BENAR-BENAR
+ * pernyataan halaman ini, bukan ilustrasinya.
+ *
+ * TIAP GARIS DINORMALKAN ke rentangnya sendiri, dan itu harus dikatakan: harga
+ * di bursa ini merentang dari Rp1 sampai Rp90.000, jadi tanpa normalisasi
+ * sepuluh emiten mahal akan memenuhi bingkai dan sembilan ratus sisanya menjadi
+ * garis datar di dasar. Yang terbaca di sini BENTUK, bukan harga — dan karena
+ * ia tidak bisa dibaca sebagai harga, ia sengaja dibuat redup sampai ke ambang
+ * tekstur.
+ *
+ * CANVAS, BUKAN SVG. 962 jalur x 120 titik adalah 115 ribu ruas garis; sebagai
+ * SVG itu 962 simpul DOM yang harus di-layout browser. Canvas menggambarnya
+ * sekali lalu diam.
+ *
+ * MATERIALISASI, BUKAN ANIMASI TERUS-MENERUS. Bidangnya muncul sekelompok demi
+ * sekelompok selama kira-kira setengah detik, lalu BERHENTI. Latar yang terus
+ * bergerak menarik mata menjauh dari kalimat yang ingin dibaca, dan halaman
+ * yang mahal justru yang berani diam setelah memperkenalkan dirinya.
+ */
+const UniverseBackdrop: React.FC<{ db: MarketDatabase | null }> = ({ db }) => {
+  const ref = React.useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv || !db) return;
+
+    const diam = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let raf = 0;
+    let alive = true;
+
+    const siapkan = () => {
+      const w = cv.clientWidth;
+      const h = cv.clientHeight;
+      if (!w || !h) return null;
+      cv.width = Math.floor(w * dpr);
+      cv.height = Math.floor(h * dpr);
+      const ctx = cv.getContext('2d');
+      if (!ctx) return null;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      return { ctx, w, h };
+    };
+
+    // Jendela yang digambar sengaja pendek. Riwayat penuh 718 sesi membuat tiap
+    // jalur menjadi kabut yang seragam; 180 sesi masih memperlihatkan bentuk
+    // naik-turun yang membedakan satu emiten dari yang lain.
+    const JENDELA = 180;
+    const TITIK = 120;
+
+    const jalur: Float32Array[] = [];
+    for (const [, s] of db.series) {
+      const n = s.close.length;
+      const mulai = Math.max(0, n - JENDELA);
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let i = mulai; i < n; i++) {
+        const v = s.close[i];
+        if (v > 0) {
+          if (v < lo) lo = v;
+          if (v > hi) hi = v;
+        }
+      }
+      // Emiten beku atau tanpa harga tidak digambar. Garis datar sempurna
+      // sebanyak seratus dua puluh helai hanya menebalkan dasar bingkai.
+      if (!(hi > lo)) continue;
+
+      const p = new Float32Array(TITIK);
+      let terisi = 0;
+      for (let k = 0; k < TITIK; k++) {
+        const i = mulai + Math.round((k / (TITIK - 1)) * (n - 1 - mulai));
+        const v = s.close[i];
+        p[k] = v > 0 ? (v - lo) / (hi - lo) : NaN;
+        if (v > 0) terisi++;
+      }
+      if (terisi > TITIK * 0.6) jalur.push(p);
+    }
+
+    const gambarKelompok = (ctx: CanvasRenderingContext2D, w: number, h: number, dari: number, sampai: number) => {
+      ctx.lineWidth = 0.7;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = CHART.amber;
+      for (let j = dari; j < sampai && j < jalur.length; j++) {
+        const p = jalur[j];
+        ctx.globalAlpha = 0.03;
+        ctx.beginPath();
+        let mulaiBaru = true;
+        for (let k = 0; k < TITIK; k++) {
+          const v = p[k];
+          if (!Number.isFinite(v)) {
+            mulaiBaru = true;
+            continue;
+          }
+          const x = (k / (TITIK - 1)) * w;
+          const y = h - v * h * 0.86 - h * 0.07;
+          if (mulaiBaru) {
+            ctx.moveTo(x, y);
+            mulaiBaru = false;
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    const siap = siapkan();
+    if (!siap) return;
+
+    // TAB TERSEMBUNYI TIDAK MENJALANKAN requestAnimationFrame, dan itu bukan
+    // kasus pinggiran: membuka tautan di tab latar adalah cara paling biasa
+    // orang membuka tautan. Versi pertama menjadwalkan bingkai pertamanya lalu
+    // menunggu selamanya — dan karena efeknya sudah terlanjur jalan, latarnya
+    // tetap kosong bahkan setelah tabnya dibuka. Ditemukan karena panel
+    // pratinjau kebetulan tersembunyi saat diuji.
+    //
+    // Kalau halamannya tidak terlihat, tidak ada yang perlu dianimasikan: bidang
+    // itu digambar sekaligus, dan sudah siap begitu tabnya dilihat.
+    if (diam || document.hidden) {
+      gambarKelompok(siap.ctx, siap.w, siap.h, 0, jalur.length);
+      return;
+    }
+
+    let kursor = 0;
+    const PER_BINGKAI = 44;
+    const langkah = () => {
+      if (!alive) return;
+      gambarKelompok(siap.ctx, siap.w, siap.h, kursor, kursor + PER_BINGKAI);
+      kursor += PER_BINGKAI;
+      if (kursor < jalur.length) raf = requestAnimationFrame(langkah);
+    };
+    raf = requestAnimationFrame(langkah);
+
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+    };
+  }, [db]);
+
+  return (
+    <>
+      <canvas ref={ref} className="absolute inset-x-0 bottom-0 h-[58vh] w-full" aria-hidden="true" />
+      {/* PEREDAM. 875 jalur yang saling menumpuk menutup 80% bidang, dan pada
+          kepadatan itu ia berhenti menjadi tekstur dan mulai bersaing dengan
+          kalimat di atasnya — subhead-nya benar-benar tenggelam pada percobaan
+          pertama. Gradasi ini menggelapkan bagian ATAS bidang, tempat teks
+          berada, dan membiarkan bagian bawah tetap terbaca sebagai bidang.
+          Latar yang membuat teksnya susah dibaca bukan latar yang mahal. */}
+      <div
+        className="absolute inset-x-0 bottom-0 h-[58vh] bg-gradient-to-t from-transparent via-slate-950/55 to-slate-950"
+        aria-hidden="true"
+      />
+    </>
+  );
+};
+
+/**
+ * Angka yang naik sendiri dari nol.
+ *
+ * Dipakai HANYA pada angka yang benar-benar berasal dari data yang sudah dimuat.
+ * Sebuah penghitung yang berhenti di angka karangan adalah kebohongan yang
+ * bergerak, dan itu lebih meyakinkan daripada kebohongan yang diam.
+ */
+function useCountUp(target: number, mulaiSetelah: number, aktif: boolean): number {
+  const [nilai, setNilai] = useState(0);
+
+  useEffect(() => {
+    if (!aktif || !Number.isFinite(target)) return;
+    const diam = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    if (diam) {
+      setNilai(target);
+      return;
+    }
+    let raf = 0;
+    let timer = 0;
+    const DURASI = 1400;
+    const jalan = (t0: number) => {
+      const tik = (now: number) => {
+        const p = Math.min(1, (now - t0) / DURASI);
+        const e = 1 - Math.pow(1 - p, 3); // easeOutCubic
+        setNilai(target * e);
+        if (p < 1) raf = requestAnimationFrame(tik);
+      };
+      raf = requestAnimationFrame(tik);
+    };
+    timer = window.setTimeout(() => jalan(performance.now()), mulaiSetelah);
+    return () => {
+      window.clearTimeout(timer);
+      cancelAnimationFrame(raf);
+    };
+  }, [target, mulaiSetelah, aktif]);
+
+  return nilai;
+}
+
+/**
+ * Satu sel di baris kaki. Komponen tersendiri karena hook tidak boleh dipanggil
+ * di dalam perulangan, dan tiap sel butuh penghitungnya sendiri.
+ */
+const StatCell: React.FC<{
+  target: number;
+  label: string;
+  sub: string;
+  desimal?: number;
+  delay: number;
+  aktif: boolean;
+}> = ({ target, label, sub, desimal = 0, delay, aktif }) => {
+  const nilai = useCountUp(target, delay, aktif);
+  return (
+    <div className="text-left">
+      <div className="text-2xl sm:text-3xl font-semibold tabular-nums tracking-[-0.025em] text-slate-50">
+        {nilai.toLocaleString('id-ID', { minimumFractionDigits: desimal, maximumFractionDigits: desimal })}
+      </div>
+      <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</div>
+      <div className="text-[11px] text-slate-600 leading-snug">{sub}</div>
+    </div>
+  );
+};
 
 /*
  * The front page is where a returning visitor decides whether anything changed.
@@ -355,10 +534,7 @@ export const LandingPage: React.FC<Props> = ({
   onOpenAuth,
   onEnter,
 }) => {
-  const hero = useHeroSeries(indices);
   const strategy = useStrategyFacts();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   const composite = indices.find((i) => i.code === 'COMPOSITE');
   const ticker = useMemo(() => {
@@ -381,76 +557,31 @@ export const LandingPage: React.FC<Props> = ({
    * countable comes from `db` here; prose that cannot take a live number says
    * the thing qualitatively instead ("seluruh indeks resmi").
    */
-  const stats = useMemo(
-    () => [
-      { value: db ? idr(db.emiten.length) : '962', label: 'Emiten', sub: 'satu papan IDX, nggak cuma blue chip' },
-      // The fallbacks are what shows before the database loads, so they have to
-      // match what the live values will say a second later — 716 here against
-      // 715 in the hero was the same two-numbers-one-fact bug in miniature.
-      { value: db ? idr(db.meta.sessions) : '715', label: 'Sesi riwayat', sub: 'udah disesuaikan aksi korporasi' },
-      { value: db ? idr(db.indexSeries.size) : '46', label: 'Indeks', sub: 'IHSG, LQ45, 11 sektor' },
-      { value: String(TERMINAL_FUNCTIONS.length), label: 'Layar', sub: 'ketik kodenya, Enter' },
-    ],
-    // The backtest count deliberately does NOT appear here. It already carries
-    // its own band further down with the context that makes it mean something
-    // — the train/test split and the win-rate haircut — and a number that large
-    // reduced to one tile invites exactly the reading that band exists to
-    // prevent. Four tiles also divide evenly at every breakpoint; five left an
-    // orphan on the second row at anything under 1024px.
-    [db]
-  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
       {/* ---------------------------------------------------------------- hero */}
-      <section className="relative min-h-[94vh] flex flex-col">
+      {/* SATU VIEWPORT, bukan 94% darinya.
+          `min-h-[94vh]` membiarkan tinggi hero ditentukan isinya, jadi di layar
+          pendek ia meluber dan di layar tinggi ia menyisakan pita kosong.
+          `svh` dipakai, bukan `vh`: di Safari iOS `vh` menghitung bilah alamat
+          yang menghilang, jadi baris kaki terpotong persis di perangkat yang
+          paling sering dipakai membuka tautan. */}
+      {/* SATU VIEWPORT DI LAYAR LEBAR, TUMBUH DI PONSEL.
+          Mengunci tinggi di ponsel memotong baris kaki: judul tiga baris plus
+          subhead empat baris memang tidak muat di 812px tanpa memangkas
+          kalimatnya, dan memangkas kalimatnya untuk memenuhi sebuah aturan tata
+          letak adalah menukar isi dengan bentuk. Jadi `min-h` di ponsel, tinggi
+          persis mulai dari `sm`. */}
+      <section className="relative flex min-h-[100svh] sm:h-[100svh] sm:min-h-[620px] flex-col overflow-hidden">
         <div className="absolute inset-0 grid-glow opacity-40" aria-hidden="true" />
         <div
           className="absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(ellipse_at_top,rgba(255,167,51,0.07),transparent_62%)]"
           aria-hidden="true"
         />
 
-        <svg
-          className="absolute bottom-0 left-0 w-full h-[42vh] min-h-[220px]"
-          viewBox="0 0 1000 260"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <defs>
-            {/* SATU warna, bukan tiga.
-                Palet ini Bloomberg: hitam murni sebagai lantai, amber sebagai
-                satu-satunya tanda tangan. Gradasi violet-biru-hijau di sini
-                melawannya — tiga warna yang berebut perhatian pada satu garis
-                membuat halaman terbaca seperti template, bukan seperti alat.
-                Garisnya sekarang meredup dari amber ke transparan, jadi ia
-                membingkai teks alih-alih bersaing dengannya. */}
-            <linearGradient id="heroFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={CHART.amber} stopOpacity="0.10" />
-              <stop offset="100%" stopColor={CHART.amber} stopOpacity="0" />
-            </linearGradient>
-            <linearGradient id="heroStroke" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor={CHART.amber} stopOpacity="0.15" />
-              <stop offset="50%" stopColor={CHART.amber} stopOpacity="0.85" />
-              <stop offset="100%" stopColor={CHART.amber} stopOpacity="0.25" />
-            </linearGradient>
-          </defs>
-          {mounted && (
-            <>
-              <polygon points={hero.area} fill="url(#heroFill)" className="animate-fade" style={{ animationDelay: '900ms' }} />
-              <polyline
-                points={hero.points}
-                fill="none"
-                stroke="url(#heroStroke)"
-                strokeWidth="1.4"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                className="animate-draw"
-                style={{ ['--dash' as string]: '2600' }}
-                vectorEffect="non-scaling-stroke"
-              />
-            </>
-          )}
-        </svg>
+        {/* Latar: seluruh semesta, bukan satu indeks. Lihat UniverseBackdrop. */}
+        <UniverseBackdrop db={db} />
 
         <header className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
           <div className="flex items-center gap-3 animate-rise">
@@ -525,8 +656,14 @@ export const LandingPage: React.FC<Props> = ({
                 saat ukurannya membesar dan merapatkan jaraknya. Gradasi tiga
                 warna diganti satu aksen amber pada baris kedua — halaman ini
                 punya satu hal untuk dikatakan, jadi ia butuh satu penekanan. */}
+            {/* MONO, dan itu bukan gaya-gayaan.
+                IBM Plex Mono sudah dimuat halaman ini untuk kolom harga, jadi
+                memakainya di sini tidak menambah satu pun permintaan. Yang
+                didapat: bentuk huruf yang sama dengan yang dilihat pengguna di
+                dalam terminal, sehingga halaman depan terbaca sebagai pintu
+                masuk alat itu — bukan sebagai brosur yang dibuat tim lain. */}
             <h1
-              className="mt-8 text-4xl sm:text-6xl lg:text-[4.5rem] font-semibold tracking-[-0.03em] leading-[1.03] text-balance text-slate-50 animate-rise"
+              className="mt-6 font-mono text-[1.75rem] sm:text-6xl lg:text-[4.25rem] font-medium tracking-[-0.055em] leading-[1.08] sm:leading-[1.05] text-balance text-slate-50 animate-rise"
               style={{ animationDelay: '200ms' }}
             >
               Semua saham Indonesia,
@@ -535,7 +672,7 @@ export const LandingPage: React.FC<Props> = ({
             </h1>
 
             <p
-              className="mx-auto mt-7 max-w-2xl text-base sm:text-lg text-slate-400 leading-relaxed animate-rise"
+              className="mx-auto mt-5 sm:mt-7 max-w-2xl text-sm sm:text-lg text-slate-400 leading-relaxed animate-rise"
               style={{ animationDelay: '280ms' }}
             >
               {db ? idr(db.emiten.length) : '962'} emiten, {db ? idr(db.meta.sessions) : '715'} sesi, arus asing,
@@ -574,46 +711,41 @@ export const LandingPage: React.FC<Props> = ({
               </button>
             </div>
 
+          </div>
+        </div>
+
+        {/* BARIS KAKI: satu-satunya tempat angka di viewport pertama.
+            Panel IHSG dan strip "angka" dulu dua blok terpisah yang mengatakan
+            hal yang sama dua kali dan memakan dua layar. Digabung, keduanya
+            muat di satu viewport dan IHSG yang hidup berdiri bersebelahan
+            dengan angka semesta yang statis — persis hubungan yang benar antara
+            keduanya. */}
+        <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 pb-5">
+          <div className="flex flex-wrap items-end justify-center gap-x-10 gap-y-5 rounded-lg border border-slate-800/80 bg-slate-950/70 px-6 py-4 backdrop-blur-md animate-rise" style={{ animationDelay: '440ms' }}>
             {composite && (
-              // The live IHSG line is drawn BEHIND this block, and at the width
-              // where the hero is tallest the two collide: white tabular
-              // numerals land directly on a bright polyline and stop being
-              // readable. A backdrop panel keeps the chart visible through it
-              // while giving the digits a surface to sit on — cheaper than
-              // shortening the chart, which is the one piece of real market
-              // data on this page.
-              <div
-                className="mx-auto mt-11 inline-flex flex-wrap items-end justify-center gap-x-10 gap-y-4 rounded-lg border border-slate-800/80 bg-slate-950/70 px-6 py-4 backdrop-blur-md animate-rise"
-                style={{ animationDelay: '440ms' }}
-              >
-                <div className="text-left">
-                  <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">IHSG</div>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-3xl font-semibold tabular-nums tracking-[-0.02em]">{idr(composite.close, 2)}</span>
-                    <span
-                      className={`text-sm font-bold tabular-nums ${
-                        composite.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                      }`}
-                    >
-                      {pct(composite.changePercent)}
-                    </span>
-                  </div>
+              <div className="text-left">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">IHSG</div>
+                <div className="flex items-baseline gap-2.5">
+                  <span className="text-2xl sm:text-3xl font-semibold tabular-nums tracking-[-0.025em] text-slate-50">
+                    {idr(composite.close, 2)}
+                  </span>
+                  <span
+                    className={`text-sm font-bold tabular-nums ${
+                      composite.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                    }`}
+                  >
+                    {pct(composite.changePercent)}
+                  </span>
                 </div>
-                <div className="flex gap-7 text-left">
-                  {(['1 Bln', '3 Bln', 'YTD'] as const).map((label, i) => {
-                    const v = [composite.return1m, composite.return3m, composite.ytd][i];
-                    return (
-                      <div key={label}>
-                        <div className="text-[10px] uppercase text-slate-500 font-semibold">{label}</div>
-                        <div className={`text-sm font-bold tabular-nums ${v >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {pct(v, 1)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <div className="text-[11px] text-slate-600 leading-snug">harga sesi berjalan</div>
               </div>
             )}
+            {/* Penghitung hanya menyala setelah database ada. Angka yang naik
+                ke nilai karangan adalah kebohongan yang bergerak. */}
+            <StatCell target={db ? db.emiten.length : 0} label="Emiten" sub="satu papan IDX" delay={480} aktif={!!db} />
+            <StatCell target={db ? db.meta.sessions : 0} label="Sesi riwayat" sub="disesuaikan aksi korporasi" delay={570} aktif={!!db} />
+            <StatCell target={db ? db.indexSeries.size : 0} label="Indeks" sub="IHSG, LQ45, 11 sektor" delay={660} aktif={!!db} />
+            <StatCell target={TERMINAL_FUNCTIONS.length} label="Layar" sub="ketik kodenya, Enter" delay={750} aktif />
           </div>
         </div>
 
@@ -641,33 +773,6 @@ export const LandingPage: React.FC<Props> = ({
             </div>
           </div>
         )}
-      </section>
-
-      {/* ------------------------------------------------------------- angka */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger">
-          {stats.map((s, i) => (
-            // Angka putih pekat, bukan gradasi.
-            // Gradasi pada angka membuatnya memudar di bagian bawah, dan angka
-            // yang memudar adalah angka yang terlihat dekoratif. Di terminal,
-            // angka adalah isinya. Labelnya turun jadi huruf kapital kecil
-            // berjarak lebar supaya hierarkinya datang dari bentuk, bukan dari
-            // menebalkan semuanya.
-            <div
-              key={s.label}
-              className="rounded-lg border border-slate-800/80 bg-slate-900/60 p-5 animate-rise"
-              style={{ ['--i' as string]: i }}
-            >
-              <div className="text-3xl sm:text-4xl font-semibold tabular-nums tracking-[-0.02em] text-slate-50">
-                {s.value}
-              </div>
-              <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                {s.label}
-              </div>
-              <div className="text-[11px] text-slate-600 mt-1 leading-snug">{s.sub}</div>
-            </div>
-          ))}
-        </div>
       </section>
 
       {/* -------------------------------------------------------------- sikap */}
