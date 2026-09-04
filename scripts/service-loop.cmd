@@ -20,8 +20,10 @@ rem     on 8787 when you run `npm run dev`. Two schedulers on one machine would
 rem     both fire the digest, and the owner would get every alert twice. If
 rem     anything already answers on 8787 this exits quietly and lets it own the
 rem     port — the same probe vite's auto-backend plugin does.
-rem  2. RESTARTS ON CRASH, with a delay. A service that dies at 03:00 and stays
-rem     dead is a missed 12:05 alert nobody finds out about until they check.
+rem  2. RESTARTS ON CRASH, with a delay that ACTUALLY DELAYS. A service that
+rem     dies at 03:00 and stays dead is a missed 12:05 alert nobody finds out
+rem     about until they check. See the note at the bottom on why the delay has
+rem     to be `ping` and not `timeout`.
 rem  3. LOGS, ke DUA berkas. .data\service.log memuat keluaran layanan itu
 rem     sendiri; .data\service-events.log memuat baris siklus hidup singkat.
 rem     Alasannya ada di komentar SET di bawah - berkas pertama terkunci selama
@@ -73,5 +75,23 @@ if !ATTEMPT! GEQ 20 (
   echo [%date% %time%] BERHENTI - 20 kali gagal berturut-turut. Perbaiki dulu, lalu jalankan ulang task-nya.>> "%EVT%"
   exit /b 1
 )
-timeout /t 30 /nobreak >nul
+
+rem  PING, BUKAN TIMEOUT, DAN ITU BUKAN SELERA.
+rem
+rem  `timeout` menuntut handle konsol. Berkas ini diluncurkan VBS dengan gaya
+rem  jendela 0 - tanpa konsol sama sekali - jadi timeout langsung pulang dengan
+rem  kode 125 tanpa menunggu apa pun. Jeda 30 detik di baris ini TIDAK PERNAH
+rem  terjadi sejak berkas ini ditulis, dan komentarnya menjanjikan sesuatu yang
+rem  tidak pernah ada.
+rem
+rem  Akibatnya terukur pada 2026-09-04: layanan jatuh pukul 09:15:49, dua puluh
+rem  percobaan habis dalam 0,8 DETIK, dan loop menyerah pukul 09:15:50. Layanan
+rem  mati sampai 22:20 - seluruh jam bursa - tanpa satu pun refresh intraday.
+rem
+rem  Diukur di jendela tanpa konsol yang sama:
+rem     timeout /t 4  -> pulang 0,18 detik, kode 125
+rem     ping -n 5     -> pulang 4,08 detik, benar
+rem
+rem  `ping -n N` menunggu N-1 detik dan tidak butuh konsol.
+ping -n 31 127.0.0.1 >nul
 goto loop
