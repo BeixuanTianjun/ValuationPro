@@ -68,6 +68,100 @@ function useStrategyFacts(): { tested: number; survivors: number; sessions: numb
 }
 
 /**
+ * Skyline yang setiap gedungnya sebuah emiten.
+ *
+ * KENAPA DIGAMBAR, BUKAN DIFOTO. Idenya datang dari sebuah spesifikasi landing
+ * page yang memakai video gedung perkantoran sebagai latar. Gedung perkantoran
+ * Indonesia memang pilihan yang tepat untuk halaman ini — gedung-gedung itu
+ * LITERAL emitennya — tapi sebuah video hanya menggambarkannya. Yang digambar di
+ * sini membacanya:
+ *
+ *   tinggi gedung   = kapitalisasi pasar (close x listedShares)
+ *   jendela menyala = naik pada sesi ini
+ *   jendela gelap   = turun
+ *   lebar           = sama rata, supaya tinggi jadi satu-satunya perbandingan
+ *
+ * Jadi siluet yang terlihat itu bentuk sebenarnya dari bursa hari ini: beberapa
+ * menara raksasa di kiri, ekor panjang gedung pendek di kanan. Sebuah video stok
+ * tidak bisa mengatakan itu, dan tidak berubah waktu pasarnya berubah.
+ *
+ * AKAR PANGKAT TIGA, BUKAN LINEAR. Kapitalisasi terbesar di bursa ini ribuan
+ * kali lipat yang terkecil; dipetakan linear, satu menara memenuhi bingkai dan
+ * sembilan ratus sisanya jadi garis setebal satu piksel. Akar pangkat tiga
+ * memampatkannya cukup untuk terbaca sebagai kota, dan itu harus dikatakan:
+ * proporsi tingginya BUKAN proporsi kapitalisasinya.
+ *
+ * Diurutkan dari besar ke kecil supaya menaranya berkumpul di kiri, tempat
+ * judulnya berdiri — siluet yang naik ke arah teks membingkainya, siluet acak
+ * hanya jadi kebisingan bergerigi.
+ */
+const SkylineBackdrop: React.FC<{ db: MarketDatabase | null }> = ({ db }) => {
+  const ref = React.useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv || !db) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = cv.clientWidth;
+    const h = cv.clientHeight;
+    if (!w || !h) return;
+    cv.width = Math.floor(w * dpr);
+    cv.height = Math.floor(h * dpr);
+    const ctx = cv.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    type Gedung = { cap: number; naik: boolean };
+    const gedung: Gedung[] = [];
+    for (const e of db.emiten) {
+      const q = db.daily.get(e.code);
+      if (!q || !(q.close > 0) || !(q.listedShares > 0)) continue;
+      gedung.push({ cap: q.close * q.listedShares, naik: q.change >= 0 });
+    }
+    if (!gedung.length) return;
+    gedung.sort((a, b) => b.cap - a.cap);
+
+    const akar = (v: number) => Math.cbrt(v);
+    const maks = akar(gedung[0].cap);
+    const LEBAR = Math.max(3, Math.round(w / Math.min(gedung.length, 220)));
+    const jumlah = Math.min(gedung.length, Math.ceil(w / LEBAR));
+
+    for (let i = 0; i < jumlah; i++) {
+      const g = gedung[i];
+      const x = i * LEBAR;
+      const tinggi = Math.max(6, (akar(g.cap) / maks) * h * 0.82);
+      const y = h - tinggi;
+
+      // Siluet gedungnya sendiri sengaja nyaris hitam. Yang boleh terbaca dari
+      // jauh cuma bentuk kotanya; warna datang dari jendelanya.
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = CHART.tooltipBg;
+      ctx.fillRect(x, y, LEBAR - 1, tinggi);
+
+      // Jendela. Kerapatannya tetap, jadi gedung tinggi punya lebih banyak —
+      // sebagaimana gedung tinggi memang punya lebih banyak.
+      const kolom = Math.max(1, Math.floor((LEBAR - 1) / 3));
+      const baris = Math.floor(tinggi / 6);
+      ctx.fillStyle = g.naik ? CHART.amber : CHART.tickMuted;
+      for (let b = 0; b < baris; b++) {
+        for (let k = 0; k < kolom; k++) {
+          // Sebagian jendela gelap. Sebuah gedung yang setiap jendelanya menyala
+          // terbaca sebagai tekstur, bukan sebagai gedung.
+          if (((i * 7 + b * 3 + k * 11) % 5) === 0) continue;
+          ctx.globalAlpha = g.naik ? 0.55 : 0.2;
+          ctx.fillRect(x + 1 + k * 3, y + 3 + b * 6, 1.4, 2);
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }, [db]);
+
+  return <canvas ref={ref} className="absolute inset-x-0 bottom-0 h-[52vh] w-full" aria-hidden="true" />;
+};
+
+/**
  * Latar halaman depan: SELURUH semesta, digambar sekaligus.
  *
  * KENAPA BUKAN VIDEO, DAN KENAPA BUKAN SATU GARIS IHSG.
@@ -159,7 +253,7 @@ const UniverseBackdrop: React.FC<{ db: MarketDatabase | null }> = ({ db }) => {
       ctx.strokeStyle = CHART.amber;
       for (let j = dari; j < sampai && j < jalur.length; j++) {
         const p = jalur[j];
-        ctx.globalAlpha = 0.03;
+        ctx.globalAlpha = 0.016;
         ctx.beginPath();
         let mulaiBaru = true;
         for (let k = 0; k < TITIK; k++) {
@@ -580,7 +674,12 @@ export const LandingPage: React.FC<Props> = ({
           aria-hidden="true"
         />
 
-        {/* Latar: seluruh semesta, bukan satu indeks. Lihat UniverseBackdrop. */}
+        {/* TIGA LAPIS, dari bawah ke atas: kota, harga, peredam.
+            Skyline memberi bentuk bursa hari ini — beberapa menara, ekor panjang
+            gedung pendek. Bidang harga di atasnya memberi geraknya. Keduanya
+            data yang sama dibaca dua cara, dan itu sebabnya keduanya boleh
+            berdiri bersamaan tanpa saling menjadi hiasan. */}
+        <SkylineBackdrop db={db} />
         <UniverseBackdrop db={db} />
 
         <header className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
@@ -628,7 +727,7 @@ export const LandingPage: React.FC<Props> = ({
               // sama-sama amber sebelumnya, dan dua elemen paling keras di satu
               // layar berarti tidak ada yang paling keras. Yang di header cukup
               // terbaca; yang di hero yang boleh berteriak.
-              className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-amber-400/40 bg-transparent px-4 py-2.5 text-sm font-semibold text-amber-400 transition-colors duration-200 hover:border-amber-400 hover:bg-amber-400/10 cursor-pointer"
+              className="vp-glass flex shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl px-4 py-2.5 text-sm font-semibold text-amber-400 transition-transform duration-200 hover:scale-[1.03] cursor-pointer"
             >
               Buka Terminal
               <ArrowRight className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -668,7 +767,13 @@ export const LandingPage: React.FC<Props> = ({
             >
               Semua saham Indonesia,
               <br />
-              <span className="text-amber-400">plus alasannya.</span>
+              {/* SATU baris serif, bukan seluruh judul.
+                  Ketiga contoh memakai serif untuk seluruh headline. Di sini itu
+                  akan melawan barisnya sendiri: baris pertama mono karena ia
+                  menyebut semesta yang terhitung, baris kedua serif karena ia
+                  sebuah janji. Kontras dua bentuk huruf itulah penekanannya —
+                  bukan ukuran, bukan tebal. */}
+              <span className="font-serif italic tracking-[-0.02em] text-amber-400">plus alasannya.</span>
             </h1>
 
             <p
@@ -721,7 +826,7 @@ export const LandingPage: React.FC<Props> = ({
             dengan angka semesta yang statis — persis hubungan yang benar antara
             keduanya. */}
         <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 pb-5">
-          <div className="flex flex-wrap items-end justify-center gap-x-10 gap-y-5 rounded-lg border border-slate-800/80 bg-slate-950/70 px-6 py-4 backdrop-blur-md animate-rise" style={{ animationDelay: '440ms' }}>
+          <div className="vp-glass flex flex-wrap items-end justify-center gap-x-10 gap-y-5 rounded-2xl px-6 py-4 animate-rise" style={{ animationDelay: '440ms' }}>
             {composite && (
               <div className="text-left">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">IHSG</div>
