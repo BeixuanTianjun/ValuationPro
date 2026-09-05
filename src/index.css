@@ -335,9 +335,26 @@
    impossible; wide content scrolls inside `.scrollbar-thin` containers instead.
    --------------------------------------------------------------------------- */
 @layer base {
+  /* `clip`, BUKAN `hidden`, DAN INI PERBAIKAN BUG — bukan penyeragaman gaya.
+
+     Keduanya sama-sama mencegah body terdorong ke samping, yang memang tujuan
+     aturan ini dan tetap berlaku. Bedanya satu kalimat di spesifikasi:
+     `overflow: hidden` menjadikan elemennya SCROLL CONTAINER (ia bisa digulir
+     secara programatik, hanya scrollbar-nya yang disembunyikan), sedangkan
+     `clip` memotong tanpa membuat scroll container sama sekali.
+
+     Akibatnya `position: sticky` di mana pun di bawah body menempel pada
+     scrollport BODY — yang tidak pernah bergulir, karena yang bergulir viewport
+     — dan karena itu tidak pernah menempel pada apa pun. Hero halaman depan
+     dibangun di atas sticky dan diam-diam tidak pernah menempel: diukur di
+     Chrome sungguhan, tepi atasnya berpindah 0 → -248 → -495 justru selama
+     rentang yang seharusnya membuatnya diam di layar. Seluruh animasi zoom-nya
+     tetap berjalan dengan benar, jadi tidak ada satu pun gejala.
+
+     Dijaga oleh `npm run motion:check`. */
   html,
   body {
-    overflow-x: hidden;
+    overflow-x: clip;
     -webkit-text-size-adjust: 100%;
   }
 

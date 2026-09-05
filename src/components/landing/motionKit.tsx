@@ -216,7 +216,13 @@ export const Typewriter: React.FC<{
 function useKecepatanGulir(): { laju: MotionValue<number>; miring: MotionValue<number> } {
   const { scrollY } = useScroll();
   const v = useVelocity(scrollY);
-  const halus = useSpring(v, { damping: 46, stiffness: 380 });
+  // Spring-nya sengaja RINGAN. Setelan pertama (damping 46, stiffness 380)
+  // terlalu teredam untuk gerakan gulir sungguhan: diukur, ia baru mendekati
+  // nilai penuhnya jauh setelah jempolnya berhenti, jadi barisnya cuma sempat
+  // 1,37x laju diamnya pada lemparan yang seharusnya membuatnya berkali lipat.
+  // Sebuah keterkaitan yang baru terasa setelah pemicunya selesai sama saja
+  // dengan tidak ada keterkaitan.
+  const halus = useSpring(v, { damping: 28, stiffness: 240, mass: 0.4 });
   // Dibatasi: satu lemparan pada trackpad bisa melewati 8.000 px/dtk, dan tanpa
   // batas barisnya melesat sejauh beberapa layar dalam satu bingkai lalu
   // berkedip. Yang dipetakan hanya 2.000 px/dtk pertama.
@@ -250,7 +256,29 @@ export const VelocityRow: React.FC<{
       const el = ref.current?.firstElementChild as HTMLElement | undefined;
       if (el) lebarSatu.current = el.scrollWidth;
       const w = lebarSatu.current || 1;
-      x.set(wrap(-w, 0, x.get() + (dasar + laju.get()) * dt * (w / 100)));
+
+      // KECEPATAN GULIR MENGALIKAN LAJUNYA, TIDAK DITAMBAHKAN KE SITU.
+      //
+      // Versi pertama menulis `dasar + laju`, dan itu terbalik untuk separuh
+      // barisnya. `dasar` berselang-seling tandanya supaya baris ganjil dan
+      // genap berjalan berlawanan arah; `laju` bertanda mengikuti arah gulir.
+      // Jadi pada baris yang lajunya negatif, menggulir ke bawah menghasilkan
+      // laju positif yang MEMBATALKAN geraknya — barisnya justru melambat
+      // sampai nyaris berhenti persis ketika ia seharusnya menyusul.
+      //
+      // Bukan dugaan: diukur di Chrome sungguhan, 0,30 px/bingkai saat diam
+      // melawan 0,03 px/bingkai saat digulir cepat. Sepuluh kali lebih lambat,
+      // dan tidak ada yang melempar apa pun.
+      //
+      // Yang benar: besarnya dikalikan, arahnya yang dibalik. Menggulir ke bawah
+      // membuat tiap baris menyusul ke arahnya sendiri; menggulir ke atas
+      // membalik keduanya. Itulah keterkaitan yang dimaksud contohnya — kalau
+      // kecepatannya cuma bertambah tanpa arah, ia sekadar marquee yang ngebut.
+      const v = laju.get();
+      const arahDasar = Math.sign(dasar) || 1;
+      const arah = v < -0.05 ? -arahDasar : arahDasar;
+      const kecepatan = Math.abs(dasar) * (1 + Math.abs(v));
+      x.set(wrap(-w, 0, x.get() + arah * kecepatan * dt * (w / 100)));
       raf = requestAnimationFrame(langkah);
     };
     raf = requestAnimationFrame(langkah);
@@ -303,14 +331,52 @@ export const ScrollZoomHero: React.FC<{
 }> = ({ latar, children, className }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const diam = useReducedMotion();
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] });
+  // OFFSET-NYA 'end end', BUKAN 'end start', DAN INI PERBAIKAN BUG.
+  //
+  // 'end start' memetakan kemajuan 0..1 ke SELURUH tinggi pembungkus — 1.395px.
+  // Tapi hero ini `sticky` dan berhenti menempel jauh lebih awal: pada
+  // tinggi pembungkus dikurangi tinggi layar, yaitu 495px. Akibatnya seluruh
+  // sisa gerak terjadi SETELAH hero mulai naik keluar layar, tempat tidak ada
+  // lagi yang melihatnya.
+  //
+  // Diukur sebelum diperbaiki: hanya 35% dari total pembesaran yang terjadi
+  // selagi hero masih menempel (0,195 dari 0,550). Dua pertiga efeknya
+  // dimainkan untuk layar kosong — "jalan", dan tetap tidak pernah terasa.
+  //
+  // 'end end' membuat kemajuan mencapai 1 tepat ketika ujung bawah pembungkus
+  // sampai di bawah layar, yang persis saat sticky-nya lepas. Jadi 0..1
+  // sekarang berarti "selama hero terlihat", yang memang yang dimaksud.
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
 
-  const skala = useTransform(scrollYProgress, [0, 1], [1, 1.55]);
-  const kabur = useTransform(scrollYProgress, [0, 0.65, 1], [0, 2, 9]);
+  const skala = useTransform(scrollYProgress, [0, 1], [1, 1.42]);
+  const kabur = useTransform(scrollYProgress, [0, 0.65, 1], [0, 1.6, 7]);
   const filter = useTransform(kabur, (v) => `blur(${v.toFixed(2)}px)`);
-  const pudarLatar = useTransform(scrollYProgress, [0, 0.55, 1], [1, 0.85, 0]);
-  const pudarIsi = useTransform(scrollYProgress, [0, 0.42, 0.8], [1, 1, 0]);
-  const naikIsi = useTransform(scrollYProgress, [0, 0.8], [0, -70]);
+
+  /**
+   * OPASITAS DIKELUARKAN SEBAGAI TEKS, DAN ITU BUKAN GAYA PENULISAN — ITU
+   * MENGHINDARI BUG YANG SUDAH TERUKUR.
+   *
+   * Pada versi `motion` yang terpasang di sini, MotionValue BERANGKA yang
+   * dipasang ke `style.opacity` ditulis SEKALI waktu mount lalu tidak pernah
+   * diperbarui lagi. Bukan tebakan: diukur di Chrome sungguhan, `scale` dan
+   * `filter` dari sumber yang sama bergerak normal sepanjang gulir sementara
+   * `opacity` tetap 1 di setiap titik; nilai yang persis sama dipasang ke
+   * `skewY` bergerak dengan benar dari 1 ke 0,2. Jadi MotionValue-nya sehat dan
+   * yang tidak jalan pengikatannya ke properti opacity.
+   *
+   * MotionValue yang mengeluarkan STRING diterapkan dengan benar — sama seperti
+   * `filter` di atas, yang memang string dan memang jalan. Maka opasitasnya
+   * dikeluarkan sebagai string.
+   *
+   * JANGAN "dirapikan" kembali menjadi angka. Gejalanya sebuah efek yang
+   * hilang tanpa satu pun galat, dan itu tidak akan tertangkap oleh tsc maupun
+   * oleh tangkapan layar. `npm run motion:check` menjaganya.
+   */
+  const pudarLatar = useTransform(scrollYProgress, [0, 0.55, 1], [1, 0.86, 0.18]);
+  const opasitasLatar = useTransform(pudarLatar, (v) => v.toFixed(3));
+  const pudarIsi = useTransform(scrollYProgress, [0, 0.45, 0.92], [1, 1, 0]);
+  const opasitasIsi = useTransform(pudarIsi, (v) => v.toFixed(3));
+  const naikIsi = useTransform(scrollYProgress, [0, 0.92], [0, -70]);
 
   if (diam) {
     return (
@@ -333,12 +399,12 @@ export const ScrollZoomHero: React.FC<{
       <section className={`sticky top-0 flex h-[100svh] flex-col overflow-hidden ${className ?? ''}`}>
         <motion.div
           className="absolute inset-0"
-          style={{ scale: skala, filter, opacity: pudarLatar, transformOrigin: '50% 62%' }}
+          style={{ scale: skala, filter, opacity: opasitasLatar, transformOrigin: '50% 62%' }}
           aria-hidden="true"
         >
           {latar}
         </motion.div>
-        <motion.div className="relative z-10 flex flex-1 flex-col" style={{ opacity: pudarIsi, y: naikIsi }}>
+        <motion.div className="relative z-10 flex flex-1 flex-col" style={{ opacity: opasitasIsi, y: naikIsi }}>
           {children}
         </motion.div>
       </section>

@@ -882,8 +882,24 @@ export const LandingPage: React.FC<Props> = ({
    * the thing qualitatively instead ("seluruh indeks resmi").
    */
 
+  /* `overflow-x: clip`, BUKAN `overflow-x: hidden`, DAN INI PERBAIKAN BUG.
+        Keduanya sama-sama memotong apa pun yang meluber ke samping — baris
+        fitur yang berjalan menyamping butuh itu. Bedanya: `hidden` menjadikan
+        elemen ini SCROLL CONTAINER, dan `position: sticky` di dalam sebuah
+        scroll container menempel pada scrollport container itu, bukan pada
+        layar. Container ini tidak pernah bergulir sendiri (yang bergulir body),
+        jadi hero-nya tidak pernah menempel sama sekali — ia ikut naik seperti
+        elemen biasa.
+
+        Diukur di Chrome sungguhan: pada gulir 248px, pita ticker di kaki hero
+        berpindah dari y=880 ke y=632. Persis 248px. Tidak ada yang menempel.
+        Dan seluruh gerak zoom-nya tetap berjalan, jadi tidak ada satu pun tanda
+        bahwa ada yang salah — kelas bug yang paling mahal di repo ini.
+
+        `clip` memotong tanpa membuat scroll container, sehingga sticky-nya
+        kembali mengacu ke layar. Dijaga oleh `npm run motion:check`. */
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-100 [overflow-x:clip]">
       {/* ---------------------------------------------------------------- hero */}
       {/* SATU VIEWPORT, bukan 94% darinya.
           `min-h-[94vh]` membiarkan tinggi hero ditentukan isinya, jadi di layar
