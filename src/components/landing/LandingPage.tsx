@@ -32,6 +32,15 @@ import { IndexQuote } from '../../types/market';
 import { AccountUser } from '../../data/authClient';
 import { TERMINAL_FUNCTIONS, isRecentlyAdded } from '../../data/functions';
 import { CHART } from '../../theme/chart';
+import {
+  Accordion,
+  LineGraph,
+  NotificationsList,
+  ScrambleText,
+  ScrollZoomHero,
+  Typewriter,
+  VelocityRow,
+} from './motionKit';
 
 interface Props {
   db: MarketDatabase | null;
@@ -163,9 +172,21 @@ const SkylineBackdrop: React.FC<{ db: MarketDatabase | null }> = ({ db }) => {
       // angka yang berubah — hanya tempat duduknya. Dan bentuk yang dihasilkan
       // kebetulan bentuk yang benar: distrik bisnis memang tinggi di intinya dan
       // merendah ke pinggirannya, di Jakarta persis seperti di mana pun.
+      //
+      // TAPI TIDAK SIMETRIS SEMPURNA, dan itu perbaikan atas percobaan pertama.
+      // Melipat persis di tengah menaruh gedung ke-1 di kiri dan ke-2 di kanan
+      // pada ketinggian yang hampir sama, terus-menerus — dan karena akar
+      // pangkat tiga sudah memuluskan bedanya, hasilnya kubah simetris yang
+      // rapi. Itu tetap bukan kota; itu kurva lonceng. Sebuah goyangan
+      // deterministik sebesar beberapa slot merusak cerminnya tanpa merusak
+      // kecenderungannya, dan garis atapnya jadi bergerigi seperti garis langit
+      // sungguhan. Deterministik, bukan Math.random: latar yang menyusun ulang
+      // dirinya tiap kali jendelanya diubah ukurannya terbaca sebagai kedipan.
       const tengah = Math.floor(jumlah / 2);
+      const goyang = (k: number) => ((Math.sin(k * 12.9898) * 43758.5453) % 1 + 1) % 1;
       const slot = Array.from({ length: jumlah }, (_, k) => k).sort(
-        (a, b) => Math.abs(a - tengah) - Math.abs(b - tengah) || a - b
+        (a, b) =>
+          Math.abs(a - tengah) + goyang(a) * 9 - (Math.abs(b - tengah) + goyang(b) * 9) || a - b
       );
 
       for (let i = 0; i < jumlah; i++) {
@@ -822,6 +843,24 @@ export const LandingPage: React.FC<Props> = ({
   const strategy = useStrategyFacts();
 
   const composite = indices.find((i) => i.code === 'COMPOSITE');
+
+  /**
+   * Penutupan IHSG sepanjang jendela yang dipakai papan strategi.
+   *
+   * Kosong kalau salah satu bahannya belum ada, dan grafiknya ikut hilang.
+   * Menggambar SEBAGIAN jendela lalu tetap melabelinya "jendela ujinya" adalah
+   * bentuk kebohongan yang tidak akan pernah dilaporkan siapa pun: bentuknya
+   * masuk akal, angkanya masuk akal, dan yang salah cuma keterangannya.
+   */
+  const ihsgUji = useMemo(() => {
+    const s = db?.indexSeries.get('COMPOSITE');
+    if (!s || !strategy?.sessions) return [];
+    // `Array.from`, karena `close` sebuah Float64Array: `slice` di atasnya
+    // mengembalikan Float64Array lagi, bukan array biasa.
+    const n = Math.min(strategy.sessions, s.close.length);
+    return Array.from(s.close.slice(-n)).filter((v) => v > 0);
+  }, [db, strategy]);
+
   const ticker = useMemo(() => {
     if (!db) return [];
     return db.emiten
@@ -858,46 +897,50 @@ export const LandingPage: React.FC<Props> = ({
           kalimatnya, dan memangkas kalimatnya untuk memenuhi sebuah aturan tata
           letak adalah menukar isi dengan bentuk. Jadi `min-h` di ponsel, tinggi
           persis mulai dari `sm`. */}
-      <section className="relative flex min-h-[100svh] sm:h-[100svh] sm:min-h-[620px] flex-col overflow-hidden">
-        <div className="absolute inset-0 grid-glow opacity-40" aria-hidden="true" />
-        <div
-          className="absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(ellipse_at_top,rgba(255,167,51,0.07),transparent_62%)]"
-          aria-hidden="true"
-        />
+      <ScrollZoomHero
+        latar={
+          <>
+            <div className="absolute inset-0 grid-glow opacity-40" aria-hidden="true" />
+            <div
+              className="absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(ellipse_at_top,rgba(255,167,51,0.07),transparent_62%)]"
+              aria-hidden="true"
+            />
 
-        {/* URUTANNYA DIBALIK, dan itu seluruh perbaikannya.
-            Sebelumnya kota digambar dulu lalu bidang harga di atasnya, jadi 875
-            garis harga menyapu MELINTASI gedung-gedungnya dan keduanya berbaur
-            jadi kabut cokelat tanpa bentuk. Sekarang harga di belakang, kota di
-            depan dan pekat — gedungnya MENUTUPI garis yang lewat di belakangnya.
-            Oklusi itulah yang membuat mata membaca dua bidang datar sebagai
-            "jauh" dan "dekat", dan kedalaman itu yang membedakan sebuah komposisi
-            dari sebuah tekstur.
+            {/* URUTANNYA DIBALIK, dan itu seluruh perbaikannya.
+                Sebelumnya kota digambar dulu lalu bidang harga di atasnya, jadi 875
+                garis harga menyapu MELINTASI gedung-gedungnya dan keduanya berbaur
+                jadi kabut cokelat tanpa bentuk. Sekarang harga di belakang, kota di
+                depan dan pekat — gedungnya MENUTUPI garis yang lewat di belakangnya.
+                Oklusi itulah yang membuat mata membaca dua bidang datar sebagai
+                "jauh" dan "dekat", dan kedalaman itu yang membedakan sebuah komposisi
+                dari sebuah tekstur.
 
-            Bacaannya jadi jelas: langit adalah harga 962 emiten selama 180 sesi,
-            tanahnya kapitalisasi mereka hari ini. Data yang sama, dua bacaan,
-            saling menutupi seperti benda sungguhan. */}
-        <UniverseBackdrop db={db} />
-        <SkylineBackdrop db={db} />
+                Bacaannya jadi jelas: langit adalah harga 962 emiten selama 180 sesi,
+                tanahnya kapitalisasi mereka hari ini. Data yang sama, dua bacaan,
+                saling menutupi seperti benda sungguhan. */}
+            <UniverseBackdrop db={db} />
+            <SkylineBackdrop db={db} />
 
-        {/* VINYET, PENGGANTI DINDING HITAM.
-            Teks tetap harus menang atas latarnya — itu tidak berubah. Yang
-            berubah: peredamnya sekarang hanya menggelapkan elips di sekitar
-            kalimatnya, bukan seluruh lebar layar dari atas ke bawah. Kotanya
-            berdiri di luar elips itu dan tetap utuh. */}
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_58%_42%_at_50%_44%,rgba(3,3,5,0.96),rgba(3,3,5,0.78)_48%,transparent_76%)]"
-          aria-hidden="true"
-        />
-        {/* Dasar bingkai. Baris angka di kaki hero duduk di atas kota, dan tanpa
-            gelap sedikit di bawahnya angka-angka itu bertabrakan dengan jendela
-            yang menyala. Tingginya hanya 28 — cukup untuk mendudukkan barisnya,
-            tidak cukup untuk menghapus kotanya. */}
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent"
-          aria-hidden="true"
-        />
-
+            {/* VINYET, PENGGANTI DINDING HITAM.
+                Teks tetap harus menang atas latarnya — itu tidak berubah. Yang
+                berubah: peredamnya sekarang hanya menggelapkan elips di sekitar
+                kalimatnya, bukan seluruh lebar layar dari atas ke bawah. Kotanya
+                berdiri di luar elips itu dan tetap utuh. */}
+            <div
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_58%_42%_at_50%_44%,rgba(3,3,5,0.96),rgba(3,3,5,0.78)_48%,transparent_76%)]"
+              aria-hidden="true"
+            />
+            {/* Dasar bingkai. Baris angka di kaki hero duduk di atas kota, dan tanpa
+                gelap sedikit di bawahnya angka-angka itu bertabrakan dengan jendela
+                yang menyala. Tingginya hanya 28 — cukup untuk mendudukkan barisnya,
+                tidak cukup untuk menghapus kotanya. */}
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent"
+              aria-hidden="true"
+            />
+          </>
+        }
+      >
         <header className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
           <div className="flex items-center gap-3 animate-rise">
             {/* Bayangannya dulu biru di bawah kotak amber — dua warna yang
@@ -983,13 +1026,23 @@ export const LandingPage: React.FC<Props> = ({
             >
               Semua saham Indonesia,
               <br />
+              {/* YANG DIKETIK ULANG CUMA EKORNYA, dan itu keputusan yang disengaja.
+                  Contoh typewriter yang dirujuk mengganti SELURUH kalimatnya. Di
+                  sini itu akan menghapus pernyataan pokok halaman ini tiap dua
+                  detik, dan pengunjung yang mendarat di detik yang salah membaca
+                  kalimat yang bukan intinya. "Semua saham Indonesia," tetap diam;
+                  yang berganti empat cara mengucapkan janji yang sama — dan
+                  keempatnya klaim yang memang bisa ditagih di dalam terminalnya. */}
               {/* SATU baris serif, bukan seluruh judul.
                   Ketiga contoh memakai serif untuk seluruh headline. Di sini itu
                   akan melawan barisnya sendiri: baris pertama mono karena ia
                   menyebut semesta yang terhitung, baris kedua serif karena ia
                   sebuah janji. Kontras dua bentuk huruf itulah penekanannya —
                   bukan ukuran, bukan tebal. */}
-              <span className="font-serif italic tracking-[-0.02em] text-amber-400">plus alasannya.</span>
+              <Typewriter
+                className="font-serif italic tracking-[-0.02em] text-amber-400"
+                frasa={['plus alasannya.', 'plus sumbernya.', 'plus tanggal filingnya.', 'plus yang datanya kosong.']}
+              />
             </h1>
 
             <p
@@ -1094,11 +1147,15 @@ export const LandingPage: React.FC<Props> = ({
             </div>
           </div>
         )}
-      </section>
+      </ScrollZoomHero>
 
       {/* -------------------------------------------------------------- sikap */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">Kenapa dibikin</p>
+        <ScrambleText
+            as="div"
+            text="Kenapa dibikin"
+            className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-amber-400"
+          />
         <h2 className="mt-5 text-3xl sm:text-5xl font-semibold tracking-[-0.03em] leading-[1.06] text-balance text-slate-50">
           Kebanyakan alat saham sok tahu.
           <br className="hidden sm:block" />
@@ -1137,7 +1194,11 @@ export const LandingPage: React.FC<Props> = ({
       {/* --------------------------------------------------------- perbedaan */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <div className="text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">Bedanya di mana</p>
+          <ScrambleText
+            as="div"
+            text="Bedanya di mana"
+            className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-amber-400"
+          />
           <h2 className="mt-5 text-3xl sm:text-4xl font-semibold tracking-[-0.03em] text-balance text-slate-50">
             Dua cara bikin alat kayak gini
           </h2>
@@ -1187,7 +1248,11 @@ export const LandingPage: React.FC<Props> = ({
           <div className="rounded-lg border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-7 sm:p-10">
             <div className="flex items-center gap-2.5">
               <FlaskConical className="h-5 w-5 text-rose-300" aria-hidden="true" />
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-300">Papan strategi</p>
+              <ScrambleText
+                as="div"
+                text="Papan strategi"
+                className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-rose-300"
+              />
             </div>
             <div className="mt-5 grid gap-8 lg:grid-cols-[auto_1fr] lg:items-center">
               <div className="flex gap-8 sm:gap-12">
@@ -1215,6 +1280,30 @@ export const LandingPage: React.FC<Props> = ({
                 muat pemenang bikin "udah dicoba, nggak jalan" nggak kebedain sama "nggak pernah dicoba".
               </p>
             </div>
+
+            {/* GRAFIK GARIS: dipakai, tapi hanya karena ada yang benar untuk
+                digambar di sini. Michael menandainya "dipertimbangkan", dan
+                pertimbangannya begini — sebuah grafik berbentuk indah dengan
+                angka karangan, di halaman yang menjual "angkanya bisa dilacak ke
+                sumbernya", adalah kontradiksi yang paling gampang ditangkap
+                pembaca; sekali tertangkap, seluruh halaman ikut diragukan.
+
+                Yang digambar IHSG sungguhan sepanjang jendela yang persis dipakai
+                papan ini: kalau `strategy.sessions` ada, sebanyak itu; kalau
+                tidak, tidak ada grafik sama sekali. Jadi bentuknya menjawab
+                pertanyaan yang memang muncul membaca paragraf di atas — 148 ribu
+                rule set diuji DI PASAR YANG SEPERTI APA. */}
+            {ihsgUji.length > 2 && (
+              <div className="mt-8 border-t border-slate-800 pt-6">
+                <div className="flex items-baseline justify-between gap-4">
+                  <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                    IHSG · jendela ujinya
+                  </p>
+                  <p className="font-mono text-[11px] text-slate-600">{ihsgUji.length} sesi terakhir</p>
+                </div>
+                <LineGraph nilai={ihsgUji} className="mt-3" tinggi={84} warna={CHART.amber} />
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -1222,7 +1311,11 @@ export const LandingPage: React.FC<Props> = ({
       {/* ---------------------------------------------------------- fitur */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
         <div className="text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">Isinya apa aja</p>
+          <ScrambleText
+            as="div"
+            text="Isinya apa aja"
+            className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-amber-400"
+          />
           {/* Counted from the registry, never typed. The previous front page
               hardcoded its screen list and drifted until it was advertising a
               deleted screen and hiding six live ones; a number written by hand
@@ -1235,21 +1328,34 @@ export const LandingPage: React.FC<Props> = ({
           </p>
         </div>
 
-        <div className="mt-12 space-y-14 sm:space-y-20">
-          {GROUPS.map((g) => (
+        {/* DIJALANKAN MENYAMPING, dan itu justru soal PANJANG HALAMAN.
+            Sebelumnya empat kelompok kartu ditumpuk ke bawah: 2.345 piksel —
+            sepertiga tinggi seluruh halaman — untuk daftar yang tidak seorang
+            pun baca satu per satu sampai habis. Sembilan belas kartu yang sama,
+            dijalankan dalam empat baris menyamping, tingginya tinggal
+            seperlimanya dan tidak ada satu layar pun yang dibuang dari daftarnya.
+
+            Barisnya berjalan sendiri pelan, LALU IKUT KECEPATAN GULIR: menggulir
+            cepat membuatnya menyusul dan sedikit miring, menggulir ke atas
+            membalik arahnya. Keterkaitan dengan gulir itulah isi idenya — kalau
+            ia cuma "berjalan lebih cepat", ia sekadar marquee.
+
+            Arah tiap baris diselang-seling supaya matanya punya tempat berhenti;
+            empat baris yang berjalan searah terbaca sebagai satu blok bergerak. */}
+        <div className="mt-12 space-y-4">
+          {GROUPS.map((g, gi) => (
             <div key={g.key}>
-              <div className="max-w-3xl">
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600">{g.eyebrow}</p>
-                <h3 className="mt-3 text-2xl sm:text-3xl font-semibold tracking-[-0.025em] text-balance text-slate-100">{g.title}</h3>
-                <p className="mt-3 text-sm text-slate-400 leading-relaxed">{g.blurb}</p>
+              <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1">
+                <p className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600">{g.eyebrow}</p>
+                <h3 className="text-base font-semibold tracking-[-0.02em] text-slate-200">{g.title}</h3>
+                <p className="hidden text-[13px] text-slate-500 lg:block">{g.blurb}</p>
               </div>
 
-              <div className="mt-7 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 stagger">
-                {g.items.map((f, i) => (
+              <VelocityRow dasar={gi % 2 === 0 ? -2.6 : 2.6}>
+                {g.items.map((f) => (
                   <div
                     key={f.code}
-                    className="group rounded-lg border border-slate-800 bg-slate-900 p-5 transition-all duration-300 hover:border-slate-700 hover:bg-slate-900/70 animate-rise"
-                    style={{ ['--i' as string]: i }}
+                    className="group w-[268px] shrink-0 rounded-lg border border-slate-800 bg-slate-900 p-5 transition-colors duration-300 hover:border-slate-700"
                   >
                     <div className="flex items-center justify-between">
                       <div className="w-10 h-10 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
@@ -1267,10 +1373,13 @@ export const LandingPage: React.FC<Props> = ({
                         </span>
                       )}
                     </h4>
-                    <p className="mt-2 text-[13px] text-slate-400 leading-relaxed">{f.body}</p>
+                    {/* Dipangkas tiga baris. Kartu yang berjalan tidak bisa dibaca
+                        sampai paragraf keempat, dan kartu setinggi paragraf keempat
+                        mengembalikan tinggi yang baru saja dihemat. */}
+                    <p className="mt-2 line-clamp-3 text-[13px] text-slate-400 leading-relaxed">{f.body}</p>
                   </div>
                 ))}
-              </div>
+              </VelocityRow>
             </div>
           ))}
         </div>
@@ -1311,6 +1420,127 @@ export const LandingPage: React.FC<Props> = ({
                 angka pun di sini yang bilang sesuatu bakal naik.{' '}
                 <strong className="text-slate-400">Ini alat riset, bukan ajakan beli.</strong>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --------------------------------------------------- kiriman pagi + faq */}
+      {/* DUA-DUANYA DI SATU BARIS, dan itu lagi-lagi soal panjang halaman.
+          Ditumpuk, keduanya menambah dua layar penuh; bersebelahan, satu. Di
+          ponsel ia kembali menumpuk, karena dua kolom selebar 187px bukan tata
+          letak, itu kerusakan. */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+        <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+          <div>
+            <ScrambleText
+              as="div"
+              text="Yang masuk tiap pagi"
+              className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-amber-400"
+            />
+            <h2 className="mt-5 text-2xl sm:text-3xl font-semibold tracking-[-0.03em] text-balance text-slate-50">
+              Satu email, bukan lima aplikasi.
+            </h2>
+            <p className="mt-4 max-w-md text-sm text-slate-400 leading-relaxed">
+              Screener, radar peristiwa, dan pemeriksaan datanya dikirim sebagai satu kiriman jam 07.10 WIB.{' '}
+              <strong className="text-slate-200">Yang gagal ditaruh paling atas</strong> — laporan pagi yang mengubur
+              kegagalan di bawah kabar baik nggak ada gunanya.
+            </p>
+            {/* CONTOH, dan dilabeli contoh. Kartu di bawah ini BENTUK baris yang
+                sungguhan dikirim, bukan kiriman hari ini — memajang tiga baris
+                karangan tanpa keterangan, di halaman yang seluruh dalilnya
+                ketelusuran, adalah persis jenis detail yang menghancurkan
+                kepercayaan begitu satu pembaca mengeceknya. */}
+            <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.16em] text-slate-600">
+              Contoh bentuknya
+            </p>
+            <div className="mt-3">
+              <NotificationsList
+                items={[
+                  {
+                    ikon: <Radar className="h-4 w-4 text-amber-400" aria-hidden="true" />,
+                    judul: 'Radar · 3 emiten baru',
+                    badan: 'Ganti kendali, transaksi material, ganti identitas — semuanya belum gerak harganya.',
+                    waktu: '07.10',
+                  },
+                  {
+                    ikon: <Target className="h-4 w-4 text-emerald-400" aria-hidden="true" />,
+                    judul: 'Screener · momentum, 6 lolos',
+                    badan: 'Turun dari 962. Tiap yang gugur ada catatan gerbang mana yang menahannya.',
+                    waktu: '07.10',
+                  },
+                  {
+                    ikon: <ShieldCheck className="h-4 w-4 text-rose-400" aria-hidden="true" />,
+                    judul: 'Data · 1 feed basi',
+                    badan: 'Sesi resmi IDX ketinggalan 2 hari. Ditaruh di atas, bukan di catatan kaki.',
+                    waktu: '07.10',
+                  },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div>
+            <ScrambleText
+              as="div"
+              text="Yang sering ditanya"
+              className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-amber-400"
+            />
+            <h2 className="mt-5 text-2xl sm:text-3xl font-semibold tracking-[-0.03em] text-balance text-slate-50">
+              Termasuk yang jawabannya bikin nggak enak.
+            </h2>
+            <div className="mt-7">
+              <Accordion
+                items={[
+                  {
+                    q: 'Ini bisa kasih tahu saham mana yang bakal naik?',
+                    a: (
+                      <>
+                        Nggak, dan nggak ada satu angka pun di sini yang mengklaim begitu. Screener membaca harga,
+                        volume, nilai transaksi dan arus asing — semuanya masa lalu. Yang bisa dilakukan alat ini
+                        menyaring 962 emiten jadi segelintir dan menunjukkan <em>kenapa</em> sisanya gugur. Keputusan
+                        belinya tetap punya kamu.
+                      </>
+                    ),
+                  },
+                  {
+                    q: 'Radar peristiwa udah teruji?',
+                    a: (
+                      <>
+                        Belum, dan layarnya bilang begitu. Uji majunya berjalan sejak radar dipasang, dan sampai jumlah
+                        sampel efektifnya cukup, jawabannya ditulis <strong className="text-slate-300">"belum bisa
+                        dijawab"</strong> — bukan angka yang kelihatan meyakinkan dari dua belas kejadian yang saling
+                        tumpang tindih.
+                      </>
+                    ),
+                  },
+                  {
+                    q: 'Kenapa screener sering telat?',
+                    a: (
+                      <>
+                        Karena memang telat by construction: ketiga setup-nya butuh tren yang sudah ada. Itu sebabnya
+                        radar dibangun terpisah — ia membaca pengajuan ke bursa, bukan tapenya, dan justru{' '}
+                        <em>menolak</em> apa pun yang harganya sudah jalan.
+                      </>
+                    ),
+                  },
+                  {
+                    q: 'Datanya dari mana, dan seberapa sering diperbarui?',
+                    a: (
+                      <>
+                        Emiten, harga harian, indeks, arus asing dan keterbukaan informasi langsung dari API resmi IDX.
+                        Laporan keuangan dan harga live dari Yahoo, register kepemilikan dari KSEI. Sesi resmi ditarik
+                        tiap pagi; harga intraday tiap beberapa menit selama bursa buka. Kalau ada feed yang basi,
+                        angkanya tetap ditampilkan dengan tanggalnya, bukan disembunyikan.
+                      </>
+                    ),
+                  },
+                  {
+                    q: 'Perlu daftar dulu?',
+                    a: 'Nggak buat lihat. Seluruh data di halaman ini sudah dimuat tanpa akun. Akun cuma dipakai buat nyimpan watchlist dan model DCF/LBO kamu sendiri.',
+                  },
+                ]}
+              />
             </div>
           </div>
         </div>

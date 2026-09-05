@@ -247,6 +247,18 @@
     animation-delay: calc(var(--i, 0) * 55ms);
   }
 
+  /* Kursor efek ketik di judul halaman depan.
+     `steps(2)` bukan `ease`: kursor teletype berkedip PUTUS, tidak memudar.
+     Kursor yang memudar terbaca sebagai animasi opacity yang kebetulan
+     berbentuk garis, dan itu justru menghapus rujukan yang mau dibuat. */
+  @keyframes vp-caret {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .animate-caret {
+    animation: vp-caret 1.05s steps(2, jump-none) infinite;
+  }
+
   .grid-glow {
     background-image:
       linear-gradient(rgba(255, 158, 24, 0.05) 1px, transparent 1px),
