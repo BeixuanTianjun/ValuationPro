@@ -102,6 +102,7 @@ const SkylineBackdrop: React.FC<{ db: MarketDatabase | null }> = ({ db }) => {
     const cv = ref.current;
     if (!cv || !db) return;
 
+    const gambar = () => {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = cv.clientWidth;
     const h = cv.clientHeight;
@@ -125,40 +126,155 @@ const SkylineBackdrop: React.FC<{ db: MarketDatabase | null }> = ({ db }) => {
 
     const akar = (v: number) => Math.cbrt(v);
     const maks = akar(gedung[0].cap);
-    const LEBAR = Math.max(3, Math.round(w / Math.min(gedung.length, 220)));
-    const jumlah = Math.min(gedung.length, Math.ceil(w / LEBAR));
 
-    for (let i = 0; i < jumlah; i++) {
-      const g = gedung[i];
-      const x = i * LEBAR;
-      const tinggi = Math.max(6, (akar(g.cap) / maks) * h * 0.82);
-      const y = h - tinggi;
+    /**
+     * Gambar satu deret gedung.
+     *
+     * DUA DERET, DAN ITU YANG MEMBUATNYA TERBACA SEBAGAI KOTA. Percobaan
+     * pertama menggambar satu deret saja, dan satu deret siluet di atas latar
+     * rata tidak punya kedalaman apa pun: ia terbaca sebagai grafik batang yang
+     * digelapkan, bukan sebagai kota. Deret belakang digambar lebih pucat,
+     * lebih pendek dan digeser setengah gedung, jadi rooflinenya muncul di
+     * sela-sela deret depan — jarak, bukan hiasan. Kabut atmosfer itu satu-
+     * satunya alasan mata membaca dua benda gelap sebagai "jauh" dan "dekat".
+     */
+    const deret = (opts: {
+      dari: number;
+      lebar: number;
+      geser: number;
+      skala: number;
+      isi: string;
+      atap: string;
+      alfaJendela: number;
+      mast: boolean;
+    }) => {
+      const jumlah = Math.ceil((w + opts.lebar) / opts.lebar);
 
-      // Siluet gedungnya sendiri sengaja nyaris hitam. Yang boleh terbaca dari
-      // jauh cuma bentuk kotanya; warna datang dari jendelanya.
-      ctx.globalAlpha = 0.85;
-      ctx.fillStyle = CHART.tooltipBg;
-      ctx.fillRect(x, y, LEBAR - 1, tinggi);
+      // DILIPAT DARI TENGAH, bukan diurutkan dari kiri.
+      //
+      // Sebelumnya gedung terbesar ditaruh paling kiri lalu mengecil ke kanan.
+      // Itu urutan yang jujur dan bentuk yang salah: sebuah tangga yang turun
+      // rata dari kiri ke kanan terbaca sebagai DIAGRAM BATANG yang digelapkan,
+      // bukan sebagai kota — dan sebuah diagram batang yang menyamar jadi hiasan
+      // persis yang membuat sebuah halaman terbaca murah.
+      //
+      // Slot diurut berdasarkan jaraknya dari tengah, jadi kapitalisasi terbesar
+      // berdiri di tengah dan makin ke tepi makin rendah. Tidak ada satu pun
+      // angka yang berubah — hanya tempat duduknya. Dan bentuk yang dihasilkan
+      // kebetulan bentuk yang benar: distrik bisnis memang tinggi di intinya dan
+      // merendah ke pinggirannya, di Jakarta persis seperti di mana pun.
+      const tengah = Math.floor(jumlah / 2);
+      const slot = Array.from({ length: jumlah }, (_, k) => k).sort(
+        (a, b) => Math.abs(a - tengah) - Math.abs(b - tengah) || a - b
+      );
 
-      // Jendela. Kerapatannya tetap, jadi gedung tinggi punya lebih banyak —
-      // sebagaimana gedung tinggi memang punya lebih banyak.
-      const kolom = Math.max(1, Math.floor((LEBAR - 1) / 3));
-      const baris = Math.floor(tinggi / 6);
-      ctx.fillStyle = g.naik ? CHART.amber : CHART.tickMuted;
-      for (let b = 0; b < baris; b++) {
-        for (let k = 0; k < kolom; k++) {
-          // Sebagian jendela gelap. Sebuah gedung yang setiap jendelanya menyala
-          // terbaca sebagai tekstur, bukan sebagai gedung.
-          if (((i * 7 + b * 3 + k * 11) % 5) === 0) continue;
-          ctx.globalAlpha = g.naik ? 0.55 : 0.2;
-          ctx.fillRect(x + 1 + k * 3, y + 3 + b * 6, 1.4, 2);
+      for (let i = 0; i < jumlah; i++) {
+        const g = gedung[(opts.dari + i) % gedung.length];
+        const x = slot[i] * opts.lebar - opts.geser;
+        const tinggi = Math.max(8, (akar(g.cap) / maks) * h * opts.skala);
+        const y = h - tinggi;
+        const lb = opts.lebar - 1;
+
+        // PEKAT, bukan 0.85. Versi sebelumnya menggambar siluetnya semi-
+        // transparan DI ATAS bidang harga, jadi garis-garis harga tembus lewat
+        // gedungnya dan keduanya berlumur jadi satu noda. Sebuah siluet yang
+        // tidak menutupi apa pun bukan siluet.
+        ctx.fillStyle = opts.isi;
+        ctx.fillRect(x, y, lb, tinggi);
+
+        // Garis atap. Satu piksel, dan justru ini yang membuat kotaknya
+        // terbaca sebagai bangunan: tepi yang tegas memberi tahu mata di mana
+        // gedungnya berhenti dan langitnya mulai.
+        ctx.fillStyle = opts.atap;
+        ctx.fillRect(x, y, lb, 1);
+
+        // Mast di puncak beberapa menara terbesar. Detail kecil, tapi itu yang
+        // membedakan garis langit Jakarta dari sebuah histogram.
+        if (opts.mast && i < 9 && tinggi > h * 0.4) {
+          ctx.fillRect(x + Math.floor(lb / 2), y - Math.round(tinggi * 0.07), 1, Math.round(tinggi * 0.07));
         }
+
+        // Jendela. Kerapatannya tetap, jadi gedung tinggi punya lebih banyak —
+        // sebagaimana gedung tinggi memang punya lebih banyak.
+        const kolom = Math.max(1, Math.floor((lb - 2) / 4));
+        const baris = Math.floor((tinggi - 6) / 7);
+        ctx.fillStyle = g.naik ? CHART.amber : CHART.tickMuted;
+        for (let b = 0; b < baris; b++) {
+          for (let k = 0; k < kolom; k++) {
+            // Sebagian jendela gelap. Sebuah gedung yang setiap jendelanya
+            // menyala terbaca sebagai tekstur, bukan sebagai gedung.
+            if (((i * 7 + b * 3 + k * 11) % 5) === 0) continue;
+            ctx.globalAlpha = (g.naik ? 0.72 : 0.26) * opts.alfaJendela;
+            ctx.fillRect(x + 2 + k * 4, y + 5 + b * 7, 1.6, 2.4);
+          }
+        }
+        ctx.globalAlpha = 1;
       }
-    }
-    ctx.globalAlpha = 1;
+    };
+
+    const LEBAR = Math.max(6, Math.round(w / Math.min(gedung.length, 150)));
+    // Deret belakang MULAI di tempat deret depan berhenti. Versi pertama
+    // memberinya offset sembarang, dan itu menggambar puluhan emiten dua kali —
+    // sekali di depan, sekali di belakang gedungnya sendiri. Di halaman yang
+    // seluruh dalilnya "latarnya adalah datanya", satu gedung harus satu emiten.
+    const jumlahDepan = Math.ceil((w + LEBAR) / LEBAR);
+
+    // CAHAYA KOTA sebelum gedungnya, supaya ia terbit DARI BALIK deret belakang
+    // dan bukan mengambang di depannya. Tanpa ini kotanya duduk di atas hitam
+    // pekat dan seluruh bingkai kehilangan dasarnya — inilah yang sebelumnya
+    // membuat latarnya terbaca seperti noda gradasi, bukan seperti tempat.
+    const langit = ctx.createLinearGradient(0, h * 0.45, 0, h);
+    langit.addColorStop(0, 'rgba(255, 167, 51, 0)');
+    langit.addColorStop(1, 'rgba(255, 167, 51, 0.10)');
+    ctx.fillStyle = langit;
+    ctx.fillRect(0, h * 0.45, w, h * 0.55);
+
+    deret({
+      dari: jumlahDepan,
+      lebar: Math.round(LEBAR * 0.75),
+      geser: Math.round(LEBAR * 0.4),
+      skala: 0.64,
+      isi: '#131319',
+      atap: '#22222c',
+      alfaJendela: 0.45,
+      mast: false,
+    });
+    deret({
+      dari: 0,
+      lebar: LEBAR,
+      geser: 0,
+      skala: 0.92,
+      isi: '#07070a',
+      atap: '#2b2b36',
+      alfaJendela: 1,
+      mast: true,
+    });
+    };
+
+    // RESIZEOBSERVER, DAN INI PERBAIKAN BUG YANG PALING MAHAL DI BERKAS INI.
+    //
+    // Versi sebelumnya menggambar sekali, di dalam efek yang bergantung pada
+    // `[db]` saja, dan menyerah diam-diam kalau `clientWidth` masih nol:
+    // `if (!w || !h) return;`. Tapi `db` selesai dimuat pada tick yang sering
+    // MENDAHULUI layout kanvasnya. Ketika itu terjadi — dan diukur di sini, itu
+    // terjadi pada muat ulang biasa — efeknya bailout, `db` tidak pernah berubah
+    // lagi, dan LATARNYA TIDAK PERNAH DIGAMBAR SAMA SEKALI. Kanvasnya tetap
+    // 300x150, ukuran bawaan yang tidak pernah disentuh.
+    //
+    // Kelas bug khas repo ini: tidak ada yang dilempar, konsolnya bersih, dan
+    // gejalanya cuma halaman depan yang kadang punya latar dan kadang tidak.
+    // Halaman yang latarnya hilang separuh waktu memang akan terbaca murah.
+    //
+    // ResizeObserver menyelesaikan keduanya sekaligus: ia menyala begitu
+    // elemennya PUNYA ukuran (jadi urutan layout tidak lagi jadi undian), dan
+    // menggambar ulang saat jendelanya diubah ukurannya — yang dulu menyisakan
+    // bitmap lama yang dimulurkan.
+    const ro = new ResizeObserver(gambar);
+    ro.observe(cv);
+    return () => ro.disconnect();
   }, [db]);
 
-  return <canvas ref={ref} className="absolute inset-x-0 bottom-0 h-[52vh] w-full" aria-hidden="true" />;
+  return <canvas ref={ref} className="absolute inset-x-0 bottom-0 h-[58vh] w-full" aria-hidden="true" />;
 };
 
 /**
@@ -219,8 +335,8 @@ const UniverseBackdrop: React.FC<{ db: MarketDatabase | null }> = ({ db }) => {
     const JENDELA = 180;
     const TITIK = 120;
 
-    const jalur: Float32Array[] = [];
-    for (const [, s] of db.series) {
+    const jalur: { p: Float32Array; nilai: number }[] = [];
+    for (const [kode, s] of db.series) {
       const n = s.close.length;
       const mulai = Math.max(0, n - JENDELA);
       let lo = Infinity;
@@ -244,16 +360,40 @@ const UniverseBackdrop: React.FC<{ db: MarketDatabase | null }> = ({ db }) => {
         p[k] = v > 0 ? (v - lo) / (hi - lo) : NaN;
         if (v > 0) terisi++;
       }
-      if (terisi > TITIK * 0.6) jalur.push(p);
+      if (terisi > TITIK * 0.6) jalur.push({ p, nilai: db.daily.get(kode)?.value ?? 0 });
     }
 
+    // DIURUTKAN BERDASARKAN NILAI TRANSAKSI, dan yang paling ramai digambar
+    // PALING AKHIR — di atas yang lain — dengan alfa jauh lebih tinggi.
+    //
+    // Delapan ratus tujuh puluh lima garis pada alfa yang sama menghasilkan
+    // kabut rata: tidak satu pun jalur bisa diikuti mata, jadi seluruh bidang
+    // berhenti terbaca sebagai harga dan mulai terbaca sebagai butiran film
+    // atau goresan lensa. Itu tekstur stok, dan tekstur stok justru hal yang
+    // paling cepat membuat halaman terasa murah — persis yang mau dihindari.
+    //
+    // Yang dipakai sekarang dua bacaan sekaligus: SELURUH semesta tetap
+    // digambar sebagai kabut tipis, lalu tujuh puluh nama paling ramai
+    // digambar lagi cukup terang untuk benar-benar bisa DIIKUTI satu per satu.
+    // Jadi bidangnya punya kedalaman dan punya sesuatu untuk dilihat, tanpa
+    // satu pun emiten dibuang dari gambarnya.
+    jalur.sort((a, b) => a.nilai - b.nilai);
+    const AMBANG_TERANG = Math.max(0, jalur.length - 70);
+
     const gambarKelompok = (ctx: CanvasRenderingContext2D, w: number, h: number, dari: number, sampai: number) => {
-      ctx.lineWidth = 0.7;
       ctx.lineJoin = 'round';
       ctx.strokeStyle = CHART.amber;
       for (let j = dari; j < sampai && j < jalur.length; j++) {
-        const p = jalur[j];
-        ctx.globalAlpha = 0.016;
+        const { p } = jalur[j];
+        // 0,016 adalah angka yang dipilih untuk menyelamatkan kota dari bidang
+        // harga yang menenggelamkannya. Ternyata itu memperbaiki hal yang salah:
+        // yang menenggelamkan kota bukan kepadatan jalurnya, melainkan peredam
+        // hitam yang dipasang di atas keduanya. Sekarang kotanya PEKAT dan
+        // menutupi jalur yang lewat di belakangnya, jadi bidang harga boleh
+        // kembali cukup terang untuk benar-benar terlihat sebagai langit.
+        const terang = j >= AMBANG_TERANG;
+        ctx.globalAlpha = terang ? 0.11 : 0.02;
+        ctx.lineWidth = terang ? 1 : 0.7;
         ctx.beginPath();
         let mulaiBaru = true;
         for (let k = 0; k < TITIK; k++) {
@@ -276,8 +416,53 @@ const UniverseBackdrop: React.FC<{ db: MarketDatabase | null }> = ({ db }) => {
       ctx.globalAlpha = 1;
     };
 
-    const siap = siapkan();
-    if (!siap) return;
+    /**
+     * Hapus tepi atas bidangnya.
+     *
+     * Tiap jalur dinormalkan ke 0..1, jadi SEMUA puncaknya mendarat di
+     * ketinggian yang sama dan bidangnya berhenti pada satu garis mendatar yang
+     * tegas selebar layar. Garis itu tidak menandakan apa pun — ia artefak
+     * normalisasi — dan sebuah tepi lurus sempurna yang tidak berarti apa-apa
+     * persis jenis detail yang membuat sebuah latar terbaca sebagai tempelan.
+     *
+     * `destination-out` menghapus piksel yang sudah ada alih-alih mengecatnya
+     * hitam. Bedanya penting: mengecat hitam akan menutupi kota yang berdiri di
+     * kanvas lain di depannya kalau urutannya suatu saat berubah, sedangkan
+     * menghapus meninggalkan kanvas ini benar-benar transparan di atas.
+     */
+    const lembutkanAtas = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+      const g = ctx.createLinearGradient(0, 0, 0, h * 0.42);
+      g.addColorStop(0, 'rgba(0,0,0,1)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h * 0.42);
+      ctx.globalCompositeOperation = 'source-over';
+    };
+
+    // Sama seperti di skyline: kanvas ini juga bisa belum punya ukuran ketika
+    // `db` selesai dimuat, dan `siapkan()` mengembalikan null tanpa mengeluh.
+    // ResizeObserver-lah yang memastikan gambar pertamanya terjadi begitu
+    // elemennya punya ukuran, dan menggambar ulang kalau jendelanya berubah —
+    // tanpa itu, mengubah lebar jendela hanya memulurkan bitmap lama.
+    let ro: ResizeObserver | null = null;
+    let sudah = false;
+    const mulai = () => {
+      const siap = siapkan();
+      if (!siap) return;
+      if (sudah) {
+        // Gambar ulang setelah resize: sekaligus, tanpa animasi. Bidang yang
+        // memperkenalkan dirinya lagi setiap kali jendelanya digeser bukan
+        // sambutan, itu gangguan.
+        gambarKelompok(siap.ctx, siap.w, siap.h, 0, jalur.length);
+        lembutkanAtas(siap.ctx, siap.w, siap.h);
+        return;
+      }
+      sudah = true;
+      jalankan(siap);
+    };
+
+    const jalankan = (siap: { ctx: CanvasRenderingContext2D; w: number; h: number }) => {
 
     // TAB TERSEMBUNYI TIDAK MENJALANKAN requestAnimationFrame, dan itu bukan
     // kasus pinggiran: membuka tautan di tab latar adalah cara paling biasa
@@ -290,6 +475,7 @@ const UniverseBackdrop: React.FC<{ db: MarketDatabase | null }> = ({ db }) => {
     // itu digambar sekaligus, dan sudah siap begitu tabnya dilihat.
     if (diam || document.hidden) {
       gambarKelompok(siap.ctx, siap.w, siap.h, 0, jalur.length);
+      lembutkanAtas(siap.ctx, siap.w, siap.h);
       return;
     }
 
@@ -299,31 +485,36 @@ const UniverseBackdrop: React.FC<{ db: MarketDatabase | null }> = ({ db }) => {
       if (!alive) return;
       gambarKelompok(siap.ctx, siap.w, siap.h, kursor, kursor + PER_BINGKAI);
       kursor += PER_BINGKAI;
+      // Pelembutan tepi dijalankan SEKALI di akhir, bukan tiap bingkai:
+      // `destination-out` menghapus apa yang sudah ada, jadi memanggilnya dua
+      // puluh kali akan menggerus kelompok-kelompok awal sampai habis sementara
+      // kelompok terakhir nyaris utuh — gradasi palsu yang mengikuti urutan
+      // gambar, bukan tinggi.
       if (kursor < jalur.length) raf = requestAnimationFrame(langkah);
+      else lembutkanAtas(siap.ctx, siap.w, siap.h);
     };
     raf = requestAnimationFrame(langkah);
+    };
+
+    ro = new ResizeObserver(mulai);
+    ro.observe(cv);
 
     return () => {
       alive = false;
+      ro?.disconnect();
       cancelAnimationFrame(raf);
     };
   }, [db]);
 
-  return (
-    <>
-      <canvas ref={ref} className="absolute inset-x-0 bottom-0 h-[58vh] w-full" aria-hidden="true" />
-      {/* PEREDAM. 875 jalur yang saling menumpuk menutup 80% bidang, dan pada
-          kepadatan itu ia berhenti menjadi tekstur dan mulai bersaing dengan
-          kalimat di atasnya — subhead-nya benar-benar tenggelam pada percobaan
-          pertama. Gradasi ini menggelapkan bagian ATAS bidang, tempat teks
-          berada, dan membiarkan bagian bawah tetap terbaca sebagai bidang.
-          Latar yang membuat teksnya susah dibaca bukan latar yang mahal. */}
-      <div
-        className="absolute inset-x-0 bottom-0 h-[58vh] bg-gradient-to-t from-transparent via-slate-950/55 to-slate-950"
-        aria-hidden="true"
-      />
-    </>
-  );
+  // PEREDAMNYA DIPINDAH KE HERO, dan itu perbaikan bug, bukan penataan ulang.
+  // Peredam lama sebuah gradasi selebar layar yang bagian ATASnya `to-slate-950`
+  // alias hitam pekat — dipasang di atas bidang setinggi 58vh yang di dalamnya
+  // ada seluruh kota. Hasilnya persis yang terlihat di layar: dua lapis data
+  // digambar dengan susah payah, lalu separuh atasnya dicat hitam dan sisanya
+  // menjadi noda samar di sudut bawah. Sebuah latar yang setengah terhapus
+  // terbaca sebagai kecelakaan render, dan kecelakaan render terbaca sebagai
+  // murah. Penggantinya vinyet di sekitar teks saja — lihat hero di bawah.
+  return <canvas ref={ref} className="absolute inset-x-0 bottom-0 h-[56vh] w-full" aria-hidden="true" />;
 };
 
 /**
@@ -674,13 +865,38 @@ export const LandingPage: React.FC<Props> = ({
           aria-hidden="true"
         />
 
-        {/* TIGA LAPIS, dari bawah ke atas: kota, harga, peredam.
-            Skyline memberi bentuk bursa hari ini — beberapa menara, ekor panjang
-            gedung pendek. Bidang harga di atasnya memberi geraknya. Keduanya
-            data yang sama dibaca dua cara, dan itu sebabnya keduanya boleh
-            berdiri bersamaan tanpa saling menjadi hiasan. */}
-        <SkylineBackdrop db={db} />
+        {/* URUTANNYA DIBALIK, dan itu seluruh perbaikannya.
+            Sebelumnya kota digambar dulu lalu bidang harga di atasnya, jadi 875
+            garis harga menyapu MELINTASI gedung-gedungnya dan keduanya berbaur
+            jadi kabut cokelat tanpa bentuk. Sekarang harga di belakang, kota di
+            depan dan pekat — gedungnya MENUTUPI garis yang lewat di belakangnya.
+            Oklusi itulah yang membuat mata membaca dua bidang datar sebagai
+            "jauh" dan "dekat", dan kedalaman itu yang membedakan sebuah komposisi
+            dari sebuah tekstur.
+
+            Bacaannya jadi jelas: langit adalah harga 962 emiten selama 180 sesi,
+            tanahnya kapitalisasi mereka hari ini. Data yang sama, dua bacaan,
+            saling menutupi seperti benda sungguhan. */}
         <UniverseBackdrop db={db} />
+        <SkylineBackdrop db={db} />
+
+        {/* VINYET, PENGGANTI DINDING HITAM.
+            Teks tetap harus menang atas latarnya — itu tidak berubah. Yang
+            berubah: peredamnya sekarang hanya menggelapkan elips di sekitar
+            kalimatnya, bukan seluruh lebar layar dari atas ke bawah. Kotanya
+            berdiri di luar elips itu dan tetap utuh. */}
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_58%_42%_at_50%_44%,rgba(3,3,5,0.96),rgba(3,3,5,0.78)_48%,transparent_76%)]"
+          aria-hidden="true"
+        />
+        {/* Dasar bingkai. Baris angka di kaki hero duduk di atas kota, dan tanpa
+            gelap sedikit di bawahnya angka-angka itu bertabrakan dengan jendela
+            yang menyala. Tingginya hanya 28 — cukup untuk mendudukkan barisnya,
+            tidak cukup untuk menghapus kotanya. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent"
+          aria-hidden="true"
+        />
 
         <header className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
           <div className="flex items-center gap-3 animate-rise">
