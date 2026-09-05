@@ -191,6 +191,156 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
+  // 1b. BIDANG ASTEROID: hidup, bereaksi ke kursor, dan ikut waktu digulir.
+  //
+  // Ketiganya diperiksa dengan MEMBANDINGKAN PIKSEL, bukan dengan membaca sebuah
+  // nilai. Kanvas tidak punya gaya yang bisa dibaca — isinya cuma piksel — jadi
+  // satu-satunya bukti bahwa ia benar-benar berubah adalah gambarnya berubah.
+  //
+  // Kursornya digerakkan lewat CDP (mouse sungguhan), bukan dengan mengirim
+  // event mousemove buatan: yang buatan akan lulus bahkan kalau kanvasnya
+  // ternyata menelan pointer atau pendengarnya dipasang di elemen yang salah.
+  // -------------------------------------------------------------------------
+  {
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.waitForTimeout(400);
+
+    const kanvas = page.locator('canvas[data-vp="asteroid"]');
+    const ada = (await kanvas.count()) > 0;
+    cek('bidang asteroid ada di hero', ada, 'canvas[data-vp=asteroid] tidak ditemukan');
+
+    if (ada) {
+      // Sidik jari isi kanvas: dibaca dari kanvasnya sendiri, jadi perubahan
+      // pada lapisan lain tidak bisa membuat vonis ini lulus secara keliru.
+      const sidik = () =>
+        page.evaluate(() => {
+          const c = document.querySelector('canvas[data-vp="asteroid"]');
+          const g = c.getContext('2d');
+          const d = g.getImageData(0, 0, c.width, c.height).data;
+          let jumlah = 0;
+          let isi = 0;
+          // Dicicip tiap 40 piksel: cukup untuk menangkap perubahan, cukup
+          // murah untuk dijalankan berkali-kali.
+          for (let i = 0; i < d.length; i += 160) {
+            jumlah += d[i] + d[i + 1] * 3 + d[i + 2] * 7;
+            if (d[i + 3] > 6) isi++;
+          }
+          return { jumlah, isi };
+        });
+
+      const a0 = await sidik();
+      cek('asteroidnya benar-benar tergambar', a0.isi > 200, `hanya ${a0.isi} piksel terisi`);
+
+      // (a) HIDUP SENDIRI — hanyut dan berputar tanpa disentuh apa pun.
+      await page.waitForTimeout(700);
+      const a1 = await sidik();
+      cek('asteroid bergerak sendiri tanpa disentuh', a1.jumlah !== a0.jumlah, `sidik tetap ${a0.jumlah}`);
+
+      // (b) BEREAKSI KE KURSOR.
+      //
+      // Diukur HANYA di sekitar kursornya, dan itu yang membuat vonis ini
+      // berarti. Versi pertama membandingkan sidik jari SELURUH kanvas dengan
+      // kursor dekat lawan kursor jauh — dan gagal, bukan karena dorongannya
+      // tidak ada, melainkan karena seluruh bidang memang hanyut sendiri
+      // sepanjang waktu. Perubahan akibat hanyut di 1.440x900 piksel dengan
+      // mudah menenggelamkan perubahan akibat dorongan yang jangkauannya cuma
+      // 128 piksel. Vonis itu mengukur kebisingan, bukan efeknya.
+      //
+      // Yang dihitung sekarang piksel terisi di dalam cakram kecil tepat di
+      // bawah kursor. Dorongannya menyingkirkan batu KELUAR dari cakram itu,
+      // jadi tandanya jelas dan searah: jumlahnya harus TURUN.
+      const cakram = (cx, cy, r) =>
+        page.evaluate(
+          ([x, y, jari]) => {
+            const c = document.querySelector('canvas[data-vp="asteroid"]');
+            const s = c.width / c.clientWidth; // dpr
+            const g = c.getContext('2d');
+            const px = Math.round(x * s);
+            const py = Math.round(y * s);
+            const rr = Math.round(jari * s);
+            const d = g.getImageData(px - rr, py - rr, rr * 2, rr * 2).data;
+            let isi = 0;
+            for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 6) isi++;
+            return isi;
+          },
+          [cx, cy, r]
+        );
+
+      const TITIK_X = 720;
+      const TITIK_Y = 420;
+      // Dirata-ratakan tiga cuplikan di tiap keadaan: hanyutnya tetap berjalan,
+      // dan satu cuplikan tunggal bisa jatuh pada saat yang kebetulan sepi.
+      const rata = async (n) => {
+        let jml = 0;
+        for (let i = 0; i < n; i++) {
+          jml += await cakram(TITIK_X, TITIK_Y, 70);
+          await page.waitForTimeout(140);
+        }
+        return jml / n;
+      };
+
+      await page.mouse.move(30, 30);
+      await page.waitForTimeout(700);
+      const isiTanpaKursor = await rata(3);
+
+      // Digerakkan bertahap: satu lompatan tunggal menghasilkan satu event, dan
+      // dorongannya diakumulasi per bingkai dari jarak kursor — beberapa langkah
+      // kecil meniru tangan sungguhan yang berhenti di sana.
+      for (let i = 0; i < 6; i++) {
+        await page.mouse.move(TITIK_X + i, TITIK_Y + i);
+        await page.waitForTimeout(70);
+      }
+      const isiDenganKursor = await rata(3);
+
+      cek(
+        'asteroid tersingkir ketika kursor mendekat',
+        isiDenganKursor < isiTanpaKursor * 0.9,
+        `piksel terisi di sekitar kursor: ${isiTanpaKursor.toFixed(0)} tanpa kursor -> ` +
+          `${isiDenganKursor.toFixed(0)} dengan kursor (harus turun >10%)`
+      );
+
+      await page.mouse.move(30, 30);
+      await page.waitForTimeout(300);
+
+      // (c) IKUT WAKTU DIGULIR.
+      //
+      // DIBANDINGKAN DENGAN JEDA YANG SAMA TANPA GULIR, dan itu seluruh isi
+      // vonis ini. Versi pertama cuma memeriksa "sidik jarinya berubah setelah
+      // digulir" — dan itu LULUS bahkan setelah pengikutan gulirnya dimatikan
+      // sepenuhnya, karena bidangnya memang hanyut sendiri sepanjang waktu.
+      // Sebuah vonis yang lulus pada kode yang rusak lebih buruk daripada tidak
+      // ada vonis: ia membuat orang berhenti memeriksa.
+      //
+      // Yang dibandingkan sekarang BESAR perubahan pada dua jendela waktu yang
+      // sama panjang — satu digulir 300px di tengahnya, satu tidak. Menggulir
+      // 300px menggeser tiap batu puluhan piksel; hanyut selama 350ms
+      // menggesernya kurang dari satu piksel.
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+      await page.waitForTimeout(400);
+
+      const s0 = await sidik();
+      await page.waitForTimeout(350);
+      const s1 = await sidik();
+      const hanyutSaja = Math.abs(s1.jumlah - s0.jumlah);
+
+      const s2 = await sidik();
+      await page.evaluate(() => window.scrollTo({ top: 300, behavior: 'instant' }));
+      await page.waitForTimeout(350);
+      const s3 = await sidik();
+      const denganGulir = Math.abs(s3.jumlah - s2.jumlah);
+
+      cek(
+        'bidang asteroid ikut bergeser waktu digulir',
+        denganGulir > hanyutSaja * 1.6,
+        `perubahan saat digulir ${denganGulir} vs hanyut saja pada jeda yang sama ${hanyutSaja}`
+      );
+
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+      await page.waitForTimeout(250);
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // 2. JUDUL YANG MENGETIK.
   // -------------------------------------------------------------------------
   {
