@@ -15,6 +15,7 @@
 //     table on a 390px screen is unreadable at any font size.
 
 import React from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 
 export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ');
 
@@ -31,11 +32,43 @@ interface PanelProps {
   as?: 'div' | 'section' | 'article';
 }
 
+/**
+ * MASUKNYA PANEL DIANIMASIKAN, sekali, waktu ia dipasang.
+ *
+ * Ini yang membuat terminalnya terbaca tua sebelum ini: mengganti tab membuat
+ * dua puluh panel MUNCUL SEKALIGUS, sempurna, dalam satu bingkai. Tidak ada
+ * yang salah dengannya — dan justru itu yang salah. Layar yang berubah tanpa
+ * satu pun tanda peralihan terbaca seperti halaman yang di-refresh, bukan
+ * seperti aplikasi yang berpindah.
+ *
+ * Delapan piksel dan 0,22 detik, dan tidak lebih. Panel di sini memuat kolom
+ * angka yang dibaca dengan memindai, dan apa pun yang lebih panjang berarti
+ * pengguna menunggu datanya berhenti bergerak sebelum bisa membacanya — yaitu
+ * animasi yang membuat alatnya lebih lambat dipakai demi terlihat lebih baru.
+ * Tidak ada stagger antar-panel karena alasan yang sama.
+ *
+ * CSS, BUKAN MOTION. Versi pertama memakai `motion.section` dengan
+ * `initial: { opacity: 0 }`, dan itu berarti tujuh puluh sembilan komponen
+ * beranimasi-JavaScript di layar yang tugasnya menggambar ratusan sel angka.
+ * Untuk satu gerak masuk sepanjang 0,22 detik yang tidak pernah diinterupsi dan
+ * tidak pernah diubah di tengah jalan, itu ongkos yang tidak dibayar apa pun —
+ * keyframe CSS melakukan hal yang persis sama dan tidak menambah satu pun kerja
+ * per bingkai setelah selesai.
+ *
+ * Yang perlu dicatat jujur: kedua pendekatan sama-sama BEKU di tab yang tidak
+ * digambar browser. Diukur di panel pratinjau tempat ini diuji, rAF tidak pernah
+ * menyala sama sekali (nol panggilan), dan panel ber-`opacity: 0` memang tinggal
+ * tak terlihat — animasi CSS maupun Motion. Keduanya pulih begitu tabnya
+ * terlihat, jadi ini bukan alasan memilih salah satunya; alasannya jumlah
+ * komponen di atas.
+ */
+
 export const Panel: React.FC<PanelProps> = ({ children, className, tone = 'raised', padded = true, as = 'section' }) => {
   const Tag = as;
   return (
     <Tag
       className={cx(
+        'animate-panel',
         'rounded-xl sm:rounded-2xl border overflow-hidden',
         tone === 'raised' && 'border-slate-800 bg-slate-900',
         tone === 'flat' && 'border-slate-800 bg-slate-950',
@@ -125,6 +158,23 @@ export function Segmented<T extends string>({
   const navRef = React.useRef<HTMLElement | null>(null);
   const activeRef = React.useRef<HTMLButtonElement | null>(null);
   const [edges, setEdges] = React.useState({ left: false, right: false });
+  const uid = React.useId();
+  const diam = useReducedMotion();
+
+  // `activeClass` selalu memuat DUA hal sekaligus di seluruh pemanggilnya —
+  // warna latar plus warna teks, misalnya 'bg-emerald-600 text-white shadow-md'.
+  // Sejak pil aktifnya jadi elemen tersendiri yang meluncur, keduanya harus
+  // dipisah: latar dan bayangan menempel pada pilnya, warna teks tetap pada
+  // tombolnya. Dipisah dengan aturan sederhana — apa pun yang diawali `text-`
+  // milik teks — supaya tiap pemanggil yang sudah ada tetap terlihat sama persis
+  // tanpa satu pun perlu diubah.
+  const { warnaTeksAktif, warnaLatarAktif } = React.useMemo(() => {
+    const bagian = activeClass.split(/\s+/).filter(Boolean);
+    return {
+      warnaTeksAktif: bagian.filter((c) => c.startsWith('text-')).join(' ') || 'text-white',
+      warnaLatarAktif: bagian.filter((c) => !c.startsWith('text-')).join(' '),
+    };
+  }, [activeClass]);
 
   const measure = React.useCallback(() => {
     const el = navRef.current;
@@ -214,22 +264,53 @@ export function Segmented<T extends string>({
               onClick={() => onChange(id)}
               aria-current={on ? 'page' : undefined}
               className={cx(
-                'flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg font-bold whitespace-nowrap snap-start',
+                'relative flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg font-bold whitespace-nowrap snap-start',
                 'transition-colors duration-200 cursor-pointer touch-target',
                 fill && 'flex-1',
                 size === 'sm' ? 'px-2.5 py-2 text-[11px]' : 'px-3 sm:px-4 py-2 text-[11px] sm:text-xs',
-                on ? activeClass : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+                on ? warnaTeksAktif : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
               )}
             >
-              {Icon && <Icon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
-              <span className={shortLabel ? 'hidden sm:inline' : undefined}>{label}</span>
-              {shortLabel && <span className="sm:hidden">{shortLabel}</span>}
-              {badge != null && badge !== '' && (
-                <span className="ml-0.5 rounded bg-black/25 px-1.5 py-0.5 text-[10px] tabular-nums">{badge}</span>
+              {/* PIL YANG MELUNCUR, bukan latar yang berpindah seketika.
+                  `layoutId` yang sama dipakai seluruh tombol di satu baris, jadi
+                  Motion memperlakukan pil ini sebagai SATU benda yang berpindah
+                  tempat — bukan satu yang hilang dan satu lagi muncul. Itu bedanya
+                  antara tab yang terasa 2016 dan tab yang terasa sekarang, dan
+                  ongkosnya satu elemen.
+
+                  ID-nya diambil dari useId, bukan string tetap: ada beberapa baris
+                  Segmented hidup bersamaan di layar yang sama, dan layoutId yang
+                  sama di dua baris membuat pilnya terbang menyeberangi layar dari
+                  baris satu ke baris lain waktu tabnya diganti. */}
+              {on && !diam && (
+                <motion.span
+                  layoutId={`vp-seg-${uid}`}
+                  className={cx('absolute inset-0 rounded-lg', warnaLatarAktif)}
+                  transition={{ type: 'spring', stiffness: 520, damping: 42, mass: 0.7 }}
+                  aria-hidden="true"
+                />
               )}
-              {isNew && !on && (
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" aria-label="baru" />
+              {/* Gerak dimatikan: pilnya tetap ada, hanya tidak meluncur. Tab
+                  aktif yang kehilangan latarnya sama sekali bukan "tanpa animasi",
+                  itu kontrol yang rusak. */}
+              {on && diam && (
+                <span className={cx('absolute inset-0 rounded-lg', warnaLatarAktif)} aria-hidden="true" />
               )}
+
+              {/* Isi tombol harus di ATAS pilnya. Tanpa `relative` di sini, teks
+                  dan ikonnya digambar di bawah latar yang baru saja dipasang dan
+                  tab aktif jadi kotak polos tanpa tulisan. */}
+              <span className="relative flex items-center gap-1.5 sm:gap-2">
+                {Icon && <Icon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
+                <span className={shortLabel ? 'hidden sm:inline' : undefined}>{label}</span>
+                {shortLabel && <span className="sm:hidden">{shortLabel}</span>}
+                {badge != null && badge !== '' && (
+                  <span className="ml-0.5 rounded bg-black/25 px-1.5 py-0.5 text-[10px] tabular-nums">{badge}</span>
+                )}
+                {isNew && !on && (
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" aria-label="baru" />
+                )}
+              </span>
             </button>
           );
         })}

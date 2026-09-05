@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useState, useMemo } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Header, MobileTabBar } from './components/layout/Header';
 import { ActiveModelTab } from './types/common';
 import { DEAL_PRESETS } from './presets/deals';
@@ -339,12 +340,32 @@ export default function App() {
       {authModal}
       {curtain}
 
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 border border-emerald-400/40 animate-bounce">
-          <Check className="w-4 h-4" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
+      {/* TOAST.
+          Dulu `animate-bounce` — kelas bawaan Tailwind yang memantulkan kotaknya
+          naik-turun tanpa henti selama 3,8 detik. Itu satu elemen paling cepat
+          membuat sebuah aplikasi terbaca tua: gerak yang terus berulang, tidak
+          menandakan apa pun, dan tidak pernah selesai. Sebuah pemberitahuan
+          hanya perlu MASUK sekali, diam, lalu pergi.
+
+          `AnimatePresence` dipakai supaya keluarnya juga teranimasi. Tanpa itu
+          elemennya di-unmount seketika oleh React dan toast-nya menghilang
+          begitu saja — masuk halus, hilang kedip, yang justru menonjolkan
+          bagian yang tidak halus. */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.8 }}
+            className="fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-2.5 rounded-xl border border-emerald-400/40 bg-emerald-600 px-4 py-3 text-xs font-semibold text-white shadow-2xl"
+            role="status"
+          >
+            <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Header
         activeTab={activeTab}

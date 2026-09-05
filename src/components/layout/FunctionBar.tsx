@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { LayoutGrid, Terminal } from 'lucide-react';
 import { TerminalFunction, findFunction } from '../../data/functions';
 import { cx } from '../common/ui';
+import { ScrambleText } from '../landing/motionKit';
 
 interface Props {
   active: TerminalFunction | null;
@@ -70,12 +71,34 @@ export const FunctionBar: React.FC<Props> = ({ active, onOpenMenu, onRun, childr
           Menu
         </button>
 
+        {/* KODE DAN NAMA FUNGSINYA MENGACAK TIAP KALI LAYARNYA GANTI.
+            Dari semua tempat efek scramble bisa dipasang, ini yang paling
+            beralasan: baris ini SATU-SATUNYA yang mengatakan "kamu sekarang ada
+            di layar mana", dan sebelumnya ia berganti tanpa suara — tulisannya
+            tiba-tiba sudah lain, dan mata yang sedang membaca tabel di bawahnya
+            tidak punya alasan untuk kembali ke atas. Sekarang perubahannya
+            terlihat sebagai sebuah peristiwa.
+
+            `key` pada kodenya memaksa remount tiap ganti fungsi, jadi acakannya
+            dijamin jalan lagi dan bukan menumpang pada efek yang kebetulan
+            dijalankan ulang. */}
         {active && (
           <span className="hidden shrink-0 items-center gap-2 sm:flex">
-            <span className={cx('rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 font-mono text-[11px] font-bold', active.tone)}>
-              {active.code}
-            </span>
-            <span className="text-[11px] font-semibold text-slate-300">{active.name}</span>
+            <ScrambleText
+              key={`kode-${active.code}`}
+              text={active.code}
+              pemicu="segera"
+              jeda={34}
+              className={cx('rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 font-mono text-[11px] font-bold', active.tone)}
+            />
+            <ScrambleText
+              key={`nama-${active.code}`}
+              text={active.name}
+              pemicu="segera"
+              jeda={16}
+              tunda={90}
+              className="text-[11px] font-semibold text-slate-300"
+            />
           </span>
         )}
 

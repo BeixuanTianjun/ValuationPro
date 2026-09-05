@@ -108,7 +108,25 @@ export const ScrambleText: React.FC<{
       className={className}
       onMouseEnter={pemicu === 'hover' ? jalankan : undefined}
     >
-      <span aria-hidden="true">{tampil}</span>
+      {/* LEBARNYA DIPESAN OLEH TEKS AKHIRNYA, bukan oleh acakan yang sedang
+          berjalan. Di huruf proporsional, "W" dan "i" tidak selebar, jadi tiap
+          bingkai acakan mengubah lebar elemennya — dan di baris fungsi terminal
+          itu menggeser kotak perintah di sebelahnya maju-mundur selama setengah
+          detik tiap kali layarnya diganti. Salinan tak terlihat memesan kotaknya
+          sekali; lapisan yang mengacak mengambang di atasnya dan tidak pernah
+          ikut menentukan tata letak.
+
+          Pembungkus `relative` ada DI DALAM Tag, bukan menggantikan Tag: kalau
+          `inset-0` diukur terhadap Tag yang punya padding — lencana kode fungsi
+          punya — teksnya akan menempel ke tepi border, bukan ke dalam paddingnya. */}
+      <span className="relative inline-block align-baseline">
+        <span className="invisible" aria-hidden="true">
+          {text}
+        </span>
+        <span className="absolute inset-0 whitespace-pre" aria-hidden="true">
+          {tampil}
+        </span>
+      </span>
       <span className="sr-only">{text}</span>
     </Tag>
   );
